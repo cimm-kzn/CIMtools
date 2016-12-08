@@ -78,7 +78,7 @@ class Fragmentor(Propertyextractor):
 
         Propertyextractor.__init__(self, s_option)
 
-        self.__prepocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
+        self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
 
         self.__dragos_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 
@@ -166,10 +166,10 @@ class Fragmentor(Propertyextractor):
         outputfile = os.path.join(self.__workpath, "frg")
 
         reader = RDFread(structures) if self.__is_reaction else SDFread(structures)
-        data = list(reader.read())
-        structures.seek(0)  # ad-hoc for rereading
+        data = reader.read()
 
-        if self.__prepocess:
+        if self.__preprocess:
+            data = list(data)  # MEMORY EATER
             if self.__dragos_std:
                 data = self.__dragos_std.get(data)
 
@@ -225,6 +225,8 @@ class Fragmentor(Propertyextractor):
                     writers[0].write(s)
                     prop.append(self.get_property(s.graph['meta']))
                     doubles.append(s_numb)
+
+        structures.seek(0)  # ad-hoc for rereading
 
         tX, tD = [], []
 
