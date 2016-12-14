@@ -23,8 +23,7 @@
 import pandas as pd
 from io import StringIO
 from subprocess import Popen, PIPE, STDOUT
-from CGRtools.files.RDFrw import RDFread
-from CGRtools.files.SDFrw import SDFread, SDFwrite
+from CGRtools.files.SDFrw import SDFwrite
 from ..config import CXCALC
 from .descriptoragregator import Propertyextractor
 from ..structprepare import Pharmacophoreatommarker, StandardizeDragos, CGRatommarker
@@ -35,20 +34,18 @@ class Pkab(Propertyextractor):
                  cgr_reverse=False, is_reaction=False,
                  cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_stereo=False):
 
-        self.__is_reaction = is_reaction
         if is_reaction and not cgr_marker:
             raise Exception('only cgr marker can work with reactions')
 
         Propertyextractor.__init__(self, s_option)
 
-        self.__dragos_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
+        self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 
         self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
-        self.__dragos_std = StandardizeDragos(standardize) \
-            if standardize is not None and not self.__cgr_marker else None
+        self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
         self.__workpath = workpath
         self.__reverse = cgr_reverse
         self.__acid = acid
@@ -56,55 +53,57 @@ class Pkab(Propertyextractor):
 
     def setworkpath(self, workpath):
         self.__workpath = workpath
-        if self.__dragos_marker:
-            self.__dragos_marker.setworkpath(workpath)
+        if self.__phm_marker:
+            self.__phm_marker.setworkpath(workpath)
 
     def get(self, structures, **kwargs):
-        reader = RDFread(structures) if self.__is_reaction else SDFread(structures)
-        data = list(reader.read())
-        structures.seek(0)  # ad-hoc for rereading
-
         if self.__dragos_std:
-            data = self.__dragos_std.get(data)
+            structures = self.__dragos_std.get(structures)
 
-        if not data:
+        if not structures:
             return False
 
         if self.__cgr_marker:
-            data = self.__cgr_marker.get(data)
+            structures = self.__cgr_marker.get(structures)
 
-        elif self.__dragos_marker:
-            data = self.__dragos_marker.get(data)
+        elif self.__phm_marker:
+            structures = self.__phm_marker.get(structures)
 
-        if not data:
+        if not structures:
             return False
 
         prop = []
         doubles = []
+        used_str = []
 
         p = Popen([CXCALC] + 'pka -x 50 -i -50 -a 8 -b 8 -P dynamic -m micro'.split(),
                   stdout=PIPE, stdin=PIPE, stderr=STDOUT)
 
         with StringIO() as f:
             writer = SDFwrite(f)
-            for s_numb, s in enumerate(data):
+            for s_numb, s in enumerate(structures):
                 if self.__cgr_marker:
                     meta = s[0][0][1].graph['meta']
                     for d in s:
-                        tmp = [s_numb]
+                        tmp_d = [s_numb]
+                        tmp_s = []  # list of graphs with marked atoms
                         for x, y in d:
                             writer.write(y)
-                            tmp.append(x)
-                        prop.append(self.get_property(meta, marks=tmp[1:]))
-                        doubles.extend([tmp] * len(d))
-                elif self.__dragos_marker:
+                            tmp_d.append(x)
+                            tmp_s.append(y)
+                        prop.append(self.get_property(meta, marks=tmp_d[1:]))
+                        doubles.extend([tmp_d] * len(d))
+                        used_str.append(tmp_s)
+                elif self.__phm_marker:
                     writer.write(s[0][0][1])
                     prop.extend([self.get_property(d[0][1].graph['meta'], marks=[x[0] for x in d]) for d in s])
                     doubles.append([([s_numb] + [x[0] for x in d]) for d in s])
+                    used_str.extend([s[0][0][1]]*len(s))
                 else:
                     writer.write(s)
                     prop.append(self.get_property(s.graph['meta']))
                     doubles.append(s_numb)
+                    used_str.append(s)
 
             res = p.communicate(input=f.getvalue().encode())[0].decode()
 
@@ -120,10 +119,10 @@ class Pkab(Propertyextractor):
                                for v in [val[:8], val[8:]]])
 
             new_doubles = []
-            if self.__cgr_marker or self.__dragos_marker:
+            if self.__cgr_marker or self.__phm_marker:
                 old_k = None
                 for lk, v in zip(doubles, pk):
-                    for k in (lk if self.__dragos_marker else [lk]):
+                    for k in (lk if self.__phm_marker else [lk]):
                         if k == old_k:
                             if self.__base:
                                 new_doubles[-1][1].append(v[1].get(k[1 if self.__reverse else 2]))
@@ -139,9 +138,10 @@ class Pkab(Propertyextractor):
             X = pd.DataFrame([x[1] for x in new_doubles],
                              columns=(['pka'] if self.__acid else []) + (['pkb'] if self.__base else []))
 
-            res = dict(X=X, AD=-X.isnull().any(axis=1), Y=pd.Series(prop, name='Property'))
+            res = dict(X=X, AD=X.isnull().any(axis=1) ^ True, Y=pd.Series(prop, name='Property'),
+                       structures=used_str)  # todo: prepare structures
 
-            if self.__cgr_marker or self.__dragos_marker:
+            if self.__cgr_marker or self.__phm_marker:
                 i = pd.MultiIndex.from_tuples([x[0] for x in new_doubles], names=['structure', 'c.0', 'c.1'])
             else:
                 i = pd.Index(doubles, name='structure')

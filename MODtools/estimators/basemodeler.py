@@ -195,21 +195,21 @@ class BaseModel(object):
               '========================================' %
               (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
 
-        bestmodel = dict(model=None, Cr2=np.inf, Crmse=np.inf, Ckappa=np.inf, Cba=np.inf, Ciap=np.inf)
+        bestmodel = badmodel = dict(model=None, Cr2=np.inf, Crmse=np.inf, Ckappa=np.inf, Cba=np.inf, Ciap=np.inf)
         for param, md, di in zip(fitparams, maxdep, depindex):
-            var_kern_model = bestmodel
+            var_kern_model = badmodel
             while True:
-                var_param_model = bestmodel
+                var_param_model = badmodel
                 tmp = self.prepareparams(param)
                 for i in tmp:
                     fcount += 1
                     print('%d: fit model with params:' % fcount, i)
                     fittedmodel = self.__fit(i, self.__rep_boost)
                     print(self.__scorereporter % fittedmodel)
-                    if fittedmodel[self.__fitscore] <= var_param_model[self.__fitscore]:
+                    if fittedmodel[self.__fitscore] < var_param_model[self.__fitscore]:
                         var_param_model = fittedmodel
 
-                if var_param_model[self.__fitscore] <= var_kern_model[self.__fitscore]:
+                if var_param_model[self.__fitscore] < var_kern_model[self.__fitscore]:
                     var_kern_model = var_param_model
                     tmp = {}
                     for i, j in var_kern_model['params'].items():
@@ -222,7 +222,7 @@ class BaseModel(object):
                     param = tmp
                 else:
                     break
-            if var_kern_model[self.__fitscore] <= bestmodel[self.__fitscore]:
+            if var_kern_model[self.__fitscore] < bestmodel[self.__fitscore]:
                 bestmodel = var_kern_model
 
         if self.__repetitions > self.__rep_boost:

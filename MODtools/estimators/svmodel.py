@@ -20,15 +20,16 @@
 #
 from itertools import product
 from sklearn.svm import SVR, SVC
+from functools import partial
 from .basemodeler import BaseModel
 
 
 class SVModel(BaseModel):
     def __init__(self, descriptorgen, fitparams, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100,
                  dispcoef=0, fit='rmse', estimator='svr', probability=False, scorers=('rmse', 'r2'),
-                 normalize=False, n_jobs=2, **kwargs):
+                 normalize=False, n_jobs=2, max_iter=100000, **kwargs):
 
-        self.estimator = self.__estimators[estimator]
+        self.estimator = partial(self.__estimators[estimator], max_iter=max_iter)
         self.__estimator = estimator
         self.__probability = [probability]
         self.fitparams = fitparams

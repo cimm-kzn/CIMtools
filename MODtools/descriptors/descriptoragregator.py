@@ -46,7 +46,7 @@ class Descriptorchain(object):
 
     def get(self, structures, **kwargs):
         """
-        :param structures: opened structure file or stringio
+        :param structures: list of CGRtools data
         :param kwargs: generators specific arguments
         :return: dict(X=DataFrame, AD=Series, Y=Series, BOX=Series, structures=DataFrame)
         """
@@ -59,7 +59,6 @@ class Descriptorchain(object):
             for k, v in gen.get(structures, **kwargs).items():
                 res[k].append(v)
             res['BOX'].append(pd.Series(ad, index=res['X'][-1].columns))
-            structures.seek(0)
 
         res['X'] = reduce(merge_wrap, res['X'])
         res['AD'] = reduce(operator.and_, sorted(res['AD'], key=lambda x: len(x.index), reverse=True))
@@ -126,8 +125,7 @@ class Descriptorsdict(Propertyextractor):
         """
         extblock = []
         props = []
-        reader = RDFread(structures) if self.__is_reaction else SDFread(structures)
-        for i in reader.read():
+        for i in structures:
             meta = i['meta'] if self.__is_reaction else i.graph['meta']
             tmp = []
             for key, value in meta.items():
@@ -179,7 +177,6 @@ class Descriptorsdict(Propertyextractor):
     def get(self, structures=None, **kwargs):
         if kwargs.get('parsesdf'):
             extblock, prop = self.__parsefile(structures)
-            structures.seek(0)  # ad-hoc for rereading
 
         elif all(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extention):
             extblock = self.__parseadditions0(**kwargs)

@@ -23,17 +23,16 @@ import dill
 import gzip
 import os
 import subprocess as sp
-import sys
 import tempfile
 import threading
 import time
 from copy import deepcopy
+from collections import OrderedDict
 from functools import partial
 from itertools import product, cycle
 from sortedcontainers import SortedListWithKey
-from CGRtools.CGRcore import CGRcore
-from CGRtools.FEAR import FEAR
 from CGRtools.files.RDFrw import RDFread
+from CGRtools.files.SDFrw import SDFread
 from MODtools.config import GACONF
 from MODtools.descriptors.cxcalc import Pkab
 from MODtools.descriptors.descriptoragregator import Descriptorsdict, Descriptorchain
@@ -49,24 +48,77 @@ class DefaultList(list):
         return []
 
 
-def descstarter(func, in_file, out_file, fformat, header):
+def descstarter(func, in_file, out_file, fformat, header, is_reaction):
     with open(in_file) as f:
-        dsc = func(structures=f, parsesdf=True)
-        if dsc:
-            fformat(out_file, dsc['X'], dsc['Y'], header=header)
-        else:
-            print('BAD Descriptor generator params')
-            return False
-    return True
+        inp = list((RDFread(f) if is_reaction else SDFread(f)).read())
+
+    dsc = func(structures=inp, parsesdf=True)
+    if dsc:
+        fformat(out_file, dsc['X'], dsc['Y'], header=header)
+        return True
+
+    print('BAD Descriptor generator params')
+    return False
 
 
 class Modelbuilder(MBparser):
     def __init__(self, **kwargs):
         self.__options = kwargs
 
-        """ Descriptor generator Block
-        """
-        descgenerator = {}
+        if not self.__options['output'] and (not os.path.exists(self.__options['description'])
+                                             or os.path.isdir(self.__options['description'])):
+            raise Exception('path to model description file invalid')
+
+        description = self.parsemodeldescription(self.__options['description'])
+
+        if any(x not in description for x in ('nlim', 'name', 'example', 'description')):
+            raise Exception('Description Invalid')
+
+        description['type'] = 2 if self.__options['isreaction'] else 1
+
+        self.__description = description
+        self.__descriptors_config()
+
+    def run(self):
+        if not self.__options['output']:
+            if os.path.isdir(self.__options['model']) or \
+               (os.path.exists(self.__options['model']) and not os.access(self.__options['model'], os.W_OK)) or \
+               os.path.isdir(self.__options['model'] + '.save') or \
+               (os.path.exists(self.__options['model'] + '.save') and
+                    not (os.access(self.__options['model'] + '.save', os.W_OK) or
+                         self.__options['model'] + '.save' == self.__options['reload'])) or \
+               not os.access(os.path.dirname(self.__options['model']), os.W_OK):
+                print('path for model saving not writable')
+                return
+            self.prepare_estimators()
+            self.fit()
+        else:
+            self.__gendesc(self.__options['output'], fformat=self.__options['format'], header=True)
+
+    def prepare_estimators(self):
+        if self.__options['reload']:
+            ests = dill.load(gzip.open(self.__options['reload'], 'rb'))
+        else:
+            ests = []
+
+            svm = {'svr', 'svc'}.intersection(self.__options['estimator']).pop()
+            if svm:
+                estparams = self.__chkest(self.getsvmparam(self.__options['svm'])
+                                          if self.__options['svm'] else self.__dragossvmfit(svm))
+
+                if estparams:
+                    ests.append((partial(SVModel, estimator=svm, probability=self.__options['probability'],
+                                         max_iter=self.__options['max_iter']), estparams))
+            # todo: implement RF
+
+            dill.dump(ests, gzip.open(self.__options['model'] + '.save', 'wb'))
+        if not ests:
+            raise Exception('Estimators not configured')
+
+        self.__estimators = ests
+
+    def __descriptors_config(self):
+        descgenerator = OrderedDict()
         if self.__options['fragments']:
             descgenerator['F'] = [partial(Fragmentor, is_reaction=self.__options['isreaction'], **x)
                                   for x in self.parsefragmentoropts(self.__options['fragments'])]
@@ -85,104 +137,57 @@ class Modelbuilder(MBparser):
 
         if self.__options['chains']:
             if self.__options['ad'] and len(self.__options['ad']) != len(self.__options['chains']):
-                print('number of generators chains should be equal to number of ad modifiers')
-                return
+                raise Exception('number of generators chains should be equal to number of ad modifiers')
 
-            self.__descgens = []
+            descgens = []
             for ch, ad in zip(self.__options['chains'], self.__options['ad'] or cycle([None])):
                 gen_chain = [x for x in ch.split(':') if x in descgenerator]
                 if ad:
                     ad_marks = [x in ('y', 'Y', '1', 'True', 'true') for x in ad.split(':')]
                     if len(ad_marks) != len(gen_chain):
-                        print('length of generators chain should be equal to length of ad modifier')
-                        return
+                        raise Exception('length of generators chain should be equal to length of ad modifier')
                 else:
                     ad_marks = cycle([True])
 
-                ad_chain = {}
+                ad_chain = OrderedDict()
                 for k, v in zip(gen_chain, ad_marks):
                     ad_chain.setdefault(k, []).append(v)
 
                 combo = []
                 for k, v in ad_chain.items():
-                    if len(v) > 1:
-                        if len(descgenerator[k]) != len(v):
-                            print('length of same generators chain should be equal to number of same generators')
-                            return
-                        combo.append([list(zip(descgenerator[k], v))])
-                    else:
-                        combo.append(list(zip(descgenerator[k], cycle(v))))
-
-                self.__descgens.extend(
-                    [Descriptorchain(*[(g(), a) for gs in c
-                                       for g, a in (gs if isinstance(gs, list) else [gs])]) for c in product(*combo)])
+                    try:
+                        if len(v) > 1:
+                            if len(descgenerator[k]) != len(v):
+                                raise Exception('length of same generators chain should be equal '
+                                                'to number of same generators')
+                            combo.append([list(zip(descgenerator[k], v))])
+                        else:
+                            combo.append(list(zip(descgenerator[k], cycle(v))))
+                    except:
+                        raise Exception('Invalid chain. check configured descriptors generators')
+                descgens.extend([Descriptorchain(*[(g(), a) for gs in c
+                                 for g, a in (gs if isinstance(gs, list) else [gs])]) for c in product(*combo)])
         else:
-            self.__descgens = [g() for x in descgenerator.values() for g in x]
+            descgens = [g() for x in descgenerator.values() for g in x]
 
-        if not self.__options['output']:
-            if os.path.isdir(self.__options['model']) or \
-               (os.path.exists(self.__options['model']) and not os.access(self.__options['model'], os.W_OK)) or \
-               os.path.isdir(self.__options['model'] + '.save') or \
-               (os.path.exists(self.__options['model'] + '.save') and
-                    not (os.access(self.__options['model'] + '.save', os.W_OK) or
-                         self.__options['model'] + '.save' == self.__options['reload'])) or \
-               not os.access(os.path.dirname(self.__options['model']), os.W_OK):
-                print('path for model saving not writable')
-                return
+        if not descgens:
+            raise Exception('Descriptor generators not configured')
 
-            if self.__options['reload']:
-                ests, description, self.__descgens = dill.load(gzip.open(self.__options['reload'], 'rb'))
-            else:
-                if not os.path.exists(self.__options['description']) or os.path.isdir(self.__options['description']):
-                    print('path to model description file invalid')
-                    return
-
-                description = self.parsemodeldescription(self.__options['description'])
-
-                description['type'] = 2 if self.__options['isreaction'] else 1
-
-                ests = []
-                svm = {'svr', 'svc'}.intersection(self.__options['estimator']).pop()
-                # rf = {'rf'}.intersection(self.__options['estimator']).pop()
-                if svm:
-                    if self.__options['svm']:
-                        estparams = self.getsvmparam(self.__options['svm'])
-                    else:
-                        estparams = self.__dragossvmfit(svm)
-
-                    estparams = self.__chkest(estparams)
-                    if not estparams:
-                        return
-                    ests.append((partial(SVModel, estimator=svm, probability=self.__options['probability']),
-                                 estparams))
-                elif False:  # rf:  # todo: not implemented
-                    if self.__options['rf']:
-                        estparams = None
-                        estparams = self.__chkest(estparams)
-                        if not estparams:
-                            ests.append((lambda *va, **kwa: None, estparams))
-                    else:
-                        return
-
-                if not ests:
-                    return
-
-                dill.dump((ests, description, self.__descgens), gzip.open(self.__options['model'] + '.save', 'wb'))
-
-            self.fit(ests, description)
-        else:
-            self.__gendesc(self.__options['output'], fformat=self.__options['format'], header=True)
+        self.__descgens = descgens
 
     def __order(self, model):
         s = (1 if self.__options['fit'] == 'rmse' else -1) * model.getmodelstats()[self.__options['fit']]
         v = self.__options['dispcoef'] * model.getmodelstats()['%s_var' % self.__options['fit']]
         return s + v
 
-    def fit(self, ests, description):
+    def fit(self):
         models = SortedListWithKey(key=self.__order)
-        for g, e in ests:
+        with open(self.__options['input']) as f:
+            inp = list((RDFread(f) if self.__options['isreaction'] else SDFread(f)).read())
+
+        for g, e in self.__estimators:
             for x, y in zip(self.__descgens, e):
-                models.add(g(x, list(y.values()), open(self.__options['input']), parsesdf=True,
+                models.add(g(x, list(y.values()), inp, parsesdf=True,
                            dispcoef=self.__options['dispcoef'], fit=self.__options['fit'],
                            scorers=self.__options['scorers'],
                            n_jobs=self.__options['n_jobs'], nfold=self.__options['nfold'],
@@ -192,13 +197,14 @@ class Modelbuilder(MBparser):
                 if len(models) > self.__options['consensus']:
                     models.pop()
 
-        if 'tol' not in description:
-            description['tol'] = models[0].getmodelstats()['dragostolerance']
-        print('name', description['name'])
-        print('description', description['description'])
-        print('tol', description['tol'])
-        print('nlim', description.get('nlim'))
-        dill.dump(dict(models=models, config=description), gzip.open(self.__options['model'], 'wb'))
+        if 'tol' not in self.__description:
+            self.__description['tol'] = models[0].getmodelstats()['dragostolerance']
+
+        print('name', self.__description['name'])
+        print('description', self.__description['description'])
+        print('tol', self.__description['tol'])
+        print('nlim', self.__description.get('nlim'))
+        dill.dump(dict(models=models, config=self.__description), gzip.open(self.__options['model'], 'wb'))
 
     def __chkest(self, estimatorparams):
         if not estimatorparams or 1 < len(estimatorparams) < len(self.__descgens) or \
@@ -227,7 +233,8 @@ class Modelbuilder(MBparser):
                     dgen.setworkpath(subworkpath)
                     t = threading.Thread(target=descstarter,
                                          args=[dgen.get, self.__options['input'], '%s.%d' % (output, n),
-                                               (self.savesvm if fformat == 'svm' else self.savecsv), header])
+                                               (self.savesvm if fformat == 'svm' else self.savecsv), header,
+                                               self.__options['isreaction']])
                     t.start()
                 else:
                     while threading.active_count() > 1:
@@ -249,7 +256,9 @@ class Modelbuilder(MBparser):
             if sp.call(execparams) == 0:
                 best = {}
                 with open(os.path.join(dragos_work, 'best_pop')) as f:
-                    for line in f:
+                    for n, line in enumerate(f):
+                        if n == self.__options['best_pop']:
+                            break  # get only first n's params.
                         dset, normal, *_, attempt, _, _ = line.split()
                         best.setdefault(int(dset[5:]), (normal, attempt))
 
@@ -320,6 +329,7 @@ def argparser():
     rawopts.add_argument("--estimator", "-E", action='append', type=str, default=DefaultList(['svr']),
                          choices=['svr', 'svc'],
                          help="estimator")
+    rawopts.add_argument("--max_iter", "-M", type=int, default=100000, help="number of iterations in SVM solver")
     rawopts.add_argument("--probability", "-P", action='store_true', help="estimates probability in SVC")
 
     rawopts.add_argument("--scorers", "-T", action='append', type=str, default=DefaultList(['rmse', 'r2']),
@@ -334,9 +344,11 @@ def argparser():
     rawopts.add_argument("--normalize", "-N", action='store_true', help="normalize X vector to range(0, 1)")
 
     rawopts.add_argument("--consensus", "-C", type=int, default=10, help="number of models for consensus")
+    rawopts.add_argument("--best_pop", "-bp", type=int, default=20, help="number of models from bet_pop")
 
     return vars(rawopts.parse_args())
 
 
 if __name__ == '__main__':
     main = Modelbuilder(**argparser())
+    main.run()

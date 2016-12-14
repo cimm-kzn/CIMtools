@@ -19,87 +19,63 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import operator
 import pandas as pd
-from functools import reduce
 from io import StringIO
 from subprocess import Popen, PIPE
-from CGRtools.files.RDFrw import RDFread
-from CGRtools.files.SDFrw import SDFread, SDFwrite
+from CGRtools.files.SDFrw import SDFwrite
+from .basegenerator import BaseGenerator
 from ..config import EED
-from .descriptoragregator import Propertyextractor
 from ..structprepare import Pharmacophoreatommarker, StandardizeDragos, CGRatommarker
 
 
-class Eed(Propertyextractor):
+class Eed(BaseGenerator):
     def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, cgr_reverse=False,
                  cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_stereo=False,
                  is_reaction=False):
 
-        self.__is_reaction = is_reaction
         if is_reaction and not cgr_marker:
             raise Exception('only cgr marker can work with reactions')
 
-        Propertyextractor.__init__(self, s_option)
-        self.__dragos_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
+        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option, is_reaction=is_reaction)
+
+        self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 
         self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
-        self.__dragos_std = StandardizeDragos(standardize) \
-            if standardize is not None and not self.__cgr_marker else None
-        self.__workpath = workpath
+        self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
+
+        self.markers = self.__cgr_marker.getcount() if cgr_marker else \
+            self.__phm_marker.getcount() if marker_rules else None
+        self.__workfiles = self.markers or 1
 
     def setworkpath(self, workpath):
-        self.__workpath = workpath
-        if self.__dragos_marker:
-            self.__dragos_marker.setworkpath(workpath)
+        BaseGenerator.setworkpath(self, workpath)
+        if self.__phm_marker:
+            self.__phm_marker.setworkpath(workpath)
 
-    def get(self, structures, **kwargs):
-        reader = RDFread(structures) if self.__is_reaction else SDFread(structures)
-        data = list(reader.read())
-        structures.seek(0)  # ad-hoc for rereading
-
+    def prepare(self, structures, **kwargs):
         if self.__dragos_std:
-            data = self.__dragos_std.get(data)
+            structures = self.__dragos_std.get(structures)
 
-        if not data:
+        if not structures:
             return False
 
         if self.__cgr_marker:
-            data = self.__cgr_marker.get(data)
+            structures = self.__cgr_marker.get(structures)
+        elif self.__phm_marker:
+            structures = self.__phm_marker.get(structures)
 
-        elif self.__dragos_marker:
-            data = self.__dragos_marker.get(data)
-
-        if not data:
+        if not structures:
             return False
 
-        prop = []
-        doubles = []
-
-        workfiles = [StringIO() for _ in range(self.__cgr_marker.getcount() if self.__cgr_marker
-                                               else self.__dragos_marker.getcount() if self.__dragos_marker else 1)]
+        workfiles = [StringIO() for _ in range(self.__workfiles)]
         writers = [SDFwrite(x, mark_to_map=True) for x in workfiles]
 
-        for s_numb, s in enumerate(data):
-            if isinstance(s, list):
-                meta = s[0][0][1].graph['meta']
-                for d in s:  # d = ((n1, tmp1), (n2, tmp2), ...)
-                    tmp = [s_numb]
-                    for w, (x, y) in zip(writers, d):
-                        w.write(y)
-                        tmp.append(x)
-                    prop.append(self.get_property(meta, marks=tmp[1:]))
-                    doubles.append(tmp)
-            else:
-                writers[0].write(s)
-                prop.append(self.get_property(s.graph['meta']))
-                doubles.append(s_numb)
+        prop, doubles, used_str = self.write_prepared(structures, writers)
 
         tX, tD = [], []
-
         for n, workfile in enumerate(workfiles):
             p = Popen([EED], stdout=PIPE, stdin=PIPE)
             res = p.communicate(input=workfile.getvalue().encode())[0].decode()
@@ -111,16 +87,7 @@ class Eed(Propertyextractor):
             tX.append(X)
             tD.append(D)
 
-        res = dict(X=pd.concat(tX, axis=1, keys=range(len(tX))), AD=reduce(operator.and_, tD),
-                   Y=pd.Series(prop, name='Property'))
-
-        if self.__cgr_marker or self.__dragos_marker:
-            i = pd.MultiIndex.from_tuples(doubles, names=['structure'] + ['c.%d' % x for x in range(len(workfiles))])
-        else:
-            i = pd.Index(doubles, name='structure')
-
-        res['X'].index = res['AD'].index = res['Y'].index = i
-        return res
+        return tX, prop, tD, doubles, used_str
 
     @staticmethod
     def __parseeedoutput(output):
