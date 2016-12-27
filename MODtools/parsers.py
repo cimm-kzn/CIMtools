@@ -24,6 +24,7 @@ import argparse
 import pandas as pd
 from copy import deepcopy
 from .estimators.kernels import tanimoto_kernel
+from .version import version
 
 
 class MBparser(object):
@@ -200,6 +201,7 @@ def argparser():
     rawopts = argparse.ArgumentParser(description="Model Builder",
                                       epilog="Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>",
                                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    rawopts.add_argument("--version", "-v", action="version", version=version(), default=False)
     rawopts.add_argument("--workpath", "-w", type=str, default='.', help="work path")
 
     rawopts.add_argument("--input", "-i", type=str, default='input.sdf', help="input SDF or RDF")

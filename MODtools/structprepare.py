@@ -23,6 +23,7 @@ import networkx as nx
 import os
 import xml.etree.ElementTree as ET
 from io import StringIO
+from requests import post
 from itertools import product
 from operator import itemgetter
 from subprocess import Popen, PIPE, STDOUT, call
@@ -30,9 +31,24 @@ from CGRtools.CGRpreparer import CGRbalanser, CGRcombo
 from CGRtools.CGRreactor import CGRreactor
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFread, SDFwrite
-from .config import PMAPPER, STANDARDIZER, COLOR
-from .utils import chemaxpost
+from .config import PMAPPER, STANDARDIZER, COLOR, CHEMAXON
 from . import remove_namespace
+
+
+def chemaxpost(url, data):
+    for _ in range(2):
+        try:
+            q = post("%s/rest-v0/util/%s" % (CHEMAXON, url), data=json.dumps(data),
+                     headers={'content-type': 'application/json'}, timeout=20)
+        except:
+            continue
+        else:
+            if q.status_code in (201, 200):
+                return q.json()
+            else:
+                continue
+    else:
+        return False
 
 
 class StandardizeDragos(object):

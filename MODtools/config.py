@@ -20,23 +20,18 @@
 #
 from os import path
 
-# dynamic
-SERVER = "https://cimm.kpfu.ru"
-PORTAL_BASE = ''
-
-CHEMAXON = "%s/webservices" % SERVER
+CHEMAXON = "https://cimm.kpfu.ru/webservices"
 JCHEMBIN = '/opt/JChem/bin'
 FRAGMENTOR = '/opt/fragmentor/fragmentor'
 EED = '/opt/dragos/eedstart.sh'
 COLOR = '/opt/dragos/colorstart.sh'
 GACONF = '/opt/dragos/gaconfstarter.sh'
 
+config_list = ('CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR', 'EED', 'COLOR', 'GACONF')
 
 if not path.exists(path.join(path.dirname(__file__), "config.ini")):
     with open(path.join(path.dirname(__file__), "config.ini"), 'w') as f:
-        f.write('\n'.join('%s = %s' % (x, y) for x, y in globals().items()
-                          if x in ('SERVER', 'PORTAL_BASE', 'CHEMAXON', 'JCHEMBIN',
-                                   'FRAGMENTOR', 'EED', 'COLOR', 'GACONF')))
+        f.write('\n'.join('%s = %s' % (x, y) for x, y in globals().items() if x in config_list))
 
 with open(path.join(path.dirname(__file__), "config.ini")) as f:
     for line in f:
@@ -44,7 +39,7 @@ with open(path.join(path.dirname(__file__), "config.ini")) as f:
             k, v = line.split('=')
             k = k.strip()
             v = v.strip()
-            if k in ('SERVER', 'PORTAL_BASE', 'CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR', 'EED', 'COLOR', 'GACONF'):
+            if k in config_list:
                 globals()[k] = int(v) if v.isdigit() else v
         except:
             pass
@@ -56,5 +51,3 @@ CXCALC = path.join(JCHEMBIN, 'cxcalc')
 REACTOR = path.join(JCHEMBIN, 'react')
 JCSEARCH = path.join(JCHEMBIN, 'jcsearch')
 PMAPPER = path.join(JCHEMBIN, 'pmapper')
-
-PREDICTOR = SERVER + PORTAL_BASE

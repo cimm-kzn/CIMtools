@@ -36,7 +36,7 @@ class Eed(BaseGenerator):
         if is_reaction and not cgr_marker:
             raise Exception('only cgr marker can work with reactions')
 
-        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option, is_reaction=is_reaction)
+        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
 
         self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 

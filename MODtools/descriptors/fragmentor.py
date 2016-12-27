@@ -23,7 +23,6 @@ import subprocess as sp
 import sys
 import pandas as pd
 from itertools import tee
-from sklearn.feature_extraction import DictVectorizer
 from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.files.SDFrw import SDFwrite
 from .basegenerator import BaseGenerator
@@ -71,7 +70,9 @@ class Fragmentor(BaseGenerator):
         if is_reaction and not (cgr_type or cgr_marker):
             raise Exception('only cgr or cgr marker can work with reactions')
 
-        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option, is_reaction=is_reaction)
+        self.__is_reaction = is_reaction
+
+        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
 
         self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
 
@@ -93,8 +94,6 @@ class Fragmentor(BaseGenerator):
             self.__phm_marker.getcount() if marker_rules else None
 
         self.__workfiles = self.markers or 1
-
-        self.__sparse = DictVectorizer(sparse=False)
 
         self.__headdump = {}
         self.__headsize = {}
@@ -164,7 +163,7 @@ class Fragmentor(BaseGenerator):
                 structures = self.__dragos_std.get(structures)
 
             if self.__do_color:
-                if self.is_reaction:
+                if self.__is_reaction:
                     for i in ('substrats', 'products'):
                         mols, shifts = [], [0]
                         for x in structures:

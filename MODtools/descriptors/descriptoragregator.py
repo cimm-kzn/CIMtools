@@ -23,8 +23,6 @@ import operator
 import pandas as pd
 from collections import defaultdict
 from functools import reduce
-from CGRtools.files.SDFrw import SDFread
-from CGRtools.files.RDFrw import RDFread
 
 
 class Descriptorchain(object):
@@ -93,9 +91,8 @@ class Propertyextractor(object):
 
 
 class Descriptorsdict(Propertyextractor):
-    def __init__(self, data=None, s_option=None, is_reaction=False, ):
+    def __init__(self, data=None, s_option=None):
         Propertyextractor.__init__(self, s_option)
-        self.__is_reaction = is_reaction
         self.__extention = data
         self.__extheader = self.__prepareextheader(data)
 
@@ -126,9 +123,8 @@ class Descriptorsdict(Propertyextractor):
         extblock = []
         props = []
         for i in structures:
-            meta = i['meta'] if self.__is_reaction else i.graph['meta']
             tmp = []
-            for key, value in meta.items():
+            for key, value in i.meta.items():
                 if key in self.__extention:
                     data = self.__extention[key]['value'].loc[self.__extention[key]['key'] == value] if \
                         self.__extention[key] else pd.DataFrame([{key: float(value)}])
@@ -137,7 +133,7 @@ class Descriptorsdict(Propertyextractor):
                         tmp.append(data)
             extblock.append(pd.concat(tmp, axis=1) if tmp else pd.DataFrame([{}]))
 
-            props.append(self.get_property(meta))
+            props.append(self.get_property(i.meta))
 
         res = pd.DataFrame(pd.concat(extblock), columns=self.__extheader)
         res.index = pd.Index(range(len(res.index)), name='structure')

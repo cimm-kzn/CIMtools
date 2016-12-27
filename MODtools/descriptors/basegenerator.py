@@ -26,10 +26,9 @@ from .descriptoragregator import Propertyextractor
 
 
 class BaseGenerator(Propertyextractor):
-    def __init__(self, workpath='.', s_option=None, is_reaction=False):
+    def __init__(self, workpath='.', s_option=None):
         Propertyextractor.__init__(self, s_option)
 
-        self.is_reaction = is_reaction
         self.workpath = workpath
 
     def setworkpath(self, workpath):
@@ -60,7 +59,7 @@ class BaseGenerator(Propertyextractor):
         used_str = []
         for s_numb, s in enumerate(structures):
             if isinstance(s, list):
-                meta = s[0][0][1].graph['meta']
+                meta = s[0][0][1].meta
                 for d in s:  # d = ((n1, tmp1), (n2, tmp2), ...)
                     tmp_d = [s_numb]
                     tmp_s = []  # list of graphs with marked atoms
@@ -73,7 +72,7 @@ class BaseGenerator(Propertyextractor):
                     used_str.append(tmp_s)
             else:
                 writers[0].write(s)
-                prop.append(self.get_property(s.graph['meta']))
+                prop.append(self.get_property(s.meta))
                 doubles.append(s_numb)
                 used_str.append(s)
 

@@ -83,7 +83,7 @@ class Pkab(Propertyextractor):
             writer = SDFwrite(f)
             for s_numb, s in enumerate(structures):
                 if self.__cgr_marker:
-                    meta = s[0][0][1].graph['meta']
+                    meta = s[0][0][1].meta
                     for d in s:
                         tmp_d = [s_numb]
                         tmp_s = []  # list of graphs with marked atoms
@@ -96,12 +96,12 @@ class Pkab(Propertyextractor):
                         used_str.append(tmp_s)
                 elif self.__phm_marker:
                     writer.write(s[0][0][1])
-                    prop.extend([self.get_property(d[0][1].graph['meta'], marks=[x[0] for x in d]) for d in s])
+                    prop.extend([self.get_property(d[0][1].meta, marks=[x[0] for x in d]) for d in s])
                     doubles.append([([s_numb] + [x[0] for x in d]) for d in s])
                     used_str.extend([s[0][0][1]]*len(s))
                 else:
                     writer.write(s)
-                    prop.append(self.get_property(s.graph['meta']))
+                    prop.append(self.get_property(s.meta))
                     doubles.append(s_numb)
                     used_str.append(s)
 
