@@ -27,7 +27,7 @@ from requests import post
 from itertools import product
 from operator import itemgetter
 from subprocess import Popen, PIPE, STDOUT, call
-from CGRtools.CGRpreparer import CGRbalanser, CGRcombo
+from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.CGRreactor import CGRreactor
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFread, SDFwrite
@@ -78,8 +78,7 @@ class StandardizeDragos(object):
             res = p.communicate(input=f.getvalue().encode())[0].decode()
 
         if p.returncode == 0:
-            with StringIO(res) as f:
-                return list(SDFread(f).read())
+            return SDFread(res).read()
         return False
 
     def __processor_s(self, structure):
@@ -93,8 +92,7 @@ class StandardizeDragos(object):
         if res:
             res = json.loads(res)
             if 'isReaction' not in res:
-                with StringIO(res['structure']) as f:
-                    return list(SDFread(f).read())
+                return SDFread(StringIO(res['structure'])).read()
         return False
 
     def get(self, structure):
@@ -210,7 +208,7 @@ class CGRatommarker(CGRcombo, CGRreactor):
     @staticmethod
     def __dumppatterns(patterns):
         with patterns as f:
-            templates = CGRbalanser.get_templates(f)
+            templates = CGRreactor.get_templates(f)
             marks = len(templates[0]['products'])
         return templates, marks
 
@@ -228,7 +226,7 @@ class CGRatommarker(CGRcombo, CGRreactor):
         if res:
             res = json.loads(res)
             if 'isReaction' in res:
-                return list(RDFread(StringIO(res['structure'])).read(remap=remap))
+                return RDFread(StringIO(res['structure']), remap=remap).read()
         return False
 
     @staticmethod
@@ -241,7 +239,7 @@ class CGRatommarker(CGRcombo, CGRreactor):
 
             res = p.communicate(input=f.getvalue().encode())[0].decode()
             if p.returncode == 0:
-                return list(RDFread(StringIO(res)).read(remap=remap))
+                return RDFread(StringIO(res), remap=remap).read()
         return False
 
     def get(self, structure):
@@ -251,7 +249,7 @@ class CGRatommarker(CGRcombo, CGRreactor):
             if not structure:
                 return False
 
-        _patterns = self.searchtemplate(self.__templates, speed=False)  # ad_hoc for pickle
+        _patterns = self.get_template_searcher(self.__templates, speed=False)  # ad_hoc for pickle
 
         markslist = []
         gs = [self.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
@@ -319,7 +317,7 @@ class Colorize(object):
 
         if call([COLOR, self.__input_file, self.__out_file, self.__std_file]) == 0:
             with open(self.__out_file) as f:
-                res = list(SDFread(f).read(remap=False))
+                res = SDFread(f, remap=False).read()
                 if res:
                     return res
         return False

@@ -123,6 +123,8 @@ class MBparser(object):
 
             if svm:
                 res.append(svm)
+        if not res:
+            raise Exception('Incorrect SVM config files')
         return res
 
     @staticmethod
@@ -239,6 +241,8 @@ def argparser():
                               "(number of files should be equal to number of configured descriptor generators) "
                               "or single for all")
 
+    rawopts.add_argument("--ga_maxconfigs", "-gg", type=int, default=3000,
+                         help="number of generations in Dragos Genetic SVM optimizer")
     rawopts.add_argument("--nfold", "-n", type=int, default=5, help="number of folds")
     rawopts.add_argument("--repetition", "-r", type=int, default=1, help="number of repetitions")
     rawopts.add_argument("--rep_boost", "-R", type=int, default=25,

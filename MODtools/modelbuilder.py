@@ -45,7 +45,7 @@ from .parsers import MBparser
 
 def descstarter(func, in_file, out_file, fformat, header, is_reaction):
     with open(in_file) as f:
-        inp = list((RDFread(f) if is_reaction else SDFread(f)).read())
+        inp = (RDFread(f) if is_reaction else SDFread(f)).read()
 
     dsc = func(structures=inp, parsesdf=True)
     if dsc:
@@ -58,21 +58,18 @@ def descstarter(func, in_file, out_file, fformat, header, is_reaction):
 
 class Modelbuilder(MBparser):
     def __init__(self, **kwargs):
-        self.__options = kwargs
-
-        if not self.__options['output'] and (not os.path.exists(self.__options['description'])
-                                             or os.path.isdir(self.__options['description'])):
+        if not kwargs['output'] and (not os.path.exists(kwargs['description']) or os.path.isdir(kwargs['description'])):
             raise Exception('path to model description file invalid')
 
-        description = self.parsemodeldescription(self.__options['description'])
-
+        description = self.parsemodeldescription(kwargs['description'])
+        description['type'] = 2 if kwargs['isreaction'] else 1
         if any(x not in description for x in ('nlim', 'name', 'example', 'description')):
             raise Exception('Description Invalid')
 
-        description['type'] = 2 if self.__options['isreaction'] else 1
-
+        self.__options = kwargs
         self.__description = description
-        self.__descriptors_config()
+        self.__descgens = self.__descriptors_config(kwargs)
+        self.__estimators = []
 
     def run(self):
         if not self.__options['output']:
@@ -91,50 +88,60 @@ class Modelbuilder(MBparser):
             self.__gendesc(self.__options['output'], fformat=self.__options['format'], header=True)
 
     def prepare_estimators(self):
+        svm = {'svr', 'svc'}.intersection(self.__options['estimator']).pop()
+        rf = False  # todo: implement RF
         if self.__options['reload']:
-            ests = dill.load(gzip.open(self.__options['reload'], 'rb'))
-        else:
-            ests = []
-
-            svm = {'svr', 'svc'}.intersection(self.__options['estimator']).pop()
+            tmp = dill.load(gzip.open(self.__options['reload'], 'rb'))
+            self.__clean_descgens(tmp['descgens'])
             if svm:
-                estparams = self.__chkest(self.getsvmparam(self.__options['svm'])
-                                          if self.__options['svm'] else self.__dragossvmfit(svm))
+                est_svm_params = tmp['svm']
+        else:
+            for_save = dict(descgens=list(range(len(self.__descgens))))
+            if svm:
+                if not self.__options['svm']:
+                    svm_cfg, cleared = self.__dragossvmfit(svm)
+                    self.__clean_descgens(cleared)
+                    for_save['descgens'] = cleared
+                else:
+                    svm_cfg = self.getsvmparam(self.__options['svm'])
 
-                if estparams:
-                    ests.append((partial(SVModel, estimator=svm, probability=self.__options['probability'],
-                                         max_iter=self.__options['max_iter']), estparams))
-            # todo: implement RF
+                est_svm_params = self.__chkest(svm_cfg)
+                for_save['svm'] = est_svm_params
 
-            dill.dump(ests, gzip.open(self.__options['model'] + '.save', 'wb'))
-        if not ests:
-            raise Exception('Estimators not configured')
+            ''' save configuration
+            '''
+            dill.dump(for_save, gzip.open(self.__options['model'] + '.save', 'wb'))
+            ''' end save
+            '''
 
-        self.__estimators = ests
+        if svm:
+            self.__estimators.append((partial(SVModel, estimator=svm, probability=self.__options['probability'],
+                                      max_iter=self.__options['max_iter']), est_svm_params))
 
-    def __descriptors_config(self):
+    @staticmethod
+    def __descriptors_config(options):
         descgenerator = OrderedDict()
-        if self.__options['fragments']:
-            descgenerator['F'] = [partial(Fragmentor, is_reaction=self.__options['isreaction'], **x)
-                                  for x in self.parsefragmentoropts(self.__options['fragments'])]
+        if options['fragments']:
+            descgenerator['F'] = [partial(Fragmentor, is_reaction=options['isreaction'], **x)
+                                  for x in MBparser.parsefragmentoropts(options['fragments'])]
 
-        if self.__options['extention']:
-            descgenerator['E'] = [partial(Descriptorsdict, **self.parseext(self.__options['extention']))]
+        if options['extention']:
+            descgenerator['E'] = [partial(Descriptorsdict, **MBparser.parseext(options['extention']))]
 
-        if self.__options['eed']:
-            descgenerator['D'] = [partial(Eed, is_reaction=self.__options['isreaction'], **x)
-                                  for x in self.parsefragmentoropts(self.__options['eed'])]
+        if options['eed']:
+            descgenerator['D'] = [partial(Eed, is_reaction=options['isreaction'], **x)
+                                  for x in MBparser.parsefragmentoropts(options['eed'])]
 
-        if self.__options['pka']:
-            descgenerator['P'] = [partial(Pkab, is_reaction=self.__options['isreaction'], **x)
-                                  for x in self.parsefragmentoropts(self.__options['pka'])]
+        if options['pka']:
+            descgenerator['P'] = [partial(Pkab, is_reaction=options['isreaction'], **x)
+                                  for x in MBparser.parsefragmentoropts(options['pka'])]
 
-        if self.__options['chains']:
-            if self.__options['ad'] and len(self.__options['ad']) != len(self.__options['chains']):
+        if options['chains']:
+            if options['ad'] and len(options['ad']) != len(options['chains']):
                 raise Exception('number of generators chains should be equal to number of ad modifiers')
 
             descgens = []
-            for ch, ad in zip(self.__options['chains'], self.__options['ad'] or cycle([None])):
+            for ch, ad in zip(options['chains'], options['ad'] or cycle([None])):
                 gen_chain = [x for x in ch.split(':') if x in descgenerator]
                 if ad:
                     ad_marks = [x in ('y', 'Y', '1', 'True', 'true') for x in ad.split(':')]
@@ -167,7 +174,7 @@ class Modelbuilder(MBparser):
         if not descgens:
             raise Exception('Descriptor generators not configured')
 
-        self.__descgens = descgens
+        return descgens
 
     def __order(self, model):
         s = (1 if self.__options['fit'] == 'rmse' else -1) * model.getmodelstats()[self.__options['fit']]
@@ -177,7 +184,7 @@ class Modelbuilder(MBparser):
     def fit(self):
         models = SortedListWithKey(key=self.__order)
         with open(self.__options['input']) as f:
-            inp = list((RDFread(f) if self.__options['isreaction'] else SDFread(f)).read())
+            inp = (RDFread(f) if self.__options['isreaction'] else SDFread(f)).read()
 
         for g, e in self.__estimators:
             for x, y in zip(self.__descgens, e):
@@ -205,7 +212,7 @@ class Modelbuilder(MBparser):
                         len(estimatorparams) > len(self.__descgens):
             print('NUMBER of estimator params files SHOULD BE EQUAL to '
                   'number of descriptor generator params files or to 1')
-            return False
+            raise Exception('SVM estimators not configured')
 
         if len(estimatorparams) == 1:
             tmp = []
@@ -245,29 +252,31 @@ class Modelbuilder(MBparser):
         files = os.path.join(workpath, 'drag')
         dragos_work = os.path.join(workpath, 'work')
 
-        execparams = [GACONF, workpath, tasktype]
+        execparams = [GACONF, workpath, tasktype, str(self.__options['ga_maxconfigs']),
+                      str(self.__options['repetition']), str(self.__options['nfold'])]
         if self.__gendesc(files):
             if sp.call(execparams) == 0:
                 best = {}
                 with open(os.path.join(dragos_work, 'best_pop')) as f:
                     for n, line in enumerate(f):
-                        if n == self.__options['best_pop']:
+                        if len(best) == self.__options['best_pop']:
                             break  # get only first n's params.
                         dset, normal, *_, attempt, _, _ = line.split()
                         best.setdefault(int(dset[5:]), (normal, attempt))
 
                 cleared, svmpar, scale = [], [], []
                 for k, (nv, av) in best.items():
-                    cleared.append(self.__descgens[k - 1])
+                    cleared.append(k - 1)
                     svmpar.append(os.path.join(dragos_work, av, 'svm.pars'))
                     scale.append(nv)
-
-                self.__descgens = cleared
 
                 svm = []
                 svmpar = self.getsvmparam(svmpar)
                 if len(svmpar) == len(scale):
                     for x, y in zip(svmpar, scale):
                         svm.append({'scale' if y == 'scaled' else 'orig': list(x.values())[0]})
-                    return svm
-        return []
+                    return svm, cleared
+        raise Exception('GAConf failed')
+
+    def __clean_descgens(self, select):
+        self.__descgens = [self.__descgens[x] for x in select]
