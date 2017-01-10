@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of MODtools.
+#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of MODtools.
 #
-# MODtools is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+#  MODtools is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
 #
@@ -183,15 +183,14 @@ class Pharmacophoreatommarker(object):
 
 class CGRatommarker(CGRcombo, CGRreactor):
     def __init__(self, patterns, prepare=None, postprocess=None, reverse=False,
-                 b_templates=None, m_templates=None, speed=False, extralabels=False, isotop=False, element=True, deep=0,
+                 b_templates=None, m_templates=None, extralabels=False, isotope=False, element=True, deep=0,
                  stereo=False):
 
-        CGRreactor.__init__(self, stereo=stereo, hyb=extralabels, neighbors=extralabels, isotop=isotop, element=element,
-                            deep=deep)
+        CGRreactor.__init__(self, stereo=stereo, hyb=extralabels, neighbors=extralabels, isotope=isotope,
+                            element=element, deep=deep)
 
-        CGRcombo.__init__(self, cgr_type='0',
-                          extralabels=extralabels, isotop=isotop, element=element, deep=deep, stereo=stereo,
-                          b_templates=b_templates, m_templates=m_templates, speed=speed)
+        CGRcombo.__init__(self, cgr_type='0', extralabels=extralabels, isotope=isotope, element=element, deep=deep,
+                          stereo=stereo, b_templates=b_templates, m_templates=m_templates)
 
         self.__stdprerules = self.__dumprules(prepare)
         self.__stdpostrules = self.__dumprules(postprocess)
@@ -249,7 +248,7 @@ class CGRatommarker(CGRcombo, CGRreactor):
             if not structure:
                 return False
 
-        _patterns = self.get_template_searcher(self.__templates, speed=False)  # ad_hoc for pickle
+        _patterns = self.get_template_searcher(self.__templates)  # ad_hoc for pickle
 
         markslist = []
         gs = [self.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
@@ -267,12 +266,12 @@ class CGRatommarker(CGRcombo, CGRreactor):
 
         output = []
         for s, marks in zip((structure if isinstance(structure, list) else [structure]), markslist):
-            ss = nx.union_all(s['products'] if self.__reverse else s['substrats'])
-            ss.graph['meta'] = s['meta'].copy()
+            ss = nx.union_all(s.products if self.__reverse else s.substrats)
+            ss.meta.update(s.meta)
             ps = []
-            for x in (s['products'] if self.__reverse else s['substrats']):
+            for x in (s.products if self.__reverse else s.substrats):
                 tmp = x.copy()
-                tmp.graph['meta'] = s['meta'].copy()
+                tmp.meta.update(s.meta)
                 ps.append(tmp)
 
             result = []

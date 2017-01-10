@@ -1,11 +1,9 @@
-#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
-#  MODtools 
-#  is free software; you can redistribute it and/or modify
+#  MODtools is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -48,7 +46,7 @@ def descstarter(func, in_file, out_file, fformat, header, is_reaction):
         inp = (RDFread(f) if is_reaction else SDFread(f)).read()
 
     dsc = func(structures=inp, parsesdf=True)
-    if dsc:
+    if dsc and not (dsc['X'].isnull().values.any() or dsc['Y'].isnull().any()):
         fformat(out_file, dsc['X'], dsc['Y'], header=header)
         return True
 

@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of MODtools.
+#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of MODtools.
 #
-# MODtools is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+#  MODtools is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+#  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
@@ -64,8 +64,8 @@ class Fragmentor(BaseGenerator):
                  atompairs=False, fragmentstrict=False, getatomfragment=False, overwrite=True, header=None,
                  marker_rules=None, standardize=None, docolor=None,
                  cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_reverse=False,
-                 cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None, cgr_speed=None,
-                 cgr_isotop=False, cgr_element=True, cgr_deep=0, cgr_stereo=False, is_reaction=False):
+                 cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
+                 cgr_isotope=False, cgr_element=True, cgr_deep=0, cgr_stereo=False, is_reaction=False):
 
         if is_reaction and not (cgr_type or cgr_marker):
             raise Exception('only cgr or cgr marker can work with reactions')
@@ -79,9 +79,8 @@ class Fragmentor(BaseGenerator):
         self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 
         self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels,
-                              isotop=cgr_isotop, element=cgr_element, deep=cgr_deep, stereo=cgr_stereo,
-                              b_templates=cgr_b_templates, m_templates=cgr_m_templates,
-                              speed=cgr_speed) if cgr_type else None
+                              isotope=cgr_isotope, element=cgr_element, deep=cgr_deep, stereo=cgr_stereo,
+                              b_templates=cgr_b_templates, m_templates=cgr_m_templates) if cgr_type else None
 
         self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
                                           postprocess=cgr_marker_postprocess,
