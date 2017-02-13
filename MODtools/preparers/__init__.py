@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -19,10 +18,21 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from MODtools.parsers import argparser
-from MODtools.modelbuilder import ModelBuilder
+from requests import post
+from ..config import CHEMAXON
 
 
-if __name__ == '__main__':
-    main = ModelBuilder(**argparser())
-    main.run()
+def chemax_post(url, data):
+    for _ in range(2):
+        try:
+            q = post("%s/rest-v0/util/%s" % (CHEMAXON, url), data=json.dumps(data),
+                     headers={'content-type': 'application/json'}, timeout=20)
+        except:
+            continue
+        else:
+            if q.status_code in (201, 200):
+                return q.json()
+            else:
+                continue
+    else:
+        return False

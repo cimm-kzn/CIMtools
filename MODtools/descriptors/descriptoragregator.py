@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,14 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import sys
-import operator
-import pandas as pd
+from sys import stderr
+from operator import and_
+from pandas import DataFrame, Series, concat, merge, Index
 from collections import defaultdict
 from functools import reduce
 
 
-class Descriptorchain(object):
+class DescriptorsChain(object):
     def __init__(self, *args):
         """
         chaining multiple descriptor generators.
@@ -37,10 +37,10 @@ class Descriptorchain(object):
         else:
             self.__generators = [(x, True) for x in args]
 
-    def setworkpath(self, workpath):
+    def set_work_path(self, workpath):
         for gen, _ in self.__generators:
-            if hasattr(gen, 'setworkpath'):
-                gen.setworkpath(workpath)
+            if hasattr(gen, 'set_work_path'):
+                gen.set_work_path(workpath)
 
     def get(self, structures, **kwargs):
         """
@@ -51,19 +51,19 @@ class Descriptorchain(object):
         res = defaultdict(list)
 
         def merge_wrap(x, y):
-            return pd.merge(x, y, how='outer', left_index=True, right_index=True)
+            return merge(x, y, how='outer', left_index=True, right_index=True)
 
         for gen, ad in self.__generators:
             for k, v in gen.get(structures, **kwargs).items():
                 res[k].append(v)
-            res['BOX'].append(pd.Series(ad, index=res['X'][-1].columns))
+            res['BOX'].append(Series(ad, index=res['X'][-1].columns))
 
         res['X'] = reduce(merge_wrap, res['X'])
-        res['AD'] = reduce(operator.and_, sorted(res['AD'], key=lambda x: len(x.index), reverse=True))
+        res['AD'] = reduce(and_, sorted(res['AD'], key=lambda x: len(x.index), reverse=True))
         # на данный момент не придумано как поступать с мультицентровостью. пока свойство просто дублируется.
         res['Y'] = sorted(res['Y'], key=lambda x: len(x.index), reverse=True)[0]
 
-        res['BOX'] = pd.concat(res['BOX'])
+        res['BOX'] = concat(res['BOX'])
 
         if 'structures' in res:
             res['structures'] = reduce(merge_wrap, res['structures'])
@@ -71,7 +71,7 @@ class Descriptorchain(object):
         return dict(res)
 
 
-class Propertyextractor(object):
+class PropertyExtractor(object):
     def __init__(self, name):
         self.__name = name
 
@@ -90,18 +90,18 @@ class Propertyextractor(object):
         return float(tmp) if tmp else None
 
 
-class Descriptorsdict(Propertyextractor):
+class DescriptorsDict(PropertyExtractor):
     def __init__(self, data=None, s_option=None):
-        Propertyextractor.__init__(self, s_option)
-        self.__extention = data
-        self.__extheader = self.__prepareextheader(data)
+        PropertyExtractor.__init__(self, s_option)
+        self.__extension = data
+        self.__ext_header = self.__prepare_ext_header(data)
 
     @staticmethod
-    def setworkpath(_):
+    def set_work_path(_):
         return None
 
     @staticmethod
-    def __prepareextheader(data):
+    def __prepare_ext_header(data):
         """
         :param data: dict
         :return: list of strings. descriptors header
@@ -114,7 +114,7 @@ class Descriptorsdict(Propertyextractor):
                 tmp.append(i)
         return tmp
 
-    def __parsefile(self, structures):
+    def __parse_file(self, structures):
         """
         parse SDF or RDF on known keys-headers.
         :param structures: opened file
@@ -125,65 +125,65 @@ class Descriptorsdict(Propertyextractor):
         for i in structures:
             tmp = []
             for key, value in i.meta.items():
-                if key in self.__extention:
-                    data = self.__extention[key]['value'].loc[self.__extention[key]['key'] == value] if \
-                        self.__extention[key] else pd.DataFrame([{key: float(value)}])
+                if key in self.__extension:
+                    data = self.__extension[key]['value'].loc[self.__extension[key]['key'] == value] if \
+                        self.__extension[key] else DataFrame([{key: float(value)}])
                     if not data.empty:
                         data.index = [0]
                         tmp.append(data)
-            extblock.append(pd.concat(tmp, axis=1) if tmp else pd.DataFrame([{}]))
+            extblock.append(concat(tmp, axis=1) if tmp else DataFrame([{}]))
 
             props.append(self.get_property(i.meta))
 
-        res = pd.DataFrame(pd.concat(extblock), columns=self.__extheader)
-        res.index = pd.Index(range(len(res.index)), name='structure')
-        prop = pd.Series(props, name='Property', index=res.index)
+        res = DataFrame(concat(extblock), columns=self.__ext_header)
+        res.index = Index(range(len(res.index)), name='structure')
+        prop = Series(props, name='Property', index=res.index)
         return res, prop
 
-    def __parseadditions0(self, **kwargs):
+    def __parse_additions_multi(self, **kwargs):
         extblock = []
         for i, j in kwargs.items():
-            if i in self.__extention:
+            if i in self.__extension:
                 for n, k in enumerate(j) if isinstance(j, list) else j.items():
-                    data = self.__extention[i]['value'].loc[self.__extention[i]['key'] == k] if \
-                        self.__extention[i] else pd.DataFrame([{i: k}])
+                    data = self.__extension[i]['value'].loc[self.__extension[i]['key'] == k] if \
+                        self.__extension[i] else DataFrame([{i: k}])
                     if not data.empty:
                         data.index = [0]
                         if len(extblock) > n:
                             extblock[n].append(data)
                         else:
                             extblock.extend([[] for _ in range(n - len(extblock))] + [[data]])
-        res = pd.DataFrame(pd.concat([pd.concat(x, axis=1) if x else pd.DataFrame([{}]) for x in extblock]),
-                           columns=self.__extheader)
-        res.index = pd.Index(range(len(res.index)), name='structure')
+        res = DataFrame(concat([concat(x, axis=1) if x else DataFrame([{}]) for x in extblock]),
+                        columns=self.__ext_header)
+        res.index = Index(range(len(res.index)), name='structure')
         return res
 
-    def __parseadditions1(self, **kwargs):
+    def __parse_additions_single(self, **kwargs):
         tmp = []
         for i, j in kwargs.items():
-            if i in self.__extention:
-                data = self.__extention[i]['value'].loc[self.__extention[i]['key'] == j] if \
-                       self.__extention[i] else pd.DataFrame([{i: j}])
+            if i in self.__extension:
+                data = self.__extension[i]['value'].loc[self.__extension[i]['key'] == j] if \
+                       self.__extension[i] else DataFrame([{i: j}])
                 if not data.empty:
                     data.index = [0]
                     tmp.append(data)
-        return pd.DataFrame(pd.concat(tmp, axis=1) if tmp else pd.DataFrame([{}]), columns=self.__extheader,
-                            index=pd.Index([0], name='structure'))
+        return DataFrame(concat(tmp, axis=1) if tmp else DataFrame([{}]), columns=self.__ext_header,
+                         index=Index([0], name='structure'))
 
     def get(self, structures=None, **kwargs):
         if kwargs.get('parsesdf'):
-            extblock, prop = self.__parsefile(structures)
+            extblock, prop = self.__parse_file(structures)
 
-        elif all(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extention):
-            extblock = self.__parseadditions0(**kwargs)
-            prop = pd.Series(index=extblock.index)
+        elif all(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extension):
+            extblock = self.__parse_additions_multi(**kwargs)
+            prop = Series(index=extblock.index)
 
-        elif not any(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extention):
-            extblock = self.__parseadditions1(**kwargs)
-            prop = pd.Series(index=extblock.index)
+        elif not any(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extension):
+            extblock = self.__parse_additions_single(**kwargs)
+            prop = Series(index=extblock.index)
 
         else:
-            print('WHAT DO YOU WANT? use correct extentions params', file=sys.stderr)
+            print('WHAT DO YOU WANT? use correct extentions params', file=stderr)
             return False
 
         return dict(X=extblock, AD=-extblock.isnull().any(axis=1), Y=prop)

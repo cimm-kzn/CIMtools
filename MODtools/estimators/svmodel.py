@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -32,14 +32,14 @@ class SVModel(BaseModel):
         self.estimator = partial(self.__estimators[estimator], max_iter=max_iter)
         self.__estimator = estimator
         self.__probability = [probability]
-        self.fitparams = fitparams
+        self.fit_params = fitparams
         BaseModel.__init__(self, descriptorgen, structures, nfold=nfold, repetitions=repetitions,
                            rep_boost=rep_boost, dispcoef=dispcoef, fit=fit, scorers=scorers, workpath=workpath,
                            normalize=normalize, n_jobs=n_jobs, **kwargs)
 
     __estimators = dict(svr=SVR, svc=SVC)
 
-    def prepareparams(self, param):
+    def prepare_params(self, param):
         base = dict(C=param['C'], tol=param['tol'])
         base.update(dict(epsilon=param['epsilon'])
                     if self.__estimator == 'svr' else dict(probability=self.__probability))

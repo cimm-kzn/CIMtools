@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,15 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import argparse
-import pandas as pd
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+from pandas import concat, read_csv
 from copy import deepcopy
 from .estimators.kernels import tanimoto_kernel
 from .version import version
 
 
 class MBparser(object):
-    def __parsesvmopts(self, param, op, unpac=lambda x: x):
+    def __parse_svm_opts(self, param, op, unpac=lambda x: x):
         res = []
         commaparam = param.split(',')
         for i in commaparam:
@@ -61,15 +61,15 @@ class MBparser(object):
 
     __kernel = {'0': 'linear', '1': 'poly', '2': 'rbf', '3': 'sigmoid', 't': 'tanimoto'}
 
-    def getsvmparam(self, files):
+    def get_svm_param(self, files):
         res = []
         repl = {'-t': ('kernel', lambda x: [self.__kernel[x] for x in x.split(',')]),
-                '-c': ('C', lambda x: self.__parsesvmopts(x, float, unpac=self.__pow10)),
-                '-d': ('degree', lambda x: self.__parsesvmopts(x, int)),
-                '-e': ('tol', lambda x: self.__parsesvmopts(x, float, unpac=self.__pow10)),
-                '-p': ('epsilon', lambda x: self.__parsesvmopts(x, float, unpac=self.__pow10)),
-                '-g': ('gamma', lambda x: self.__parsesvmopts(x, float, unpac=self.__pow10)),
-                '-r': ('coef0', lambda x: self.__parsesvmopts(x, float))}
+                '-c': ('C', lambda x: self.__parse_svm_opts(x, float, unpac=self.__pow10)),
+                '-d': ('degree', lambda x: self.__parse_svm_opts(x, int)),
+                '-e': ('tol', lambda x: self.__parse_svm_opts(x, float, unpac=self.__pow10)),
+                '-p': ('epsilon', lambda x: self.__parse_svm_opts(x, float, unpac=self.__pow10)),
+                '-g': ('gamma', lambda x: self.__parse_svm_opts(x, float, unpac=self.__pow10)),
+                '-r': ('coef0', lambda x: self.__parse_svm_opts(x, float))}
         for file in files:
             svm = {}
             with open(file) as f:
@@ -126,7 +126,7 @@ class MBparser(object):
         return res
 
     @staticmethod
-    def parsemodeldescription(file):
+    def parse_model_description(file):
         tmp = {}
         with open(file) as f:
             for line in f:
@@ -138,7 +138,7 @@ class MBparser(object):
         return tmp
 
     @staticmethod
-    def parsefragmentoropts(file):
+    def parse_fragmentor_opts(file):
         params = []
         with open(file) as f:
             for line in (x for x in f if x.strip()):
@@ -159,7 +159,7 @@ class MBparser(object):
         return params
 
     @staticmethod
-    def parseext(rawext):
+    def parse_ext(rawext):
         extdata = {}
         s_option = None
         for e in rawext:
@@ -171,24 +171,24 @@ class MBparser(object):
                 continue
 
             if file:
-                v = pd.read_csv(file[0])
+                v = read_csv(file[0])
                 k = v.pop('EXTKEY')
                 record = dict(key=k, value=v.rename(columns=lambda x: '%s.%s' % (ext, x)))
             extdata[ext] = record
         return dict(s_option=s_option, data=extdata)
 
     @staticmethod
-    def savesvm(outputfile, X, Y, header=True):
+    def save_svm(outputfile, x, y, header=True):
         with open(outputfile + '.svm', 'w', encoding='utf-8') as f:
             if header:
-                f.write(' '.join(['Property'] + ['%s:%s' % i for i in enumerate(X.columns, start=1)]) + '\n')
+                f.write(' '.join(['Property'] + ['%s:%s' % i for i in enumerate(x.columns, start=1)]) + '\n')
 
-            for i, j in zip(X.values, Y):
+            for i, j in zip(x.values, y):
                 f.write(' '.join(['%s ' % j] + ['%s:%s' % x for x in enumerate(i, start=1) if x[1] != 0]) + '\n')
 
     @staticmethod
-    def savecsv(outputfile, X, Y, header=True):
-        pd.concat([Y, X], axis=1).to_csv(outputfile + '.csv', index=False, header=header)
+    def save_csv(outputfile, x, y, header=True):
+        concat([y, x], axis=1).to_csv(outputfile + '.csv', index=False, header=header)
 
 
 class DefaultList(list):
@@ -198,9 +198,9 @@ class DefaultList(list):
 
 
 def argparser():
-    rawopts = argparse.ArgumentParser(description="Model Builder",
-                                      epilog="Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>",
-                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    rawopts = ArgumentParser(description="Model Builder",
+                             epilog="Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>",
+                             formatter_class=ArgumentDefaultsHelpFormatter)
     rawopts.add_argument("--version", "-v", action="version", version=version(), default=False)
     rawopts.add_argument("--workpath", "-w", type=str, default='.', help="work path")
 
@@ -214,8 +214,8 @@ def argparser():
 
     rawopts.add_argument("--isreaction", "-ir", action='store_true', help="set as reaction model")
 
-    rawopts.add_argument("--extention", "-e", action='append', type=str, default=None,
-                         help="extention data files. -e extname:filename [-e extname2:filename2]")
+    rawopts.add_argument("--extension", "-e", action='append', type=str, default=None,
+                         help="extension data files. -e extname:filename [-e extname2:filename2]")
 
     rawopts.add_argument("--fragments", "-f", type=str, default=None, help="ISIDA Fragmentor keys file")
 
@@ -224,7 +224,7 @@ def argparser():
     rawopts.add_argument("--pka", type=str, default=None, help="CXCALC pka keys file")
 
     rawopts.add_argument("--chains", "-c", action='append', type=str, default=None,
-                         help="descriptors chains. where F-fragmentor, D-eed, E-extention, P-pka. "
+                         help="descriptors chains. where F-fragmentor, D-eed, E-extension, P-pka. "
                               "-c F:E [-c E:D:P]")
     rawopts.add_argument("-ad", action='append', type=str, default=None,
                          help="consider descriptor generator AD in descriptors chains. "
@@ -254,9 +254,9 @@ def argparser():
     rawopts.add_argument("--probability", "-P", action='store_true', help="estimates probability in SVC")
 
     rawopts.add_argument("--scorers", "-T", action='append', type=str, default=DefaultList(['rmse', 'r2']),
-                         choices=['rmse', 'r2', 'ba', 'kappa', 'iap'],
+                         choices=['rmse', 'r2', 'acc', 'kappa', 'iap'],
                          help="needed scoring functions. -T rmse [-T r2]")
-    rawopts.add_argument("--fit", "-t", type=str, default='rmse', choices=['rmse', 'r2', 'ba', 'kappa', 'iap'],
+    rawopts.add_argument("--fit", "-t", type=str, default='rmse', choices=['rmse', 'r2', 'acc', 'kappa', 'iap'],
                          help="crossval score for parameters fit. (should be in selected scorers)")
 
     rawopts.add_argument("--dispcoef", "-p", type=float, default=0,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,13 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import pandas as pd
+from pandas import DataFrame, Series
 from io import StringIO
 from subprocess import Popen, PIPE
 from CGRtools.files.SDFrw import SDFwrite
 from .basegenerator import BaseGenerator
 from ..config import EED
-from ..structprepare import Pharmacophoreatommarker, StandardizeDragos, CGRatommarker
+from ..preparers.standardizers import StandardizeDragos
+from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 
 
 class Eed(BaseGenerator):
@@ -37,24 +38,24 @@ class Eed(BaseGenerator):
 
         BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
 
-        self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
+        self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
-        self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
+        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_prepare,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
         self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
 
-        self.markers = self.__cgr_marker.getcount() if cgr_marker else \
-            self.__phm_marker.getcount() if marker_rules else None
+        self.markers = (self.__cgr_marker.get_count() if cgr_marker else
+                        self.__phm_marker.get_count() if marker_rules else None)
         self.__workfiles = self.markers or 1
 
-    def setworkpath(self, workpath):
-        BaseGenerator.setworkpath(self, workpath)
+    def set_work_path(self, workpath):
+        BaseGenerator.set_work_path(self, workpath)
         if self.__phm_marker:
-            self.__phm_marker.setworkpath(workpath)
+            self.__phm_marker.set_work_path(workpath)
 
-    def prepare(self, structures, **kwargs):
+    def prepare(self, structures, **_):
         if self.__dragos_std:
             structures = self.__dragos_std.get(structures)
 
@@ -74,7 +75,7 @@ class Eed(BaseGenerator):
 
         prop, doubles, used_str = self.write_prepared(structures, writers)
 
-        tX, tD = [], []
+        tx, td = [], []
         for n, workfile in enumerate(workfiles):
             p = Popen([EED], stdout=PIPE, stdin=PIPE)
             res = p.communicate(input=workfile.getvalue().encode())[0].decode()
@@ -82,14 +83,14 @@ class Eed(BaseGenerator):
             if p.returncode != 0:
                 return False
 
-            X, D = self.__parseeedoutput(res)
-            tX.append(X)
-            tD.append(D)
+            x, d = self.__parse_eed_output(res)
+            tx.append(x)
+            td.append(d)
 
-        return tX, prop, tD, doubles, used_str
+        return tx, prop, td, doubles, used_str
 
     @staticmethod
-    def __parseeedoutput(output):
+    def __parse_eed_output(output):
         vector, ad = [], []
         for frag in StringIO(output):
             _, *x = frag.split()
@@ -102,6 +103,6 @@ class Eed(BaseGenerator):
                 ad[-1] = False
             vector.append(tmp)
 
-        x = pd.DataFrame(vector, columns=range(1, 705)).fillna(0)
+        x = DataFrame(vector, columns=range(1, 705)).fillna(0)
         x.columns = ['eed.%d' % x for x in range(1, 705)]
-        return x, pd.Series(ad)
+        return x, Series(ad)

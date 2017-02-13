@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,16 +18,17 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import pandas as pd
+from pandas import DataFrame, Series, Index, MultiIndex
 from io import StringIO
 from subprocess import Popen, PIPE, STDOUT
 from CGRtools.files.SDFrw import SDFwrite
 from ..config import CXCALC
-from .descriptoragregator import Propertyextractor
-from ..structprepare import Pharmacophoreatommarker, StandardizeDragos, CGRatommarker
+from .descriptoragregator import PropertyExtractor
+from ..preparers.standardizers import StandardizeDragos
+from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 
 
-class Pkab(Propertyextractor):
+class Pkab(PropertyExtractor):
     def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, acid=True, base=True,
                  cgr_reverse=False, is_reaction=False,
                  cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_stereo=False):
@@ -35,11 +36,11 @@ class Pkab(Propertyextractor):
         if is_reaction and not cgr_marker:
             raise Exception('only cgr marker can work with reactions')
 
-        Propertyextractor.__init__(self, s_option)
+        PropertyExtractor.__init__(self, s_option)
 
-        self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
+        self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
-        self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
+        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_prepare,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
@@ -49,12 +50,12 @@ class Pkab(Propertyextractor):
         self.__acid = acid
         self.__base = base
 
-    def setworkpath(self, workpath):
+    def set_work_path(self, workpath):
         self.__workpath = workpath
         if self.__phm_marker:
-            self.__phm_marker.setworkpath(workpath)
+            self.__phm_marker.set_work_path(workpath)
 
-    def get(self, structures, **kwargs):
+    def get(self, structures, **_):
         if self.__dragos_std:
             structures = self.__dragos_std.get(structures)
 
@@ -70,9 +71,7 @@ class Pkab(Propertyextractor):
         if not structures:
             return False
 
-        prop = []
-        doubles = []
-        used_str = []
+        prop, doubles, used_str = [], [], []
 
         p = Popen([CXCALC] + 'pka -x 50 -i -50 -a 8 -b 8 -P dynamic -m micro'.split(),
                   stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -133,16 +132,16 @@ class Pkab(Propertyextractor):
                     new_doubles.append([k, ([min(v[0].values())] if self.__acid else []) +
                                            ([max(v[1].values())] if self.__base else [])])
 
-            X = pd.DataFrame([x[1] for x in new_doubles],
-                             columns=(['pka'] if self.__acid else []) + (['pkb'] if self.__base else []))
+            x = DataFrame([x[1] for x in new_doubles],
+                          columns=(['pka'] if self.__acid else []) + (['pkb'] if self.__base else []))
 
-            res = dict(X=X, AD=X.isnull().any(axis=1) ^ True, Y=pd.Series(prop, name='Property'),
+            res = dict(X=x, AD=x.isnull().any(axis=1) ^ True, Y=Series(prop, name='Property'),
                        structures=used_str)  # todo: prepare structures
 
             if self.__cgr_marker or self.__phm_marker:
-                i = pd.MultiIndex.from_tuples([x[0] for x in new_doubles], names=['structure', 'c.0', 'c.1'])
+                i = MultiIndex.from_tuples([x[0] for x in new_doubles], names=['structure', 'c.0', 'c.1'])
             else:
-                i = pd.Index(doubles, name='structure')
+                i = Index(doubles, name='structure')
 
             res['X'].index = res['AD'].index = res['Y'].index = i
             return res

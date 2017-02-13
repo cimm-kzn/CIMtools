@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,19 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import operator
-import pandas as pd
+from operator import and_
+from pandas import Series, Index, MultiIndex, concat
 from functools import reduce
-from .descriptoragregator import Propertyextractor
+from .descriptoragregator import PropertyExtractor
 
 
-class BaseGenerator(Propertyextractor):
+class BaseGenerator(PropertyExtractor):
     def __init__(self, workpath='.', s_option=None):
-        Propertyextractor.__init__(self, s_option)
+        PropertyExtractor.__init__(self, s_option)
 
         self.workpath = workpath
 
-    def setworkpath(self, workpath):
+    def set_work_path(self, workpath):
         self.workpath = workpath
 
     def get(self, structures, **kwargs):
@@ -38,18 +38,17 @@ class BaseGenerator(Propertyextractor):
         if not tmp:
             return False
 
-        X, Y, AD, I, S = tmp
+        x, y, ad, i, s = tmp
 
-        res = dict(X=pd.concat(X, axis=1, keys=range(len(X))) if len(X) > 1 else X[0],
-                   AD=reduce(operator.and_, AD), Y=pd.Series(Y, name='Property'),
-                   structures=S)  # todo: prepare structures
+        res = dict(X=concat(x, axis=1, keys=range(len(x))) if len(x) > 1 else x[0],
+                   AD=reduce(and_, ad), Y=Series(y, name='Property'), structures=s)  # todo: prepare structures
 
         if self.markers:
-            i = pd.MultiIndex.from_tuples(I, names=['structure'] + ['c.%d' % x for x in range(self.markers)])
+            _i = MultiIndex.from_tuples(i, names=['structure'] + ['c.%d' % x for x in range(self.markers)])
         else:
-            i = pd.Index(I, name='structure')
+            _i = Index(i, name='structure')
 
-        res['X'].index = res['AD'].index = res['Y'].index = i
+        res['X'].index = res['AD'].index = res['Y'].index = _i
         return res
 
     def write_prepared(self, structures, writers):

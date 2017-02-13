@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,11 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import tempfile
-import shutil
-import numpy as np
-import operator
-import pandas as pd
+from tempfile import mkdtemp
+from shutil import rmtree
+from numpy import inf, mean, var, arange
+from operator import lt, le
+from pandas import DataFrame, Series, concat
 from collections import defaultdict
 from itertools import product
 from copy import deepcopy
@@ -42,10 +42,10 @@ class Score(dict):
         return all(op(y, other[x]) for x, y in self.items())
 
     def __lt__(self, other):
-        return self.__comparer(other, operator.lt)
+        return self.__comparer(other, lt)
 
     def __le__(self, other):
-        return self.__comparer(other, operator.le)
+        return self.__comparer(other, le)
 
 
 def _kfold(est, x, y, train, test, svmparams, normalize, box):
@@ -60,14 +60,14 @@ def _kfold(est, x, y, train, test, svmparams, normalize, box):
 
     if normalize:
         normal = MinMaxScaler()
-        x_train = pd.DataFrame(normal.fit_transform(x_train), columns=x_train.columns)
-        x_test = pd.DataFrame(normal.transform(x_test), columns=x_train.columns)
+        x_train = DataFrame(normal.fit_transform(x_train), columns=x_train.columns)
+        x_test = DataFrame(normal.transform(x_test), columns=x_train.columns)
     else:
         normal = None
 
     model = est(**svmparams)
     model.fit(x_train, y_train)
-    y_pred = pd.Series(model.predict(x_test), index=y_test.index)
+    y_pred = Series(model.predict(x_test), index=y_test.index)
 
     y_ad = (y_pred >= y_min) & (y_pred <= y_max)
 
@@ -75,7 +75,7 @@ def _kfold(est, x, y, train, test, svmparams, normalize, box):
                   y_test=y_test, y_pred=y_pred, x_ad=x_ad, y_ad=y_ad)
 
     if hasattr(model, 'predict_proba'):
-        output['y_prob'] = pd.DataFrame(model.predict_proba(x_test), index=y_test.index, columns=model.classes_)
+        output['y_prob'] = DataFrame(model.predict_proba(x_test), index=y_test.index, columns=model.classes_)
 
     return output
 
@@ -84,7 +84,7 @@ def _rmse(y_test, y_pred):
     return sqrt(mean_squared_error(y_test, y_pred))
 
 
-def _balance_acc(y_test, y_pred):
+def _accuracy(y_test, y_pred):
     return accuracy_score(y_test, y_pred, normalize=True)
 
 
@@ -98,22 +98,22 @@ def _iap(y_test, y_prob):
 
             in_class_dominance = sum(s_prob.loc[i][col] > s_prob.loc[o][col] for i, o in product(in_class, out_class))
             possible_combo = len(in_class) * len(out_class)
-
-            res[col].append(in_class_dominance / possible_combo if possible_combo else 0)
+            if possible_combo:
+                res[col].append(in_class_dominance / possible_combo)
     res = Score({x: sum(y) / len(y) for x, y in res.items()})
     return res
 
 
 class BaseModel(object):
-    def __init__(self, descriptorgen, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100, dispcoef=0,
+    def __init__(self, generator, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100, dispcoef=0,
                  fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
 
         _scorers = dict(rmse=(_rmse, False), r2=(r2_score, False),
-                        kappa=(cohen_kappa_score, False), ba=(_balance_acc, False), iap=(_iap, True))
+                        kappa=(cohen_kappa_score, False), acc=(_accuracy, False), iap=(_iap, True))
         self.__model = {}
 
-        self.__descriptorgen = descriptorgen
-        self.setworkpath(workpath)
+        self.__generator = generator
+        self.set_work_path(workpath)
 
         self.__nfold = nfold
         self.__repetitions = repetitions
@@ -121,29 +121,29 @@ class BaseModel(object):
         self.__n_jobs = n_jobs
 
         self.__normalize = normalize
-        self.__dispcoef = dispcoef
+        self.__disp_coef = dispcoef
         self.__scorers = {x: _scorers[x] for x in scorers if x in _scorers}
-        self.__fitscore = 'C' + (fit if fit in scorers else scorers[0])
-        self.__scorereporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
+        self.__fit_score = 'C' + (fit if fit in scorers else scorers[0])
+        self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
 
         print("Descriptors generation start")
-        xy = descriptorgen.get(structures, **kwargs)
+        xy = generator.get(structures, **kwargs)
         self.__x = xy['X']
         self.__y = xy['Y']
         self.__box = xy.get('BOX', xy['X'].columns)
         print("Descriptors generated")
 
-        self.__crossval()
-        self.delworkpath()
+        self.__cross_val()
+        self.delete_work_path()
 
-    def setworkpath(self, workpath):
-        self.__workpath = tempfile.mkdtemp(dir=workpath)
-        self.__descriptorgen.setworkpath(self.__workpath)
+    def set_work_path(self, workpath):
+        self.__workpath = mkdtemp(dir=workpath)
+        self.__generator.set_work_path(self.__workpath)
 
-    def delworkpath(self):
-        shutil.rmtree(self.__workpath)
+    def delete_work_path(self):
+        rmtree(self.__workpath)
 
-    def getmodelstats(self):
+    def get_model_stats(self):
         stat = {x: self.__model[x] for x in self.__scorers}
         stat.update({'%s_var' % x: self.__model['v%s' % x] for x in self.__scorers})
 
@@ -152,38 +152,44 @@ class BaseModel(object):
                          dragostolerance=sqrt(self.__y.var())))
         return stat
 
-    def getfitpredictions(self):
+    def get_fit_predictions(self):
         output = dict(property=self.__y, prediction=self.__model['y_pred'], y_domain=self.__model['y_ad'],
                       domain=self.__model['x_ad'])
         if 'y_prob' in self.__model:
             output['probability'] = self.__model['y_prob']
         return output
 
-    def __splitrange(self, param, dep=0):
+    def get_models(self):
+        return self.__model['models']
+
+    def get_generator(self):
+        return self.__generator
+
+    def __split_range(self, param, dep=0):
         tmp = {}
         fdep = dep
         stepindex = list(range(0, len(param), round(len(param)/10) or 1))
         stepindex.insert(0, -1)
         stepindex.append(len(param))
         for i, j, k in zip(stepindex, stepindex[1:], stepindex[2:]):
-            tmp[param[j]], tmpd = self.__splitrange(param[i+1:j] + param[j+1:k], dep=dep+1)
+            tmp[param[j]], tmpd = self.__split_range(param[i + 1:j] + param[j + 1:k], dep=dep + 1)
             if tmpd > fdep:
                 fdep = tmpd
         return tmp, fdep
 
-    def __crossval(self):
-        fitparams = deepcopy(self.fitparams)
+    def __cross_val(self):
+        fitparams = deepcopy(self.fit_params)
         fcount = 0
         depindex = []
         maxdep = []
         print('list of fit params:')
-        print(pd.DataFrame(list(fitparams)))
+        print(DataFrame(list(fitparams)))
         for param in fitparams:
             di = {}
             md = 0
             for i in param:
                 if i != 'kernel':
-                    param[i], di[i] = self.__splitrange(param[i])
+                    param[i], di[i] = self.__split_range(param[i])
                     if di[i] > md:
                         md = di[i]
             depindex.append(di)
@@ -195,21 +201,21 @@ class BaseModel(object):
               '========================================' %
               (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
 
-        bestmodel = badmodel = dict(model=None, Cr2=np.inf, Crmse=np.inf, Ckappa=np.inf, Cba=np.inf, Ciap=np.inf)
+        bestmodel = badmodel = dict(model=None, Cr2=inf, Crmse=inf, Ckappa=inf, Cba=inf, Ciap=inf)
         for param, md, di in zip(fitparams, maxdep, depindex):
             var_kern_model = badmodel
             while True:
                 var_param_model = badmodel
-                tmp = self.prepareparams(param)
+                tmp = self.prepare_params(param)
                 for i in tmp:
                     fcount += 1
                     print('%d: fit model with params:' % fcount, i)
                     fittedmodel = self.__fit(i, self.__rep_boost)
-                    print(self.__scorereporter % fittedmodel)
-                    if fittedmodel[self.__fitscore] < var_param_model[self.__fitscore]:
+                    print(self.__score_reporter % fittedmodel)
+                    if fittedmodel[self.__fit_score] < var_param_model[self.__fit_score]:
                         var_param_model = fittedmodel
 
-                if var_param_model[self.__fitscore] < var_kern_model[self.__fitscore]:
+                if var_param_model[self.__fit_score] < var_kern_model[self.__fit_score]:
                     var_kern_model = var_param_model
                     tmp = {}
                     for i, j in var_kern_model['params'].items():
@@ -222,13 +228,13 @@ class BaseModel(object):
                     param = tmp
                 else:
                     break
-            if var_kern_model[self.__fitscore] < bestmodel[self.__fitscore]:
+            if var_kern_model[self.__fit_score] < bestmodel[self.__fit_score]:
                 bestmodel = var_kern_model
 
         if self.__repetitions > self.__rep_boost:
             bestmodel = self.__fit(bestmodel['params'], self.__repetitions)
         print('========================================\n' +
-              ('SVM params %(params)s\n' + self.__scorereporter) % bestmodel)
+              ('SVM params %(params)s\n' + self.__score_reporter) % bestmodel)
         print('========================================\n%s variants checked' % fcount)
         self.__model = bestmodel
 
@@ -237,7 +243,7 @@ class BaseModel(object):
         fold_scorers = defaultdict(list)
         parallel = Parallel(n_jobs=self.__n_jobs)
         kf = list(KFold(len(self.__y), n_folds=self.__nfold))
-        setindexes = np.arange(len(self.__y.index))
+        setindexes = arange(len(self.__y.index))
         folds = parallel(delayed(_kfold)(self.estimator, self.__x, self.__y, s[train], s[test],
                                          fitparams, self.__normalize, self.__box)
                          for s in (self.__shuffle(setindexes, i) for i in range(repetitions))
@@ -257,12 +263,12 @@ class BaseModel(object):
                 fold.pop('y_test')
                 models.append(fold)
 
-            ky_pred = pd.concat(ky_pred).loc[self.__y.index]
-            ky_ad = pd.concat(ky_ad).loc[self.__y.index]
-            kx_ad = pd.concat(kx_ad).loc[self.__y.index]
+            ky_pred = concat(ky_pred).loc[self.__y.index]
+            ky_ad = concat(ky_ad).loc[self.__y.index]
+            kx_ad = concat(kx_ad).loc[self.__y.index]
 
             if ky_prob:
-                ky_prob = pd.concat(ky_prob).loc[self.__y.index].fillna(0)
+                ky_prob = concat(ky_prob).loc[self.__y.index].fillna(0)
                 y_prob.append(ky_prob)
 
             for s, (f, p) in self.__scorers.items():
@@ -272,13 +278,13 @@ class BaseModel(object):
             y_ad.append(ky_ad)
             x_ad.append(kx_ad)
 
-        y_pred = pd.concat(y_pred, axis=1)
-        y_ad = pd.concat(y_ad, axis=1)
-        x_ad = pd.concat(x_ad, axis=1)
+        y_pred = concat(y_pred, axis=1)
+        y_ad = concat(y_ad, axis=1)
+        x_ad = concat(x_ad, axis=1)
 
-        res = dict(model=models, params=fitparams, y_pred=y_pred, y_ad=y_ad, x_ad=x_ad)
+        res = dict(models=models, params=fitparams, y_pred=y_pred, y_ad=y_ad, x_ad=x_ad)
         if y_prob:
-            res['y_prob'] = pd.concat(y_prob, axis=1, keys=range(len(y_prob)))
+            res['y_prob'] = concat(y_prob, axis=1, keys=range(len(y_prob)))
 
         for s, _v in fold_scorers.items():
             if isinstance(_v[0], Score):
@@ -288,12 +294,12 @@ class BaseModel(object):
                     for k, val in _s.items():
                         tmp[k].append(val)
                 for k, val in tmp.items():
-                    m[k] = np.mean(val)
-                    v[k] = sqrt(np.var(val))
-                    c[k] = -m[k] + self.__dispcoef * v[k]
+                    m[k] = mean(val)
+                    v[k] = sqrt(var(val))
+                    c[k] = -m[k] + self.__disp_coef * v[k]
             else:
-                m, v = np.mean(_v), sqrt(np.var(_v))
-                c = (1 if s == 'rmse' else -1) * m + self.__dispcoef * v
+                m, v = mean(_v), sqrt(var(_v))
+                c = (1 if s == 'rmse' else -1) * m + self.__disp_coef * v
             res.update({s: m, 'C%s' % s: c, 'v%s' % s: v})
 
         return res
@@ -306,29 +312,29 @@ class BaseModel(object):
         return shuffled
 
     def predict(self, structures, **kwargs):
-        res = self.__descriptorgen.get(structures, **kwargs)
+        res = self.__generator.get(structures, **kwargs)
         d_x, d_ad, d_s = res['X'], res['AD'], res.get('structures')
 
         pred, prob, x_ad, y_ad = [], [], [], []
-        for i, model in enumerate(self.__model['model']):
-            x_t = pd.DataFrame(model['normal'].transform(d_x), columns=d_x.columns) if model['normal'] else d_x
+        for i, model in enumerate(self.__model['models']):
+            x_t = DataFrame(model['normal'].transform(d_x), columns=d_x.columns) if model['normal'] else d_x
 
-            y_p = pd.Series(model['model'].predict(x_t), index=d_x.index)
+            y_p = Series(model['model'].predict(x_t), index=d_x.index)
             pred.append(y_p)
 
             if hasattr(model['model'], 'predict_proba'):
-                y_pa = pd.DataFrame(model['model'].predict_proba(x_t), index=d_x.index, columns=model['model'].classes_)
+                y_pa = DataFrame(model['model'].predict_proba(x_t), index=d_x.index, columns=model['model'].classes_)
                 prob.append(y_pa)
 
             y_ad.append((y_p >= model['y_min']) & (y_p <= model['y_max']))
             x_ad.append(((d_x.loc[:, self.__box] - model['x_min']).min(axis=1) >= 0) &
                         ((model['x_max'] - d_x.loc[:, self.__box]).min(axis=1) >= 0) & d_ad)
 
-        out = dict(prediction=pd.concat(pred, axis=1),
-                   domain=pd.concat(x_ad, axis=1), y_domain=pd.concat(y_ad, axis=1))
+        out = dict(prediction=concat(pred, axis=1),
+                   domain=concat(x_ad, axis=1), y_domain=concat(y_ad, axis=1))
 
         if prob:
-            out['probability'] = pd.concat(prob, axis=1, keys=range(len(prob)))
+            out['probability'] = concat(prob, axis=1, keys=range(len(prob)))
 
         if d_s is not None:
             out['structures'] = d_s

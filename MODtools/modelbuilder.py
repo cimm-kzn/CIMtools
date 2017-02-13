@@ -18,13 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import dill
-import gzip
-import os
-import subprocess as sp
-import tempfile
-import threading
-import time
+from gzip import open as gzip_open
+from tempfile import mkdtemp
+from threading import Thread, active_count
+from time import sleep
+from subprocess import call
+from os import W_OK, access, mkdir
+from os.path import join, exists, isdir, dirname
+from dill import load, dump
 from copy import deepcopy
 from collections import OrderedDict
 from functools import partial
@@ -34,14 +35,14 @@ from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from .config import GACONF
 from .descriptors.cxcalc import Pkab
-from .descriptors.descriptoragregator import Descriptorsdict, Descriptorchain
+from .descriptors.descriptoragregator import DescriptorsDict, DescriptorsChain
 from .descriptors.eed import Eed
 from .descriptors.fragmentor import Fragmentor
 from .estimators.svmodel import SVModel
 from .parsers import MBparser
 
 
-def descstarter(func, in_file, out_file, fformat, header, is_reaction):
+def desc_starter(func, in_file, out_file, fformat, header, is_reaction):
     with open(in_file) as f:
         inp = (RDFread(f) if is_reaction else SDFread(f)).read()
 
@@ -54,61 +55,61 @@ def descstarter(func, in_file, out_file, fformat, header, is_reaction):
     return False
 
 
-class Modelbuilder(MBparser):
+class ModelBuilder(MBparser):
     def __init__(self, **kwargs):
-        if not kwargs['output'] and (not os.path.exists(kwargs['description']) or os.path.isdir(kwargs['description'])):
+        if not kwargs['output'] and (not exists(kwargs['description']) or isdir(kwargs['description'])):
             raise Exception('path to model description file invalid')
 
-        description = self.parsemodeldescription(kwargs['description'])
+        description = self.parse_model_description(kwargs['description'])
         description['type'] = 2 if kwargs['isreaction'] else 1
         if any(x not in description for x in ('nlim', 'name', 'example', 'description')):
             raise Exception('Description Invalid')
 
         self.__options = kwargs
         self.__description = description
-        self.__descgens = self.__descriptors_config(kwargs)
+        self.__generators = self.__descriptors_config(kwargs)
         self.__estimators = []
 
     def run(self):
         if not self.__options['output']:
-            if os.path.isdir(self.__options['model']) or \
-               (os.path.exists(self.__options['model']) and not os.access(self.__options['model'], os.W_OK)) or \
-               os.path.isdir(self.__options['model'] + '.save') or \
-               (os.path.exists(self.__options['model'] + '.save') and
-                    not (os.access(self.__options['model'] + '.save', os.W_OK) or
+            if isdir(self.__options['model']) or \
+               (exists(self.__options['model']) and not access(self.__options['model'], W_OK)) or \
+               isdir(self.__options['model'] + '.save') or \
+               (exists(self.__options['model'] + '.save') and
+                    not (access(self.__options['model'] + '.save', W_OK) or
                          self.__options['model'] + '.save' == self.__options['reload'])) or \
-               not os.access(os.path.dirname(self.__options['model']), os.W_OK):
+               not access(dirname(self.__options['model']), W_OK):
                 print('path for model saving not writable')
                 return
             self.prepare_estimators()
             self.fit()
         else:
-            self.__gendesc(self.__options['output'], fformat=self.__options['format'], header=True)
+            self.__gen_desc(self.__options['output'], fformat=self.__options['format'], header=True)
 
     def prepare_estimators(self):
         svm = {'svr', 'svc'}.intersection(self.__options['estimator']).pop()
         rf = False  # todo: implement RF
         if self.__options['reload']:
-            tmp = dill.load(gzip.open(self.__options['reload'], 'rb'))
-            self.__clean_descgens(tmp['descgens'])
+            tmp = load(gzip_open(self.__options['reload'], 'rb'))
+            self.__clean_desc_gens(tmp['descgens'])
             if svm:
                 est_svm_params = tmp['svm']
         else:
-            for_save = dict(descgens=list(range(len(self.__descgens))))
+            for_save = dict(descgens=list(range(len(self.__generators))))
             if svm:
                 if not self.__options['svm']:
-                    svm_cfg, cleared = self.__dragossvmfit(svm)
-                    self.__clean_descgens(cleared)
+                    svm_cfg, cleared = self.__dragos_svm_fit(svm)
+                    self.__clean_desc_gens(cleared)
                     for_save['descgens'] = cleared
                 else:
-                    svm_cfg = self.getsvmparam(self.__options['svm'])
+                    svm_cfg = self.get_svm_param(self.__options['svm'])
 
-                est_svm_params = self.__chkest(svm_cfg)
+                est_svm_params = self.__chk_est(svm_cfg)
                 for_save['svm'] = est_svm_params
 
             ''' save configuration
             '''
-            dill.dump(for_save, gzip.open(self.__options['model'] + '.save', 'wb'))
+            dump(for_save, gzip_open(self.__options['model'] + '.save', 'wb'))
             ''' end save
             '''
 
@@ -121,18 +122,18 @@ class Modelbuilder(MBparser):
         descgenerator = OrderedDict()
         if options['fragments']:
             descgenerator['F'] = [partial(Fragmentor, is_reaction=options['isreaction'], **x)
-                                  for x in MBparser.parsefragmentoropts(options['fragments'])]
+                                  for x in MBparser.parse_fragmentor_opts(options['fragments'])]
 
-        if options['extention']:
-            descgenerator['E'] = [partial(Descriptorsdict, **MBparser.parseext(options['extention']))]
+        if options['extension']:
+            descgenerator['E'] = [partial(DescriptorsDict, **MBparser.parse_ext(options['extension']))]
 
         if options['eed']:
             descgenerator['D'] = [partial(Eed, is_reaction=options['isreaction'], **x)
-                                  for x in MBparser.parsefragmentoropts(options['eed'])]
+                                  for x in MBparser.parse_fragmentor_opts(options['eed'])]
 
         if options['pka']:
             descgenerator['P'] = [partial(Pkab, is_reaction=options['isreaction'], **x)
-                                  for x in MBparser.parsefragmentoropts(options['pka'])]
+                                  for x in MBparser.parse_fragmentor_opts(options['pka'])]
 
         if options['chains']:
             if options['ad'] and len(options['ad']) != len(options['chains']):
@@ -164,8 +165,9 @@ class Modelbuilder(MBparser):
                             combo.append(list(zip(descgenerator[k], cycle(v))))
                     except:
                         raise Exception('Invalid chain. check configured descriptors generators')
-                descgens.extend([Descriptorchain(*[(g(), a) for gs in c
-                                 for g, a in (gs if isinstance(gs, list) else [gs])]) for c in product(*combo)])
+                descgens.extend([DescriptorsChain(*[(g(), a) for gs in c
+                                                    for g, a in (gs if isinstance(gs, list) else [gs])])
+                                 for c in product(*combo)])
         else:
             descgens = [g() for x in descgenerator.values() for g in x]
 
@@ -185,7 +187,7 @@ class Modelbuilder(MBparser):
             inp = (RDFread(f) if self.__options['isreaction'] else SDFread(f)).read()
 
         for g, e in self.__estimators:
-            for x, y in zip(self.__descgens, e):
+            for x, y in zip(self.__generators, e):
                 models.add(g(x, list(y.values()), inp, parsesdf=True,
                            dispcoef=self.__options['dispcoef'], fit=self.__options['fit'],
                            scorers=self.__options['scorers'],
@@ -203,59 +205,59 @@ class Modelbuilder(MBparser):
         print('description', self.__description['description'])
         print('tol', self.__description['tol'])
         print('nlim', self.__description.get('nlim'))
-        dill.dump(dict(models=models, config=self.__description), gzip.open(self.__options['model'], 'wb'))
+        dump(dict(models=models, config=self.__description), gzip_open(self.__options['model'], 'wb'))
 
-    def __chkest(self, estimatorparams):
-        if not estimatorparams or 1 < len(estimatorparams) < len(self.__descgens) or \
-                        len(estimatorparams) > len(self.__descgens):
+    def __chk_est(self, estimatorparams):
+        if not estimatorparams or 1 < len(estimatorparams) < len(self.__generators) or \
+                        len(estimatorparams) > len(self.__generators):
             print('NUMBER of estimator params files SHOULD BE EQUAL to '
                   'number of descriptor generator params files or to 1')
             raise Exception('SVM estimators not configured')
 
         if len(estimatorparams) == 1:
             tmp = []
-            for i in range(len(self.__descgens)):
+            for i in range(len(self.__generators)):
                 tmp.append(deepcopy(estimatorparams[0]))
             estimatorparams = tmp
         return estimatorparams
 
-    def __gendesc(self, output, fformat='svm', header=False):
-        queue = enumerate(self.__descgens, start=1)
-        workpath = tempfile.mkdtemp(prefix='svm_', dir=self.__options['workpath'])
+    def __gen_desc(self, output, fformat='svm', header=False):
+        queue = enumerate(self.__generators, start=1)
+        workpath = mkdtemp(prefix='svm_', dir=self.__options['workpath'])
         while True:
-            if threading.active_count() < self.__options['n_jobs']:
+            if active_count() < self.__options['n_jobs']:
                 tmp = next(queue, None)
                 if tmp:
                     n, dgen = tmp
-                    subworkpath = os.path.join(workpath, str(n))
-                    os.mkdir(subworkpath)
-                    dgen.setworkpath(subworkpath)
-                    t = threading.Thread(target=descstarter,
-                                         args=[dgen.get, self.__options['input'], '%s.%d' % (output, n),
-                                               (self.savesvm if fformat == 'svm' else self.savecsv), header,
-                                               self.__options['isreaction']])
+                    subworkpath = join(workpath, str(n))
+                    mkdir(subworkpath)
+                    dgen.set_work_path(subworkpath)
+                    t = Thread(target=desc_starter,
+                               args=[dgen.get, self.__options['input'], '%s.%d' % (output, n),
+                                     (self.save_svm if fformat == 'svm' else self.save_csv),
+                                     header, self.__options['isreaction']])
                     t.start()
                 else:
-                    while threading.active_count() > 1:
-                        time.sleep(2)
+                    while active_count() > 1:
+                        sleep(2)
                     break
-            time.sleep(2)
+            sleep(2)
 
         return True
 
-    def __dragossvmfit(self, tasktype):
+    def __dragos_svm_fit(self, _type):
         """ files - basename for descriptors.
         """
-        workpath = tempfile.mkdtemp(prefix='gac_', dir=self.__options['workpath'])
-        files = os.path.join(workpath, 'drag')
-        dragos_work = os.path.join(workpath, 'work')
+        workpath = mkdtemp(prefix='gac_', dir=self.__options['workpath'])
+        files = join(workpath, 'drag')
+        dragos_work = join(workpath, 'work')
 
-        execparams = [GACONF, workpath, tasktype, str(self.__options['ga_maxconfigs']),
+        execparams = [GACONF, workpath, _type, str(self.__options['ga_maxconfigs']),
                       str(self.__options['repetition']), str(self.__options['nfold'])]
-        if self.__gendesc(files):
-            if sp.call(execparams) == 0:
+        if self.__gen_desc(files):
+            if call(execparams) == 0:
                 best = {}
-                with open(os.path.join(dragos_work, 'best_pop')) as f:
+                with open(join(dragos_work, 'best_pop')) as f:
                     for n, line in enumerate(f):
                         if len(best) == self.__options['best_pop']:
                             break  # get only first n's params.
@@ -265,16 +267,16 @@ class Modelbuilder(MBparser):
                 cleared, svmpar, scale = [], [], []
                 for k, (nv, av) in best.items():
                     cleared.append(k - 1)
-                    svmpar.append(os.path.join(dragos_work, av, 'svm.pars'))
+                    svmpar.append(join(dragos_work, av, 'svm.pars'))
                     scale.append(nv)
 
                 svm = []
-                svmpar = self.getsvmparam(svmpar)
+                svmpar = self.get_svm_param(svmpar)
                 if len(svmpar) == len(scale):
                     for x, y in zip(svmpar, scale):
                         svm.append({'scale' if y == 'scaled' else 'orig': list(x.values())[0]})
                     return svm, cleared
         raise Exception('GAConf failed')
 
-    def __clean_descgens(self, select):
-        self.__descgens = [self.__descgens[x] for x in select]
+    def __clean_desc_gens(self, select):
+        self.__generators = [self.__generators[x] for x in select]
