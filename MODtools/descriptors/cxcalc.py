@@ -31,7 +31,7 @@ from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 class Pkab(PropertyExtractor):
     def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, acid=True, base=True,
                  cgr_reverse=False, is_reaction=False,
-                 cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_stereo=False):
+                 cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False):
 
         if is_reaction and not cgr_marker:
             raise Exception('only cgr marker can work with reactions')
@@ -40,7 +40,7 @@ class Pkab(PropertyExtractor):
 
         self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
-        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_prepare,
+        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 

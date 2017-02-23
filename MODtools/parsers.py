@@ -150,7 +150,7 @@ class MBparser(object):
                     if key in ['header']:
                         tmp[key] = [open(x.strip(), encoding='utf-8') for x in value.split('|')]
                     elif key in ('marker_rules', 'standardize', 'docolor',
-                                 'cgr_marker', 'cgr_marker_prepare', 'cgr_marker_postprocess',
+                                 'cgr_marker', 'cgr_marker_preprocess', 'cgr_marker_postprocess',
                                  'cgr_b_templates', 'cgr_m_templates'):
                         tmp[key] = open(value)
                     else:

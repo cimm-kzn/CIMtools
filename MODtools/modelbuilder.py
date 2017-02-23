@@ -177,8 +177,8 @@ class ModelBuilder(MBparser):
         return descgens
 
     def __order(self, model):
-        s = (1 if self.__options['fit'] == 'rmse' else -1) * model.getmodelstats()[self.__options['fit']]
-        v = self.__options['dispcoef'] * model.getmodelstats()['%s_var' % self.__options['fit']]
+        s = (1 if self.__options['fit'] == 'rmse' else -1) * model.get_model_stats()[self.__options['fit']]
+        v = self.__options['dispcoef'] * model.get_model_stats()['%s_var' % self.__options['fit']]
         return s + v
 
     def fit(self):
@@ -199,7 +199,7 @@ class ModelBuilder(MBparser):
                     models.pop()
 
         if 'tol' not in self.__description:
-            self.__description['tol'] = models[0].getmodelstats()['dragostolerance']
+            self.__description['tol'] = models[0].get_model_stats()['dragostolerance']
 
         print('name', self.__description['name'])
         print('description', self.__description['description'])

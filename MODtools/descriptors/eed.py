@@ -30,7 +30,7 @@ from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 
 class Eed(BaseGenerator):
     def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, cgr_reverse=False,
-                 cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_stereo=False,
+                 cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False,
                  is_reaction=False):
 
         if is_reaction and not cgr_marker:
@@ -40,7 +40,7 @@ class Eed(BaseGenerator):
 
         self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
-        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_prepare,
+        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
                                           postprocess=cgr_marker_postprocess,
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 

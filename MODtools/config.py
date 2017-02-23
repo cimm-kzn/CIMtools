@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from os import path
+from os.path import join, exists, dirname, expanduser
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
 JCHEMBIN = '/opt/JChem/bin'
@@ -29,25 +29,27 @@ GACONF = '/opt/dragos/gaconfstarter.sh'
 
 config_list = ('CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR', 'EED', 'COLOR', 'GACONF')
 
-if not path.exists(path.join(path.dirname(__file__), "config.ini")):
-    with open(path.join(path.dirname(__file__), "config.ini"), 'w') as f:
-        f.write('\n'.join('%s = %s' % (x, y) for x, y in globals().items() if x in config_list))
+config_dirs = [join(x, '.MODtools.ini') for x in (expanduser('~'), '/etc', dirname(__file__))]
 
-with open(path.join(path.dirname(__file__), "config.ini")) as f:
+if not any(exists(x) for x in config_dirs):
+    with open(config_dirs[0], 'w') as f:
+        f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_list))
+
+with open(next(x for x in config_dirs if exists(x))) as f:
     for line in f:
         try:
             k, v = line.split('=')
             k = k.strip()
             v = v.strip()
             if k in config_list:
-                globals()[k] = int(v) if v.isdigit() else v
+                globals()[k] = int(v) if v.isdigit() else v == 'True' if v in ('True', 'False', '') else v
         except:
             pass
 
 
-MOLCONVERT = path.join(JCHEMBIN, 'molconvert')
-STANDARDIZER = path.join(JCHEMBIN, 'standardize')
-CXCALC = path.join(JCHEMBIN, 'cxcalc')
-REACTOR = path.join(JCHEMBIN, 'react')
-JCSEARCH = path.join(JCHEMBIN, 'jcsearch')
-PMAPPER = path.join(JCHEMBIN, 'pmapper')
+MOLCONVERT = join(JCHEMBIN, 'molconvert')
+STANDARDIZER = join(JCHEMBIN, 'standardize')
+CXCALC = join(JCHEMBIN, 'cxcalc')
+REACTOR = join(JCHEMBIN, 'react')
+JCSEARCH = join(JCHEMBIN, 'jcsearch')
+PMAPPER = join(JCHEMBIN, 'pmapper')

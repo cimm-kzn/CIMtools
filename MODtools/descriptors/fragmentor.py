@@ -62,10 +62,10 @@ def pairwise(iterable):
 
 class Fragmentor(BaseGenerator):
     def __init__(self, workpath='.', version=None,
-                 s_option=None, fragment_type=3, min_length=2, max_length=10, color_name=None, marked_atom=0,
-                 cgr_dyn_bonds=0, xml=None, do_allways=False, use_formal_charge=False, atom_pairs=False,
-                 fragment_strict=False, get_atom_fragment=False, overwrite=True, header=None,
-                 marker_rules=None, standardize=None, do_color=None,
+                 s_option=None, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0,
+                 cgr_dynbonds=0, xml=None, doallways=False, useformalcharge=False, atompairs=False,
+                 fragmentstrict=False, getatomfragment=False, overwrite=True, header=None,
+                 marker_rules=None, standardize=None, docolor=None,
                  cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_reverse=False,
                  cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
                  cgr_isotope=False, cgr_element=True, cgr_stereo=False, is_reaction=False):
@@ -77,7 +77,7 @@ class Fragmentor(BaseGenerator):
 
         BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
 
-        self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, do_color))
+        self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
 
         self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
@@ -90,7 +90,7 @@ class Fragmentor(BaseGenerator):
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
         self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
-        self.__do_color = Colorize(do_color, workpath) if do_color else None
+        self.__do_color = Colorize(docolor, workpath) if docolor else None
 
         self.markers = self.__cgr_marker.get_count() if cgr_marker else \
             self.__phm_marker.get_count() if marker_rules else None
@@ -115,23 +115,23 @@ class Fragmentor(BaseGenerator):
 
         tmp.extend(['-t', str(fragment_type), '-l', str(min_length), '-u', str(max_length)])
 
-        if color_name:
-            tmp.extend(['-c', color_name])
+        if colorname:
+            tmp.extend(['-c', colorname])
         if marked_atom:
             tmp.extend(['-m', str(marked_atom)])
-        if cgr_dyn_bonds:
-            tmp.extend(['-d', str(cgr_dyn_bonds)])
+        if cgr_dynbonds:
+            tmp.extend(['-d', str(cgr_dynbonds)])
         if xml:
             tmp.extend(['-x', xml])
-        if do_allways:
+        if doallways:
             tmp.append('--DoAllWays')
-        if atom_pairs:
+        if atompairs:
             tmp.append('--AtomPairs')
-        if use_formal_charge:
+        if useformalcharge:
             tmp.append('--UseFormalCharge')
-        if fragment_strict:
+        if fragmentstrict:
             tmp.append('--StrictFrg')
-        if get_atom_fragment:
+        if getatomfragment:
             tmp.append('--GetAtomFragment')
         if not overwrite:
             tmp.append('--Pipe')
