@@ -92,7 +92,7 @@ class Fragmentor(BaseGenerator):
         self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
         self.__do_color = Colorize(docolor, workpath) if docolor else None
 
-        self.markers = self.__cgr_marker.get_count() if cgr_marker else \
+        self.__markers = self.__cgr_marker.get_count() if cgr_marker else \
             self.__phm_marker.get_count() if marker_rules else None
 
         self.__work_files = self.markers or 1
@@ -137,6 +137,10 @@ class Fragmentor(BaseGenerator):
             tmp.append('--Pipe')
 
         self.__exec_params = tmp
+
+    @property
+    def markers(self):
+        return self.__markers
 
     @property
     def __fragmentor(self):

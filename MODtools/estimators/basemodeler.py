@@ -18,6 +18,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from abc import ABC, abstractmethod, abstractproperty
+from typing import Iterable
 from tempfile import mkdtemp
 from shutil import rmtree
 from numpy import inf, mean, var, arange
@@ -104,7 +106,7 @@ def _iap(y_test, y_prob):
     return res
 
 
-class BaseModel(object):
+class BaseModel(ABC):
     def __init__(self, generator, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100, dispcoef=0,
                  fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
 
@@ -135,6 +137,18 @@ class BaseModel(object):
 
         self.__cross_val()
         self.delete_work_path()
+
+    @abstractmethod
+    def prepare_params(self, param):
+        pass
+
+    @abstractproperty
+    def fit_params(self) -> Iterable:
+        pass
+
+    @abstractmethod
+    def estimator(self):
+        pass
 
     def set_work_path(self, workpath):
         self.__workpath = mkdtemp(dir=workpath)

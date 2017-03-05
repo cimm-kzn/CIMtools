@@ -46,9 +46,13 @@ class Eed(BaseGenerator):
 
         self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
 
-        self.markers = (self.__cgr_marker.get_count() if cgr_marker else
-                        self.__phm_marker.get_count() if marker_rules else None)
+        self.__markers = (self.__cgr_marker.get_count() if cgr_marker else
+                          self.__phm_marker.get_count() if marker_rules else None)
         self.__workfiles = self.markers or 1
+
+    @property
+    def markers(self):
+        return self.__markers
 
     def set_work_path(self, workpath):
         BaseGenerator.set_work_path(self, workpath)

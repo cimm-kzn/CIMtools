@@ -24,5 +24,7 @@ from MODtools.modelbuilder import ModelBuilder
 
 
 if __name__ == '__main__':
-    main = ModelBuilder(**argparser())
-    main.run()
+    args = argparser()
+    input_file = args.pop('input')
+    main = ModelBuilder(args)
+    main.run(input_file)

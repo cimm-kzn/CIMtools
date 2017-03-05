@@ -18,17 +18,26 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from abc import ABC, abstractmethod, abstractproperty
 from operator import and_
 from pandas import Series, Index, MultiIndex, concat
 from functools import reduce
 from .descriptoragregator import PropertyExtractor
 
 
-class BaseGenerator(PropertyExtractor):
+class BaseGenerator(ABC, PropertyExtractor):
     def __init__(self, workpath='.', s_option=None):
         PropertyExtractor.__init__(self, s_option)
 
         self.workpath = workpath
+
+    @abstractmethod
+    def prepare(self, structures, **_):
+        pass
+
+    @abstractproperty
+    def markers(self) -> int:
+        pass
 
     def set_work_path(self, workpath):
         self.workpath = workpath

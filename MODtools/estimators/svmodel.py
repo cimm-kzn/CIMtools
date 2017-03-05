@@ -29,15 +29,22 @@ class SVModel(BaseModel):
                  dispcoef=0, fit='rmse', estimator='svr', probability=False, scorers=('rmse', 'r2'),
                  normalize=False, n_jobs=2, max_iter=100000, **kwargs):
 
-        self.estimator = partial(self.__estimators[estimator], max_iter=max_iter)
+        self.__max_iter = max_iter
         self.__estimator = estimator
         self.__probability = [probability]
-        self.fit_params = fitparams
+        self.__fit_params = fitparams
         BaseModel.__init__(self, descriptorgen, structures, nfold=nfold, repetitions=repetitions,
                            rep_boost=rep_boost, dispcoef=dispcoef, fit=fit, scorers=scorers, workpath=workpath,
                            normalize=normalize, n_jobs=n_jobs, **kwargs)
 
     __estimators = dict(svr=SVR, svc=SVC)
+
+    def estimator(self):
+        return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter)
+
+    @property
+    def fit_params(self):
+        return self.__fit_params
 
     def prepare_params(self, param):
         base = dict(C=param['C'], tol=param['tol'])

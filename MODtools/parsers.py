@@ -206,13 +206,14 @@ def argparser():
 
     rawopts.add_argument("--input", "-i", type=str, default='input.sdf', help="input SDF or RDF")
     rawopts.add_argument("--output", "-o", type=str, default=None, help="output SVM|CSV")
-    rawopts.add_argument("--format", "-of", type=str, default='svm', choices=['svm', 'csv'], help="output format")
+    rawopts.add_argument("--format", "-of", dest='out_format', type=str, default='svm', choices=['svm', 'csv'],
+                         help="output format")
 
     rawopts.add_argument("--reload", type=str, default=None, help="saved state before fitting")
 
     rawopts.add_argument("--model", "-m", type=str, default='output.model', help="output model")
 
-    rawopts.add_argument("--isreaction", "-ir", action='store_true', help="set as reaction model")
+    rawopts.add_argument("--isreaction", "-ir", dest='is_reaction', action='store_true', help="set as reaction model")
 
     rawopts.add_argument("--extension", "-e", action='append', type=str, default=None,
                          help="extension data files. -e extname:filename [-e extname2:filename2]")
