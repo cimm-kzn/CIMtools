@@ -6,7 +6,21 @@
 # $4 repetitions
 # $5 CV
 # $workdir /path/to/worktmp.file{/}
-GACONF=/path/to/ga
+
+GACONF_PATH=~/GAconfig
+LIBSVM_PATH=${GACONF_PATH}/libsvm-3.20
+
+if [ -f /etc/.MODtools.rc ]; then
+    . /etc/.MODtools.rc
+fi
+
+if [ -f ~/.MODtools.rc ]; then
+    . ~/.MODtools.rc
+fi
+
+export LIBSVM=${SVMLIB_PATH}
+export GACONF=${GACONF_PATH}
+export LC_ALL=en_US.UTF-8
 
 datadir=$1
 workdir=${datadir}/work

@@ -40,7 +40,7 @@ from .descriptors.descriptoragregator import DescriptorsDict, DescriptorsChain
 from .descriptors.eed import Eed
 from .descriptors.fragmentor import Fragmentor
 from .estimators.svmodel import SVModel
-from .parsers import MBparser
+from .parsers import MBparser, argparser
 
 
 def desc_starter(func, file_dump, out_file, fformat, header, is_reaction):
@@ -326,3 +326,10 @@ class ModelBuilder(MBparser):
                         svm.append({'scale' if y == 'scaled' else 'orig': list(x.values())[0]})
                     return svm, cleared
         raise Exception('GAConf failed')
+
+
+def launcher():
+    args = argparser()
+    input_file = args.pop('input')
+    main = ModelBuilder(args)
+    main.run(input_file)

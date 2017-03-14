@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 
-UTILS_DIR=/home/stsouko
-CHMXN_DIR=/home/stsouko/ChemAxon
+UTILS_DIR=~
+CHMXN_DIR=~/ChemAxon
+
+if [ -f /etc/.MODtools.rc ]; then
+    . /etc/.MODtools.rc
+fi
+
+if [ -f ~/.MODtools.rc ]; then
+    . ~/.MODtools.rc
+fi
+
 export SETUP_DIR=${UTILS_DIR}/Utils
 export FORCEFIELD=${SETUP_DIR}/cvffTemplates.xml
 export CLASSPATH=${CHMXN_DIR}/JChem/lib/jchem.jar:${UTILS_DIR}:

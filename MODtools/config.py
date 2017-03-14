@@ -21,18 +21,19 @@
 from os.path import join, exists, dirname, expanduser
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
-JCHEMBIN = '/opt/JChem/bin'
-FRAGMENTOR = '/opt/fragmentor/fragmentor'
-EED = '/opt/dragos/eedstart.sh'
-COLOR = '/opt/dragos/colorstart.sh'
-GACONF = '/opt/dragos/gaconfstarter.sh'
+JCHEMBIN = join(expanduser('~'), 'ChemAxon/JChem/bin')
+FRAGMENTOR = join(expanduser('~'), 'fragmentor/fragmentor')
 
-config_list = ('CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR', 'EED', 'COLOR', 'GACONF')
+EED = 'eedstart.sh'
+COLOR = 'colorstart.sh'
+GACONF = 'gaconfstarter.sh'
 
-config_dirs = [join(x, '.MODtools.ini') for x in (expanduser('~'), '/etc', dirname(__file__))]
+config_list = ('CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR')
+
+config_dirs = [join(x, '.MODtools.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
 
 if not any(exists(x) for x in config_dirs):
-    with open(config_dirs[0], 'w') as f:
+    with open(config_dirs[1], 'w') as f:
         f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_list))
 
 with open(next(x for x in config_dirs if exists(x))) as f:
