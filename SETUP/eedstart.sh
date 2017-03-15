@@ -3,16 +3,16 @@
 [ $# -ge 1 -a -f "$1" ] && input="$1" || input="-"
 
 UTILS_DIR=~
-CHMXN_DIR=~/ChemAxon
+JCHEM_DIR=~/ChemAxon/JChem
 
-if [ -f /etc/.MODtools.rc ]; then
-    . /etc/.MODtools.rc
+if [ -f /etc/.MODtools.ini ]; then
+    . /etc/.MODtools.ini
 fi
 
-if [ -f ~/.MODtools.rc ]; then
-    . ~/.MODtools.rc
+if [ -f ~/.MODtools.ini ]; then
+    . ~/.MODtools.ini
 fi
 
-export CLASSPATH=${CHMXN_DIR}/JChem/lib/jchem.jar:${UTILS_DIR}:
+export CLASSPATH=${JCHEM_DIR}/lib/jchem.jar:${UTILS_DIR}:
 
 cat ${input} | java Utils.react_desc -svm

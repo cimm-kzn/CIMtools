@@ -21,14 +21,14 @@
 from os.path import join, exists, dirname, expanduser
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
-JCHEMBIN = join(expanduser('~'), 'ChemAxon/JChem/bin')
+JCHEM_DIR = join(expanduser('~'), 'ChemAxon/JChem/bin')
 FRAGMENTOR = join(expanduser('~'), 'fragmentor/fragmentor')
 
 EED = 'eedstart.sh'
 COLOR = 'colorstart.sh'
 GACONF = 'gaconfstarter.sh'
 
-config_list = ('CHEMAXON', 'JCHEMBIN', 'FRAGMENTOR')
+config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR')
 
 config_dirs = [join(x, '.MODtools.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
 
@@ -47,6 +47,7 @@ with open(next(x for x in config_dirs if exists(x))) as f:
         except:
             pass
 
+JCHEMBIN = join(JCHEM_DIR, 'bin')
 
 MOLCONVERT = join(JCHEMBIN, 'molconvert')
 STANDARDIZER = join(JCHEMBIN, 'standardize')

@@ -10,15 +10,15 @@
 GACONF_PATH=~/GAconfig
 LIBSVM_PATH=${GACONF_PATH}/libsvm-3.20
 
-if [ -f /etc/.MODtools.rc ]; then
-    . /etc/.MODtools.rc
+if [ -f /etc/.MODtools.ini ]; then
+    . /etc/.MODtools.ini
 fi
 
-if [ -f ~/.MODtools.rc ]; then
-    . ~/.MODtools.rc
+if [ -f ~/.MODtools.ini ]; then
+    . ~/.MODtools.ini
 fi
 
-export LIBSVM=${SVMLIB_PATH}
+export LIBSVM=${LIBSVM_PATH}
 export GACONF=${GACONF_PATH}
 export LC_ALL=en_US.UTF-8
 

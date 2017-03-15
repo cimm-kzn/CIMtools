@@ -331,5 +331,6 @@ class ModelBuilder(MBparser):
 def launcher():
     args = argparser()
     input_file = args.pop('input')
-    main = ModelBuilder(args)
+    args.pop('version')
+    main = ModelBuilder(**args)
     main.run(input_file)
