@@ -1,8 +1,0 @@
-typing
-pandas
-scipy
-dill
-sortedcontainers
-sklearn
-requests
-git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools

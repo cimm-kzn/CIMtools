@@ -26,15 +26,22 @@ FRAGMENTOR = join(expanduser('~'), 'fragmentor/fragmentor')
 
 EED = 'eedstart.sh'
 COLOR = 'colorstart.sh'
-GACONF = 'gaconfstarter.sh'
+GACONF = 'dragosgfstarter.sh'
+
+UTILS_DIR = expanduser('~')
+GACONF_PATH = join(UTILS_DIR, 'GAconfig')
+LIBSVM_PATH = join(GACONF_PATH, 'libsvm-3.20')
 
 config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR')
+
+config_save_list = ['UTILS_DIR', 'GACONF_PATH', 'LIBSVM_PATH']
+config_save_list.extend(config_list)
 
 config_dirs = [join(x, '.MODtools.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
 
 if not any(exists(x) for x in config_dirs):
     with open(config_dirs[1], 'w') as f:
-        f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_list))
+        f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_save_list))
 
 with open(next(x for x in config_dirs if exists(x))) as f:
     for line in f:

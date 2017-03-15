@@ -33,8 +33,11 @@ class Pkab(PropertyExtractor):
                  cgr_reverse=False, is_reaction=False,
                  cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False):
 
-        if is_reaction and not cgr_marker:
-            raise Exception('only cgr marker can work with reactions')
+        if is_reaction:
+            if not cgr_marker:
+                raise Exception('only cgr marker can work with reactions')
+        elif cgr_marker:
+            raise Exception('for cgr marker is_reaction should be True')
 
         PropertyExtractor.__init__(self, s_option)
 
@@ -49,6 +52,17 @@ class Pkab(PropertyExtractor):
         self.__reverse = cgr_reverse
         self.__acid = acid
         self.__base = base
+
+        locs = locals()
+        tmp = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
+        tmp.update((x, y) for x, y in (('acid', acid), ('base', base)) if not y)
+        self.__config = tmp
+
+    __optional_configs = ('s_option', 'marker_rules', 'standardize', 'cgr_reverse', 'cgr_marker',
+                          'cgr_marker_preprocess', 'cgr_marker_postprocess', 'cgr_stereo', 'is_reaction')
+
+    def get_config(self):
+        return self.__config
 
     def set_work_path(self, workpath):
         self.__workpath = workpath

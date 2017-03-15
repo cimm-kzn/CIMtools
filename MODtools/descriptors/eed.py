@@ -33,8 +33,11 @@ class Eed(BaseGenerator):
                  cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False,
                  is_reaction=False):
 
-        if is_reaction and not cgr_marker:
-            raise Exception('only cgr marker can work with reactions')
+        if is_reaction:
+            if not cgr_marker:
+                raise Exception('only cgr marker can work with reactions')
+        elif cgr_marker:
+            raise Exception('for cgr marker is_reaction should be True')
 
         BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
 
@@ -49,6 +52,15 @@ class Eed(BaseGenerator):
         self.__markers = (self.__cgr_marker.get_count() if cgr_marker else
                           self.__phm_marker.get_count() if marker_rules else None)
         self.__workfiles = self.markers or 1
+
+        locs = locals()
+        self.__config = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
+
+    __optional_configs = ('s_option', 'marker_rules', 'standardize', 'cgr_reverse', 'cgr_marker',
+                          'cgr_marker_preprocess', 'cgr_marker_postprocess', 'cgr_stereo', 'is_reaction')
+
+    def get_config(self):
+        return self.__config
 
     @property
     def markers(self):

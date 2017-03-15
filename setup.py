@@ -23,7 +23,7 @@ from setuptools import setup, find_packages
 from MODtools.version import version
 
 setup(
-    name='modtools',
+    name='MODtools',
     version=version(),
     packages=find_packages(),
     url='https://github.com/stsouko/MODtools',
@@ -35,13 +35,15 @@ setup(
     scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
     package_data={'': ['unwanted.elem', 'standardrules_dragos.rules']},
     install_requires=['typing', 'pandas', 'scipy', 'dill', 'sortedcontainers', 'sklearn', 'requests', 'CGRtools'],
-    dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools-2.6'],
+    dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools'],
     long_description='Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers',
 
     keywords="tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
-                 'Intended Audience :: End Users/Desktop',
+                 'Intended Audience :: Science/Research',
                  'Intended Audience :: Developers',
+                 'Topic :: Scientific/Engineering :: Chemistry',
+                 'Topic :: Software Development :: Libraries :: Python Modules',
                  'License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)',
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',

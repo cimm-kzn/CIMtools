@@ -70,8 +70,11 @@ class Fragmentor(BaseGenerator):
                  cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
                  cgr_isotope=False, cgr_element=True, cgr_stereo=False, is_reaction=False):
 
-        if is_reaction and not (cgr_type or cgr_marker):
-            raise Exception('only cgr or cgr marker can work with reactions')
+        if is_reaction:
+            if not (cgr_type or cgr_marker):
+                raise Exception('only cgr or cgr marker can work with reactions')
+        elif cgr_type or cgr_marker:
+            raise Exception('for cgr or cgr marker is_reaction should be True')
 
         self.__is_reaction = is_reaction
 
@@ -97,18 +100,23 @@ class Fragmentor(BaseGenerator):
 
         self.__work_files = self.markers or 1
 
+        self.__frag_version = ('-%s' % version) if version else ''
+        tmp = ['-f', 'SVM']
+
+        self.__gen_header = True
+        self.__manual_header = False
         self.__head_dump = {}
         self.__head_size = {}
         self.__head_dict = {}
         self.__head_columns = {}
 
-        self.__frag_version = ('-%s' % version) if version else ''
-        tmp = ['-f', 'SVM']
-
-        self.__gen_header = True
         if header:
             self.__gen_header = False
+            self.__manual_header = True
             headers = header if isinstance(header, list) else [header]
+            if len(headers) != self.__work_files:
+                raise Exception('number header files should be equal to number of markers or 1')
+
             for n, h in enumerate(headers):
                 self.__dump_header(n, h)
             tmp.extend(['-h', ''])
@@ -137,6 +145,32 @@ class Fragmentor(BaseGenerator):
             tmp.append('--Pipe')
 
         self.__exec_params = tmp
+
+        locs = locals()
+        tmp = dict(fragment_type=fragment_type, min_length=min_length, max_length=max_length)
+        tmp.update((x, y) for x, y in (('overwrite', overwrite), ('cgr_element', cgr_element)) if not y)
+        tmp.update((x, locs[x]) for x in self.__optional_configs if locs[x])
+        self.__config = tmp
+
+    __optional_configs = ('version', 's_option', 'colorname', 'marked_atom', 'cgr_dynbonds', 'xml', 'doallways',
+                          'useformalcharge',  'atompairs', 'fragmentstrict', 'getatomfragment', 'header',
+                          'marker_rules', 'standardize', 'docolor', 'cgr_marker', 'cgr_marker_preprocess',
+                          'cgr_marker_postprocess', 'cgr_reverse', 'cgr_type', 'cgr_extralabels', 'cgr_b_templates',
+                          'cgr_m_templates', 'cgr_isotope', 'cgr_stereo', 'is_reaction')
+
+    def get_config(self):
+        return self.__config
+
+    def flush(self):
+        if not (self.__gen_header or self.__manual_header):
+            self.__gen_header = True
+            h_index = self.__exec_params.index('-h')
+            self.__exec_params.pop(h_index)
+            self.__exec_params.pop(h_index)
+            self.__head_dump = {}
+            self.__head_size = {}
+            self.__head_dict = {}
+            self.__head_columns = {}
 
     @property
     def markers(self):
