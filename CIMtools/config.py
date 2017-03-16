@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
-#  This file is part of MODtools.
+#  This file is part of CIMtools.
 #
-#  MODtools is free software; you can redistribute it and/or modify
+#  CIMtools is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -21,7 +21,7 @@
 from os.path import join, exists, dirname, expanduser
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
-JCHEM_DIR = join(expanduser('~'), 'ChemAxon/JChem/bin')
+JCHEM_DIR = join(expanduser('~'), 'ChemAxon/JChem')
 FRAGMENTOR = join(expanduser('~'), 'fragmentor/fragmentor')
 
 EED = 'eedstart.sh'
@@ -37,11 +37,11 @@ config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR')
 config_save_list = ['UTILS_DIR', 'GACONF_PATH', 'LIBSVM_PATH']
 config_save_list.extend(config_list)
 
-config_dirs = [join(x, '.MODtools.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
+config_dirs = [join(x, '.CIMtools.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
 
 if not any(exists(x) for x in config_dirs):
     with open(config_dirs[1], 'w') as f:
-        f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_save_list))
+        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in globals().items() if x in config_save_list))
 
 with open(next(x for x in config_dirs if exists(x))) as f:
     for line in f:

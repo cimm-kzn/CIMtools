@@ -5,12 +5,12 @@
 UTILS_DIR=~
 JCHEM_DIR=~/ChemAxon/JChem
 
-if [ -f /etc/.MODtools.ini ]; then
-    . /etc/.MODtools.ini
+if [ -f /etc/.CIMtools.ini ]; then
+    . /etc/.CIMtools.ini
 fi
 
 if [ -f ~/.MODtools.ini ]; then
-    . ~/.MODtools.ini
+    . ~/.CIMtools.ini
 fi
 
 export CLASSPATH=${JCHEM_DIR}/lib/jchem.jar:${UTILS_DIR}:

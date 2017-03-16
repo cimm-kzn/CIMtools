@@ -3,12 +3,12 @@
 UTILS_DIR=~
 JCHEM_DIR=~/ChemAxon/JChem
 
-if [ -f /etc/.MODtools.ini ]; then
-    . /etc/.MODtools.ini
+if [ -f /etc/.CIMtools.ini ]; then
+    . /etc/.CIMtools.ini
 fi
 
-if [ -f ~/.MODtools.ini ]; then
-    . ~/.MODtools.ini
+if [ -f ~/.CIMtools.ini ]; then
+    . ~/.CIMtools.ini
 fi
 
 export SETUP_DIR=${UTILS_DIR}/Utils

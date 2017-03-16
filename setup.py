@@ -20,10 +20,10 @@
 #  MA 02110-1301, USA.
 #
 from setuptools import setup, find_packages
-from MODtools.version import version
+from CIMtools.version import version
 
 setup(
-    name='MODtools',
+    name='CIMtools',
     version=version(),
     packages=find_packages(),
     url='https://github.com/stsouko/MODtools',
@@ -31,14 +31,16 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='Modeler tools',
-    entry_points={'console_scripts': ['modeler=MODtools.modelbuilder:launcher']},
+    entry_points={'console_scripts': ['modeler=CIMtools.modelbuilder:launcher']},
     scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
     package_data={'': ['unwanted.elem', 'standardrules_dragos.rules']},
-    install_requires=['typing', 'pandas', 'scipy', 'dill', 'sortedcontainers', 'sklearn', 'requests', 'CGRtools'],
-    dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools'],
-    long_description='Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers',
+    install_requires=['networkx>=2.0.dev', 'CGRtools>=2.6', 'typing', 'pandas', 'scipy', 'dill', 'sortedcontainers',
+                      'sklearn', 'requests'],
+    dependency_links=['git+https://github.com/networkx/networkx.git@master#egg=networkx-2.0.dev',
+                      'git+https://github.com/stsouko/CGRtools.git@2.6#egg=CGRtools-2.6'],
+    long_description='Chemoinformatics Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers',
 
-    keywords="tools modeler cli ISIDA Framentor EED SVM IAP",
+    keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
                  'Intended Audience :: Science/Research',
                  'Intended Audience :: Developers',

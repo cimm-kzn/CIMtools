@@ -10,12 +10,12 @@
 GACONF_PATH=~/GAconfig
 LIBSVM_PATH=${GACONF_PATH}/libsvm-3.20
 
-if [ -f /etc/.MODtools.ini ]; then
-    . /etc/.MODtools.ini
+if [ -f /etc/.CIMtools.ini ]; then
+    . /etc/.CIMtools.ini
 fi
 
-if [ -f ~/.MODtools.ini ]; then
-    . ~/.MODtools.ini
+if [ -f ~/.CIMtools.ini ]; then
+    . ~/.CIMtools.ini
 fi
 
 export LIBSVM=${LIBSVM_PATH}

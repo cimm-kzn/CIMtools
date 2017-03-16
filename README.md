@@ -1,4 +1,4 @@
-MODTools
+CIMtools
 =========
 classes for models preparation
 
@@ -12,7 +12,7 @@ INSTALL
 
 *step 1:*
 
-    pip install -U git+https://github.com/stsouko/MODtools.git@master#egg=MODtools --process-dependency-links --allow-all-external
+    pip install -U git+https://github.com/stsouko/MODtools.git@master#egg=CIMtools --process-dependency-links --allow-all-external
 
 *step 2:*
 
@@ -22,8 +22,8 @@ type
 
 *step 3:*
 
-edit `~/.MODtools.ini` or add `/etc/.MODtools.ini`
-or add file into package `MODtools/.MODtools.ini` [useful for manually downloaded MODtools Lib]
+edit `~/.CIMtools.ini` or add `/etc/.CIMtools.ini`
+or add file into package `CIMtools/.CIMtools.ini` [useful for manually downloaded CIMtools Lib]
 
     GACONF_PATH=~/GAconfig # GAconfig dir
     LIBSVM_PATH=~/GAconfig/libsvm-3.20 # LIBSVM binaries dir
@@ -33,10 +33,10 @@ or add file into package `MODtools/.MODtools.ini` [useful for manually downloade
     FRAGMENTOR = ~/fragmentor/fragmentor # path to fragmentor bin file (without -version_suffix [fragmentor-2015.22])
 
 
-priority: `MODtools/.MODtools.ini` >> `~/.MODtools.ini` >> `/etc/.MODtools.ini`
+priority: `CIMtools/.CIMtools.ini` >> `~/.CIMtools.ini` >> `/etc/.CIMtools.ini`
 
 *NOTE:*
 
-`MODtools/.MODtools.ini` not visible for `colorstart.sh` `dragosgfstarter.sh` `eedstart.sh`
+`CIMtools/.CIMtools.ini` not visible for `colorstart.sh` `dragosgfstarter.sh` `eedstart.sh`
 
 Edit this *.sh scripts manually and move it to one of the $PATH dirs
