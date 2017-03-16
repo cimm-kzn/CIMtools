@@ -2,15 +2,15 @@
 
 [ $# -ge 1 -a -f "$1" ] && input="$1" || input="-"
 
-UTILS_DIR=~
-JCHEM_DIR=~/ChemAxon/JChem
+UTILS_DIR=$HOME
+JCHEM_DIR=$HOME/ChemAxon/JChem
 
 if [ -f /etc/.CIMtools.ini ]; then
     . /etc/.CIMtools.ini
 fi
 
-if [ -f ~/.MODtools.ini ]; then
-    . ~/.CIMtools.ini
+if [ -f $HOME/.MODtools.ini ]; then
+    . $HOME/.CIMtools.ini
 fi
 
 export CLASSPATH=${JCHEM_DIR}/lib/jchem.jar:${UTILS_DIR}:

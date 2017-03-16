@@ -103,8 +103,6 @@ class Fragmentor(BaseGenerator):
         self.__frag_version = ('-%s' % version) if version else ''
         tmp = ['-f', 'SVM']
 
-        self.__gen_header = True
-        self.__manual_header = False
         self.__head_dump = {}
         self.__head_size = {}
         self.__head_dict = {}
@@ -157,6 +155,8 @@ class Fragmentor(BaseGenerator):
                           'marker_rules', 'standardize', 'docolor', 'cgr_marker', 'cgr_marker_preprocess',
                           'cgr_marker_postprocess', 'cgr_reverse', 'cgr_type', 'cgr_extralabels', 'cgr_b_templates',
                           'cgr_m_templates', 'cgr_isotope', 'cgr_stereo', 'is_reaction')
+    __gen_header = True
+    __manual_header = False
 
     def get_config(self):
         return self.__config

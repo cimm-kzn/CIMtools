@@ -32,6 +32,7 @@ from collections import OrderedDict
 from functools import partial
 from itertools import product, cycle
 from sortedcontainers import SortedListWithKey
+from shutil import rmtree
 from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from .config import GACONF
@@ -291,6 +292,7 @@ class ModelBuilder(MBparser):
                     break
             sleep(2)
 
+        rmtree(workpath)
         return True
 
     def __dragos_svm_fit(self, input_file, _type):

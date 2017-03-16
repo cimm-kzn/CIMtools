@@ -39,6 +39,7 @@ class SVModel(BaseModel):
 
     __estimators = dict(svr=SVR, svc=SVC)
 
+    @property
     def estimator(self):
         return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter)
 

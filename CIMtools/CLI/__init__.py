@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,14 +18,13 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from ..modelbuilder import ModelBuilder
+from .parser import argparser
 
 
-class ConsensusDragos(object):
-    errors = dict(lad='Too few (less than %d %%) local models have applicability domains covering this structure. ',
-                  diff='The other local models disagree (prediction value difference = %.2f) with the prediction of '
-                       'the minority containing structure inside their applicability domain. ',
-                  stp='Individual models failed to reach unanimity - prediction variance exceeds %d %% '
-                      'of the property range width. ',
-                  zad='None of the local models have applicability domains covering this structure. ')
-
-    trust_desc = {5: 'Optimal', 4: 'Good', 3: 'Medium', 2: 'Low', 1: 'Bad'}
+def modelbuilder():
+    args = argparser()
+    input_file = args.pop('input')
+    args.pop('version')
+    main = ModelBuilder(**args)
+    main.run(input_file)

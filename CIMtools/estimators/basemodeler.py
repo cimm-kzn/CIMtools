@@ -146,7 +146,7 @@ class BaseModel(ABC):
     def fit_params(self) -> Iterable:
         pass
 
-    @abstractmethod
+    @abstractproperty
     def estimator(self):
         pass
 

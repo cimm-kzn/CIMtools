@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-UTILS_DIR=~
-JCHEM_DIR=~/ChemAxon/JChem
+UTILS_DIR=$HOME
+JCHEM_DIR=$HOME/ChemAxon/JChem
 
 if [ -f /etc/.CIMtools.ini ]; then
     . /etc/.CIMtools.ini
 fi
 
-if [ -f ~/.CIMtools.ini ]; then
-    . ~/.CIMtools.ini
+if [ -f $HOME/.CIMtools.ini ]; then
+    . $HOME/.CIMtools.ini
 fi
 
 export SETUP_DIR=${UTILS_DIR}/Utils

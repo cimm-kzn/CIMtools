@@ -28,13 +28,14 @@ from ..config import COLOR
 class Colorize(object):
     def __init__(self, standardize, workpath=None):
         self.__standardize = self.__dump_rules(standardize)
-        self.__input_file = './colorin.sdf'
-        self.__out_file = './colorout.sdf'
-        self.__std_file = './colorstd.xml'
         if workpath is not None:
             self.set_work_path(workpath)
         else:
             self.__load_rules()
+
+    __input_file = './colorin.sdf'
+    __out_file = './colorout.sdf'
+    __std_file = './colorstd.xml'
 
     @staticmethod
     def __dump_rules(rules):

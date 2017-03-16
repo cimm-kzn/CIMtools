@@ -46,11 +46,12 @@ def remove_namespace(doc, namespace):
 class PharmacophoreAtomMarker(object):
     def __init__(self, marker_rules, workpath=None):
         self.__marker_rules, self.__markers = self.__dump_rules(marker_rules)
-        self.__config = './iam'
         if workpath is not None:
             self.set_work_path(workpath)
         else:
             self.__load_rules()
+
+    __config = './iam'
 
     @staticmethod
     def __dump_rules(rules):

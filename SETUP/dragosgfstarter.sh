@@ -7,15 +7,15 @@
 # $5 CV
 # $workdir /path/to/worktmp.file{/}
 
-GACONF_PATH=~/GAconfig
+GACONF_PATH=$HOME/GAconfig
 LIBSVM_PATH=${GACONF_PATH}/libsvm-3.20
 
 if [ -f /etc/.CIMtools.ini ]; then
     . /etc/.CIMtools.ini
 fi
 
-if [ -f ~/.CIMtools.ini ]; then
-    . ~/.CIMtools.ini
+if [ -f $HOME/.CIMtools.ini ]; then
+    . $HOME/.CIMtools.ini
 fi
 
 export LIBSVM=${LIBSVM_PATH}

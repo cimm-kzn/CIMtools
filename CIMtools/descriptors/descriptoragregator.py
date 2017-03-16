@@ -42,6 +42,11 @@ class DescriptorsChain(object):
             if hasattr(gen, 'set_work_path'):
                 gen.set_work_path(workpath)
 
+    def flush(self):
+        for gen, _ in self.__generators:
+            if hasattr(gen, 'flush'):
+                gen.flush()
+
     def get(self, structures, **kwargs):
         """
         :param structures: list of CGRtools data
@@ -95,10 +100,6 @@ class DescriptorsDict(PropertyExtractor):
         PropertyExtractor.__init__(self, s_option)
         self.__extension = data
         self.__ext_header = self.__prepare_ext_header(data)
-
-    @staticmethod
-    def set_work_path(_):
-        return None
 
     @staticmethod
     def __prepare_ext_header(data):
