@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,7 +18,12 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from ..modelbuilder import ModelBuilder
 
 
-def version():
-    return '1.2.7'
+def modeler_core(**kwargs):
+    input_file = kwargs.pop('input')
+    kwargs.pop('func')
+    kwargs.pop('version')
+    main = ModelBuilder(**kwargs)
+    main.run(input_file)

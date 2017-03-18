@@ -18,10 +18,10 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.files.SDFrw import SDFread, SDFwrite
 from os import remove
 from os.path import join, exists, dirname
 from subprocess import call
-from CGRtools.files.SDFrw import SDFread, SDFwrite
 from ..config import COLOR
 
 

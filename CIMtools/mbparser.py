@@ -18,8 +18,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from pandas import concat, read_csv
 from copy import deepcopy
+from pandas import read_csv
 from .estimators.kernels import tanimoto_kernel
 
 
@@ -174,16 +174,3 @@ class MBparser(object):
                 record = dict(key=k, value=v.rename(columns=lambda x: '%s.%s' % (ext, x)))
             extdata[ext] = record
         return dict(s_option=s_option, data=extdata)
-
-    @staticmethod
-    def save_svm(outputfile, x, y, header=True):
-        with open(outputfile + '.svm', 'w', encoding='utf-8') as f:
-            if header:
-                f.write(' '.join(['Property'] + ['%s:%s' % i for i in enumerate(x.columns, start=1)]) + '\n')
-
-            for i, j in zip(x.values, y):
-                f.write(' '.join(['%s ' % j] + ['%s:%s' % x for x in enumerate(i, start=1) if x[1] != 0]) + '\n')
-
-    @staticmethod
-    def save_csv(outputfile, x, y, header=True):
-        concat([y, x], axis=1).to_csv(outputfile + '.csv', index=False, header=header)

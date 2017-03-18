@@ -18,22 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from abc import ABC, abstractmethod, abstractproperty
-from typing import Iterable
-from tempfile import mkdtemp
-from shutil import rmtree
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from copy import deepcopy
+from itertools import product
+from math import sqrt, ceil
 from numpy import inf, mean, var, arange
 from operator import lt, le
 from pandas import DataFrame, Series, concat
-from collections import defaultdict
-from itertools import product
-from copy import deepcopy
-from math import sqrt, ceil
-from sklearn.externals.joblib import Parallel, delayed
-from sklearn.utils import shuffle
+from shutil import rmtree
 from sklearn.cross_validation import KFold
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.externals.joblib import Parallel, delayed
 from sklearn.metrics import mean_squared_error, r2_score, cohen_kappa_score, accuracy_score
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.utils import shuffle
+from tempfile import mkdtemp
+from typing import Iterable
 
 
 class Score(dict):
@@ -107,14 +107,14 @@ def _iap(y_test, y_prob):
 
 
 class BaseModel(ABC):
-    def __init__(self, generator, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100, dispcoef=0,
-                 fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
+    def __init__(self, descriptors_generator, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100,
+                 dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
 
         _scorers = dict(rmse=(_rmse, False), r2=(r2_score, False),
                         kappa=(cohen_kappa_score, False), acc=(_accuracy, False), iap=(_iap, True))
         self.__model = {}
 
-        self.__generator = generator
+        self.__generator = descriptors_generator
         self.set_work_path(workpath)
 
         self.__nfold = nfold
@@ -129,7 +129,7 @@ class BaseModel(ABC):
         self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
 
         print("Descriptors generation start")
-        xy = generator.get(structures, **kwargs)
+        xy = descriptors_generator.get(structures, **kwargs)
         self.__x = xy['X']
         self.__y = xy['Y']
         self.__box = xy.get('BOX', xy['X'].columns)
@@ -142,17 +142,20 @@ class BaseModel(ABC):
     def prepare_params(self, param):
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def fit_params(self) -> Iterable:
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def estimator(self):
         pass
 
     def set_work_path(self, workpath):
         self.__workpath = mkdtemp(dir=workpath)
-        self.__generator.set_work_path(self.__workpath)
+        if hasattr(self.__generator, 'set_work_path'):
+            self.__generator.set_work_path(self.__workpath)
 
     def delete_work_path(self):
         rmtree(self.__workpath)
@@ -162,8 +165,7 @@ class BaseModel(ABC):
         stat.update({'%s_var' % x: self.__model['v%s' % x] for x in self.__scorers})
 
         stat.update(dict(fitparams=self.__model['params'], repetitions=self.__repetitions,
-                         nfolds=self.__nfold, normalize=self.__normalize,
-                         dragostolerance=sqrt(self.__y.var())))
+                         nfolds=self.__nfold, normalize=self.__normalize, dragostolerance=sqrt(self.__y.var())))
         return stat
 
     def get_fit_predictions(self):
@@ -176,7 +178,7 @@ class BaseModel(ABC):
     def get_models(self):
         return self.__model['models']
 
-    def get_generator(self):
+    def get_descriptors_generator(self):
         return self.__generator
 
     def __split_range(self, param, dep=0):

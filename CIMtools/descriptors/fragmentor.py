@@ -18,18 +18,18 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from os.path import join, exists
-from subprocess import call
-from sys import stderr
-from pandas import DataFrame, Series
-from itertools import tee
 from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.files.SDFrw import SDFwrite
+from itertools import tee
+from os.path import join, exists, devnull
+from pandas import DataFrame, Series
+from subprocess import call
+from sys import stderr
 from .basegenerator import BaseGenerator
 from ..config import FRAGMENTOR
 from ..preparers.colorize import Colorize
-from ..preparers.standardizers import StandardizeDragos
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
+from ..preparers.standardizers import StandardizeDragos
 
 
 class OpenFiles(object):
@@ -259,7 +259,8 @@ class Fragmentor(BaseGenerator):
             execparams = [self.__fragmentor, '-i', workfile, '-o', outputfile]
             execparams.extend(self.__exec_params)
             print(' '.join(execparams), file=stderr)
-            exitcode = call(execparams) == 0
+            with open(devnull, 'w') as silent:
+                exitcode = call(execparams, stdout=silent, stderr=silent) == 0
 
             if exitcode and exists(outputfile + '.svm') and exists(outputfile + '.hdr'):
                 if self.__gen_header:  # dump header if don't set on first run

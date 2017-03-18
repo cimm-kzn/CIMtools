@@ -18,11 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from sys import stderr
-from operator import and_
-from pandas import DataFrame, Series, concat, merge, Index
 from collections import defaultdict
 from functools import reduce
+from operator import and_
+from pandas import DataFrame, Series, concat, merge, Index
+from sys import stderr
 
 
 class DescriptorsChain(object):
@@ -46,6 +46,12 @@ class DescriptorsChain(object):
         for gen, _ in self.__generators:
             if hasattr(gen, 'flush'):
                 gen.flush()
+
+    def get_config(self):
+        tmp = {}
+        for gen, _ in self.__generators:
+            tmp[gen.__class__.__name__] = gen.get_config()
+        return tmp
 
     def get(self, structures, **kwargs):
         """
@@ -100,6 +106,10 @@ class DescriptorsDict(PropertyExtractor):
         PropertyExtractor.__init__(self, s_option)
         self.__extension = data
         self.__ext_header = self.__prepare_ext_header(data)
+        self.__config = dict(data=data, s_option=s_option)
+
+    def get_config(self):
+        return self.__config
 
     @staticmethod
     def __prepare_ext_header(data):

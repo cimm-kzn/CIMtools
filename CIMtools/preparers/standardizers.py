@@ -18,15 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.files.SDFrw import SDFread, SDFwrite
+from io import StringIO
 from json import loads
 from networkx import connected_component_subgraphs
-from os.path import join, dirname
-from io import StringIO
 from operator import itemgetter
+from os.path import join, dirname
 from subprocess import Popen, PIPE, STDOUT
-from CGRtools.files.SDFrw import SDFread, SDFwrite
-from ..config import STANDARDIZER
 from . import chemax_post
+from ..config import STANDARDIZER
 
 
 class StandardizeDragos(object):

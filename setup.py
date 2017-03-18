@@ -19,27 +19,27 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from setuptools import setup, find_packages
 from CIMtools.version import version
+from os.path import join, dirname
+from setuptools import setup, find_packages
 
 setup(
     name='CIMtools',
     version=version(),
     packages=find_packages(),
-    url='https://github.com/stsouko/MODtools',
+    url='https://github.com/stsouko/CIMtools',
     license='AGPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='Modeler tools',
-    entry_points={'console_scripts': ['modeler=CIMtools.CLI:modelbuilder']},
+    entry_points={'console_scripts': ['cimtools=CIMtools.CLI:launcher']},
     scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
     package_data={'CIMtools.preparers': ['unwanted.elem', 'standardrules_dragos.rules']},
     install_requires=['networkx>=2.0.dev', 'CGRtools>=2.6', 'typing', 'pandas', 'scipy', 'dill', 'sortedcontainers',
-                      'sklearn', 'requests'],
+                      'sklearn', 'requests', 'multiprocess'],
     dependency_links=['git+https://github.com/networkx/networkx.git@master#egg=networkx-2.0.dev',
                       'git+https://github.com/stsouko/CGRtools.git@2.6#egg=CGRtools-2.6'],
-    long_description='Chemoinformatics Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers',
-
+    long_description=open(join(dirname(__file__), 'README.md')).read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
                  'Intended Audience :: Science/Research',

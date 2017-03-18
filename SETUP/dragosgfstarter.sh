@@ -5,6 +5,8 @@
 # $3 maxconfig
 # $4 repetitions
 # $5 CV
+# $6 nnodes
+# $7 cont option. any symbol for activate
 # $workdir /path/to/worktmp.file{/}
 
 GACONF_PATH=$HOME/GAconfig
@@ -49,13 +51,25 @@ else
     lo=$5
 fi
 
+if [[ -z $6 ]] ; then
+    nnodes=$(grep -c ^processor /proc/cpuinfo)
+else
+    nnodes=$6
+fi
+
+if [[ -z $7 ]] ; then
+    cont=''
+else
+    cont='cont=yes'
+fi
+
 # make SVMreg file
 for i in `find ${datadir} -type f -name "*.svm"`; do
     awk '{print $1}' ${i} > ${datadir}/file.${mod};
     break;
 done
 
-${GACONF}/pilot_local.csh data_dir=${datadir} workdir=${workdir} maxconfigs=${maxconfigs} mode=${mod} ntrials=${ntrials} lo=${lo} > ${datadir}/GA.log 2>&1
+${GACONF}/pilot_local.csh data_dir=${datadir} workdir=${workdir} maxconfigs=${maxconfigs} mode=${mod} ntrials=${ntrials} lo=${lo} nnodes=${nnodes} ${cont} > ${datadir}/GA.log 2>&1
 rc=$?
 
 killall pilot_local.csh local_SVMreg.csh svm-train svm-predict

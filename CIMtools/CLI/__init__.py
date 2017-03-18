@@ -18,13 +18,13 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from ..modelbuilder import ModelBuilder
 from .parser import argparser
 
 
-def modelbuilder():
-    args = argparser()
-    input_file = args.pop('input')
-    args.pop('version')
-    main = ModelBuilder(**args)
-    main.run(input_file)
+def launcher():
+    _argparser = argparser()
+    args = _argparser.parse_args()
+    if 'func' in args:
+        args.func(**vars(args))
+    else:
+        _argparser.print_help()

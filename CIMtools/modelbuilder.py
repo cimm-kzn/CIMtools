@@ -18,23 +18,23 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from gzip import open as gzip_open
-from io import StringIO
-from tempfile import mkdtemp
-from threading import Thread, active_count
-from time import sleep
-from subprocess import call
-from os import W_OK, access, mkdir
-from os.path import join, exists, isdir, dirname
-from dill import load, dump
-from copy import deepcopy
-from collections import OrderedDict
-from functools import partial
-from itertools import product, cycle
-from sortedcontainers import SortedListWithKey
-from shutil import rmtree
 from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
+from collections import OrderedDict
+from copy import deepcopy
+from dill import load, dump
+from functools import partial
+from gzip import open as gzip_open
+from io import StringIO
+from itertools import product, cycle
+from multiprocess import Queue, Process
+from os import W_OK, access, mkdir
+from os.path import join, exists, isdir, dirname
+from pandas import concat
+from shutil import rmtree
+from sortedcontainers import SortedListWithKey
+from subprocess import call
+from tempfile import mkdtemp
 from .config import GACONF
 from .descriptors.cxcalc import Pkab
 from .descriptors.descriptoragregator import DescriptorsDict, DescriptorsChain
@@ -44,26 +44,43 @@ from .estimators.svmodel import SVModel
 from .mbparser import MBparser
 
 
+def save_svm(outputfile, x, y, header=True):
+    with open(outputfile + '.svm', 'w', encoding='utf-8') as f:
+        if header:
+            f.write(' '.join(['Property'] + ['%s:%s' % i for i in enumerate(x.columns, start=1)]) + '\n')
+
+        for i, j in zip(x.values, y):
+            f.write(' '.join(['%s ' % j] + ['%s:%s' % x for x in enumerate(i, start=1) if x[1] != 0]) + '\n')
+
+
+def save_csv(outputfile, x, y, header=True):
+    concat([y, x], axis=1).to_csv(outputfile + '.csv', index=False, header=header)
+
+
 def desc_starter(gen, file_dump, out_file, fformat, header, is_reaction):
     with StringIO(file_dump) as f:
         inp = (RDFread(f) if is_reaction else SDFread(f)).read()
 
     dsc = gen.get(structures=inp, parsesdf=True)
-    if hasattr(gen, 'flush'):
-        gen.flush()
 
     if dsc and not (dsc['X'].isnull().values.any() or dsc['Y'].isnull().any()):
-        fformat(out_file, dsc['X'], dsc['Y'], header=header)
+        (save_svm if fformat == 'svm' else save_csv)(out_file, dsc['X'], dsc['Y'], header=header)
         return True
 
     print('BAD Descriptor generator params')
     return False
 
 
+def worker(input_queue, output_queue):
+    for args in iter(input_queue.get, 'STOP'):
+        result = desc_starter(*args[1:])
+        output_queue.put((args[0], result))
+
+
 class ModelBuilder(MBparser):
     def __init__(self, description, workpath='.', is_reaction=True, model=None, reload=None, resume=None, output=None,
                  out_format='svm', fragments=None, extension=None, eed=None, pka=None, chains=None, ad=None,
-                 estimator='svr', svm=None, max_iter=100000, probability=False, fit='rmse', dispcoef=0, best_pop=20,
+                 estimator='svr', svm=None, max_iter=100000, probability=False, fit='rmse', dispcoef=0,
                  n_jobs=2, nfold=5, repetition=1, rep_boost=25, consensus=10, normalize=False, ga_maxconfigs=3000,
                  scorers=('rmse', 'r2')):
         clean_descgens = False
@@ -133,7 +150,6 @@ class ModelBuilder(MBparser):
         self.__fit = fit
         self.__disp_coef = dispcoef
         self.__is_reaction = is_reaction
-        self.__best_pop = best_pop
         self.__n_jobs = n_jobs
         self.__nfold = nfold
         self.__repetition = repetition
@@ -176,19 +192,29 @@ class ModelBuilder(MBparser):
     @staticmethod
     def __descriptors_config(is_reaction, fragments=None, extension=None, eed=None, pka=None, chains=None, ad=None):
         descgenerator = OrderedDict()
-        if fragments:
-            descgenerator['F'] = [partial(Fragmentor, is_reaction=is_reaction, **x)
-                                  for x in MBparser.parse_fragmentor_opts(fragments)]
+
+        def s_choice(params):
+            if s_option:
+                params['s_option'] = s_option
+            return params
 
         if extension:
-            descgenerator['E'] = [partial(DescriptorsDict, **MBparser.parse_ext(extension))]
+            parsed = MBparser.parse_ext(extension)
+            descgenerator['E'] = [partial(DescriptorsDict, **parsed)]
+            s_option = parsed['s_option']
+        else:
+            s_option = None
+
+        if fragments:
+            descgenerator['F'] = [partial(Fragmentor, is_reaction=is_reaction, **s_choice(x))
+                                  for x in MBparser.parse_fragmentor_opts(fragments)]
 
         if eed:
-            descgenerator['D'] = [partial(Eed, is_reaction=is_reaction, **x)
+            descgenerator['D'] = [partial(Eed, is_reaction=is_reaction, **s_choice(x))
                                   for x in MBparser.parse_fragmentor_opts(eed)]
 
         if pka:
-            descgenerator['P'] = [partial(Pkab, is_reaction=is_reaction, **x)
+            descgenerator['P'] = [partial(Pkab, is_reaction=is_reaction, **s_choice(x))
                                   for x in MBparser.parse_fragmentor_opts(pka)]
 
         if chains:
@@ -280,27 +306,34 @@ class ModelBuilder(MBparser):
         with open(input_file) as f:
             data = f.read()
 
-        queue = enumerate(self.__generators, start=1)
         workpath = mkdtemp(prefix='svm_', dir=self.__workpath)
-        while True:
-            if active_count() < self.__n_jobs:
-                tmp = next(queue, None)
-                if tmp:
-                    n, dgen = tmp
-                    subworkpath = join(workpath, str(n))
-                    mkdir(subworkpath)
-                    if hasattr(dgen, 'set_work_path'):
-                        dgen.set_work_path(subworkpath)
-                    t = Thread(target=desc_starter,
-                               args=[dgen, data, '%s.%d' % (output, n),
-                                     (self.save_svm if fformat == 'svm' else self.save_csv),
-                                     header, self.__is_reaction])
-                    t.start()
-                else:
-                    while active_count() > 1:
-                        sleep(2)
-                    break
-            sleep(2)
+
+        task_queue = Queue()
+        done_queue = Queue()
+
+        for i in range(self.__n_jobs):
+            Process(target=worker, args=(task_queue, done_queue)).start()
+
+        print('workers started')
+
+        for n, dgen in enumerate(self.__generators, start=1):
+            subworkpath = join(workpath, str(n))
+            mkdir(subworkpath)
+            if hasattr(dgen, 'set_work_path'):
+                dgen.set_work_path(subworkpath)
+            task_queue.put([n, dgen, data, '%s.%d' % (output, n), fformat, header, self.__is_reaction])
+
+        # Get and print results
+        print('generators sent to queue\nunordered results of descriptors generation:')
+        for i in range(len(self.__generators)):
+            res = done_queue.get()
+            print('\t%d: %s' % res)
+            if not res[1]:
+                return False
+
+        # Tell child processes to stop
+        for i in range(self.__n_jobs):
+            task_queue.put('STOP')
 
         rmtree(workpath)
         return True
@@ -311,7 +344,8 @@ class ModelBuilder(MBparser):
         workpath = mkdtemp(prefix='gac_', dir=self.__workpath)
         files = join(workpath, 'drag')
         dragos_work = join(workpath, 'work')
-        execparams = [GACONF, workpath, _type, str(self.__ga_maxconfigs), str(self.__repetition), str(self.__nfold)]
+        execparams = [GACONF, workpath, _type, str(self.__ga_maxconfigs), str(self.__repetition), str(self.__nfold),
+                      str(self.__n_jobs)]
 
         print('descriptors generation for GAConf')
         if self.__gen_desc(input_file, files):
@@ -322,22 +356,19 @@ class ModelBuilder(MBparser):
         raise Exception('GAConf failed')
 
     def __parse_dragos_results(self, dragos_work):
-        cleared, svmpar, scale = [], [], []
+        cleared, svm = [], OrderedDict()
         with open(join(dragos_work, 'best_pop')) as f:
-            for _, line in zip(range(self.__best_pop), f):
+            for line in f:
+                if len(cleared) == self.__consensus:
+                    break
                 dset, normal, *_, attempt, _, _ = line.split()
+                parsed = list(self.get_svm_param([join(dragos_work, attempt, 'svm.pars')])[0].values())[0]
+                if (parsed['kernel'], dset) not in svm:
+                    svm[(parsed['kernel'], dset)] = {'scale' if normal == 'scaled' else 'orig': parsed}
+                    cleared.append(int(dset[5:]) - 1)
 
-                cleared.append(int(dset[5:]) - 1)
-                svmpar.append(join(dragos_work, attempt, 'svm.pars'))
-                scale.append(normal)
-
-        parsed_svmpar = self.get_svm_param(svmpar)
-        if len(parsed_svmpar) != len(svmpar):
-            raise Exception('Inalid svm.pars files or invalid best_pop file')
-
-        svm = []
-        for x, y in zip(parsed_svmpar, scale):
-            svm.append({'scale' if y == 'scaled' else 'orig': list(x.values())[0]})
+        if not svm:
+            raise Exception('Inalid best_pop file')
 
         print('GAConf results parsed')
-        return svm, cleared
+        return list(svm.values()), cleared

@@ -18,22 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from functools import partial
 from itertools import product
 from sklearn.svm import SVR, SVC
-from functools import partial
 from .basemodeler import BaseModel
 
 
 class SVModel(BaseModel):
-    def __init__(self, descriptorgen, fitparams, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100,
-                 dispcoef=0, fit='rmse', estimator='svr', probability=False, scorers=('rmse', 'r2'),
+    def __init__(self, descriptors_generator, fitparams, structures, workpath='.', nfold=5, repetitions=1,
+                 rep_boost=100, dispcoef=0, fit='rmse', estimator='svr', probability=False, scorers=('rmse', 'r2'),
                  normalize=False, n_jobs=2, max_iter=100000, **kwargs):
 
         self.__max_iter = max_iter
         self.__estimator = estimator
         self.__probability = [probability]
         self.__fit_params = fitparams
-        BaseModel.__init__(self, descriptorgen, structures, nfold=nfold, repetitions=repetitions,
+        BaseModel.__init__(self, descriptors_generator, structures, nfold=nfold, repetitions=repetitions,
                            rep_boost=rep_boost, dispcoef=dispcoef, fit=fit, scorers=scorers, workpath=workpath,
                            normalize=normalize, n_jobs=n_jobs, **kwargs)
 

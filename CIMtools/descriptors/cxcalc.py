@@ -18,14 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from pandas import DataFrame, Series, Index, MultiIndex
-from io import StringIO
-from subprocess import Popen, PIPE, STDOUT
 from CGRtools.files.SDFrw import SDFwrite
-from ..config import CXCALC
+from io import StringIO
+from pandas import DataFrame, Series, Index, MultiIndex
+from subprocess import Popen, PIPE, STDOUT
 from .descriptoragregator import PropertyExtractor
-from ..preparers.standardizers import StandardizeDragos
+from ..config import CXCALC
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
+from ..preparers.standardizers import StandardizeDragos
 
 
 class Pkab(PropertyExtractor):

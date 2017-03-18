@@ -18,19 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from os.path import join
-from io import StringIO
-from xml.etree import ElementTree
-from itertools import product
-from json import loads
-from networkx import union_all
-from subprocess import Popen, PIPE, STDOUT
 from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.CGRreactor import CGRreactor
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
-from ..config import PMAPPER, STANDARDIZER
+from io import StringIO
+from itertools import product
+from json import loads
+from networkx import union_all
+from os.path import join
+from subprocess import Popen, PIPE, STDOUT
+from xml.etree import ElementTree
 from . import chemax_post
+from ..config import PMAPPER, STANDARDIZER
 
 
 def remove_namespace(doc, namespace):

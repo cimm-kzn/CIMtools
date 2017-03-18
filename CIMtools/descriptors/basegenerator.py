@@ -18,10 +18,10 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
+from functools import reduce
 from operator import and_
 from pandas import Series, Index, MultiIndex, concat
-from functools import reduce
 from .descriptoragregator import PropertyExtractor
 
 
@@ -32,10 +32,15 @@ class BaseGenerator(ABC, PropertyExtractor):
         self.workpath = workpath
 
     @abstractmethod
+    def get_config(self):
+        pass
+
+    @abstractmethod
     def prepare(self, structures, **_):
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def markers(self) -> int:
         pass
 

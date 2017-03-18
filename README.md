@@ -1,10 +1,11 @@
 CIMtools
 =========
-classes for models preparation
+ChemoInformatics Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers
 
 usage
 =====
-modeler -h
+
+cimtools -h
 
 
 INSTALL
@@ -12,13 +13,17 @@ INSTALL
 
 *step 1:*
 
-    pip install -U git+https://github.com/stsouko/MODtools.git@master#egg=CIMtools --process-dependency-links --allow-all-external
+    pip install CIMtools
+
+or latest repository version
+
+    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links --allow-all-external
 
 *step 2:*
 
 type
 
-    modeler -h
+    cimtools -h
 
 *step 3:*
 

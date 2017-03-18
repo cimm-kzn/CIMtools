@@ -18,14 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from pandas import DataFrame, Series
-from io import StringIO
-from subprocess import Popen, PIPE
 from CGRtools.files.SDFrw import SDFwrite
+from io import StringIO
+from pandas import DataFrame, Series
+from subprocess import Popen, PIPE
 from .basegenerator import BaseGenerator
 from ..config import EED
-from ..preparers.standardizers import StandardizeDragos
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
+from ..preparers.standardizers import StandardizeDragos
 
 
 class Eed(BaseGenerator):
