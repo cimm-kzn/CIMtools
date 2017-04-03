@@ -27,7 +27,7 @@ from numpy import inf, mean, var, arange
 from operator import lt, le
 from pandas import DataFrame, Series, concat
 from shutil import rmtree
-from sklearn.cross_validation import KFold
+from sklearn.model_selection import KFold
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.metrics import mean_squared_error, r2_score, cohen_kappa_score, accuracy_score
 from sklearn.preprocessing import MinMaxScaler
@@ -133,6 +133,7 @@ class BaseModel(ABC):
         self.__x = xy['X']
         self.__y = xy['Y']
         self.__box = xy.get('BOX', xy['X'].columns)
+        self.__kfold = list(KFold(n_splits=nfold).split(range(len(xy['Y'].index))))
         print("Descriptors generated")
 
         self.__cross_val()
@@ -258,12 +259,11 @@ class BaseModel(ABC):
         models, y_pred, y_prob, y_ad, x_ad = [], [], [], [], []
         fold_scorers = defaultdict(list)
         parallel = Parallel(n_jobs=self.__n_jobs)
-        kf = list(KFold(len(self.__y), n_folds=self.__nfold))
         setindexes = arange(len(self.__y.index))
         folds = parallel(delayed(_kfold)(self.estimator, self.__x, self.__y, s[train], s[test],
                                          fitparams, self.__normalize, self.__box)
                          for s in (self.__shuffle(setindexes, i) for i in range(repetitions))
-                         for train, test in kf)
+                         for train, test in self.__kfold)
 
         #  street magic. split folds to repetitions
         for kfold in zip(*[iter(folds)] * self.__nfold):
