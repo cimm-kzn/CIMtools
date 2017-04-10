@@ -132,8 +132,8 @@ class ModelBuilder(MBparser):
             self.__output = output
             self.__format = out_format
 
-        self.__generators = self.__descriptors_config(is_reaction, fragments=fragments, extension=extension, eed=eed,
-                                                      pka=pka, chains=chains, ad=ad)
+        self.__generators = self.__descriptors_config(is_reaction, workpath, fragments=fragments, extension=extension,
+                                                      eed=eed, pka=pka, chains=chains, ad=ad)
 
         if clean_descgens:
             self.__clean_desc_gens(clean_descgens)
@@ -171,6 +171,10 @@ class ModelBuilder(MBparser):
         else:
             self.__gen_desc(input_file, self.__output, fformat=self.__format, header=True)
 
+        for dgen in self.__generators:
+            if hasattr(dgen, 'delete_work_path'):
+                dgen.delete_work_path()
+
     def prepare_estimators(self, input_file):
         svm = {'svr', 'svc'}.intersection(self.__estimator).pop()
 
@@ -190,7 +194,8 @@ class ModelBuilder(MBparser):
                                       max_iter=self.__max_iter), self.__svm))
 
     @staticmethod
-    def __descriptors_config(is_reaction, fragments=None, extension=None, eed=None, pka=None, chains=None, ad=None):
+    def __descriptors_config(is_reaction, workpath, fragments=None, extension=None, eed=None, pka=None,
+                             chains=None, ad=None):
         descgenerator = OrderedDict()
 
         def s_choice(params):
@@ -206,15 +211,15 @@ class ModelBuilder(MBparser):
             s_option = None
 
         if fragments:
-            descgenerator['F'] = [partial(Fragmentor, is_reaction=is_reaction, **s_choice(x))
+            descgenerator['F'] = [partial(Fragmentor, is_reaction=is_reaction, workpath=workpath, **s_choice(x))
                                   for x in MBparser.parse_fragmentor_opts(fragments)]
 
         if eed:
-            descgenerator['D'] = [partial(Eed, is_reaction=is_reaction, **s_choice(x))
+            descgenerator['D'] = [partial(Eed, is_reaction=is_reaction, workpath=workpath, **s_choice(x))
                                   for x in MBparser.parse_fragmentor_opts(eed)]
 
         if pka:
-            descgenerator['P'] = [partial(Pkab, is_reaction=is_reaction, **s_choice(x))
+            descgenerator['P'] = [partial(Pkab, is_reaction=is_reaction, workpath=workpath, **s_choice(x))
                                   for x in MBparser.parse_fragmentor_opts(pka)]
 
         if chains:
@@ -300,31 +305,31 @@ class ModelBuilder(MBparser):
         return est_params
 
     def __clean_desc_gens(self, select):
-        self.__generators = [self.__generators[x] for x in select]
+        tmp = []
+        for n, gen in enumerate(self.__generators):
+            if n in select:
+                tmp.append(gen)
+            elif hasattr(gen, 'delete_work_path'):
+                gen.delete_work_path()
+
+        self.__generators = tmp
 
     def __gen_desc(self, input_file, output, fformat='svm', header=False):
         with open(input_file) as f:
             data = f.read()
-
-        workpath = mkdtemp(prefix='svm_', dir=self.__workpath)
 
         task_queue = Queue()
         done_queue = Queue()
 
         for i in range(self.__n_jobs):
             Process(target=worker, args=(task_queue, done_queue)).start()
-
         print('workers started')
 
         for n, dgen in enumerate(self.__generators, start=1):
-            subworkpath = join(workpath, str(n))
-            mkdir(subworkpath)
-            if hasattr(dgen, 'set_work_path'):
-                dgen.set_work_path(subworkpath)
             task_queue.put([n, dgen, data, '%s.%d' % (output, n), fformat, header, self.__is_reaction])
+        print('generators sent to queue')
 
-        # Get and print results
-        print('generators sent to queue\nunordered results of descriptors generation:')
+        print('unordered results of descriptors generation:')
         for i in range(len(self.__generators)):
             res = done_queue.get()
             print('\t%d: %s' % res)
@@ -335,7 +340,6 @@ class ModelBuilder(MBparser):
         for i in range(self.__n_jobs):
             task_queue.put('STOP')
 
-        rmtree(workpath)
         return True
 
     def __dragos_svm_fit(self, input_file, _type):

@@ -19,23 +19,20 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools.files.SDFrw import SDFread, SDFwrite
-from os import remove
-from os.path import join, exists, dirname
+from os import close, remove
+from os.path import join, dirname
+from shutil import rmtree
 from subprocess import call
+from tempfile import mkdtemp, mkstemp
 from ..config import COLOR
 
 
 class Colorize(object):
-    def __init__(self, standardize, workpath=None):
+    def __init__(self, standardize, workpath='.'):
         self.__standardize = self.__dump_rules(standardize)
-        if workpath is not None:
-            self.set_work_path(workpath)
-        else:
-            self.__load_rules()
+        self.set_work_path(workpath)
 
-    __input_file = './colorin.sdf'
-    __out_file = './colorout.sdf'
-    __std_file = './colorstd.xml'
+    __std_file = None
 
     @staticmethod
     def __dump_rules(rules):
@@ -43,27 +40,34 @@ class Colorize(object):
             rules = f.read()
         return rules
 
-    def __load_rules(self):
+    def set_work_path(self, workpath):
+        self.delete_work_path()
+
+        self.__workpath = workpath
+        fd, self.__std_file = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
         with open(self.__std_file, 'w') as f:
             f.write(self.__standardize)
+        close(fd)
 
-    def set_work_path(self, workpath):
-        self.__input_file = join(workpath, 'colorin.sdf')
-        self.__out_file = join(workpath, 'colorout.sdf')
-        self.__std_file = join(workpath, 'colorstd.xml')
-        self.__load_rules()
+    def delete_work_path(self):
+        if self.__std_file is not None:
+            remove(self.__std_file)
+            self.__std_file = None
 
     def get(self, structure):
-        if exists(self.__out_file):
-            remove(self.__out_file)
-        with open(self.__input_file, 'w') as f:
+        work_dir = mkdtemp(prefix='clr_', dir=self.__workpath)
+        input_file = join(work_dir, 'colorin.sdf')
+        out_file = join(work_dir, 'colorout.sdf')
+
+        with open(input_file, 'w') as f:
             out = SDFwrite(f)
             for i in (structure if isinstance(structure, list) else [structure]):
                 out.write(i)
 
-        if call([COLOR, self.__input_file, self.__out_file, self.__std_file]) == 0:
-            with open(self.__out_file) as f:
+        res = None
+        if call([COLOR, input_file, out_file, self.__std_file]) == 0:
+            with open(out_file) as f:
                 res = SDFread(f, remap=False).read()
-                if res:
-                    return res
-        return False
+
+        rmtree(work_dir)
+        return res or False

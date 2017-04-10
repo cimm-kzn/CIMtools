@@ -26,8 +26,9 @@ from io import StringIO
 from itertools import product
 from json import loads
 from networkx import union_all
-from os.path import join
+from os import close, remove
 from subprocess import Popen, PIPE, STDOUT
+from tempfile import mkstemp
 from xml.etree import ElementTree
 from . import chemax_post
 from ..config import PMAPPER, STANDARDIZER
@@ -44,14 +45,11 @@ def remove_namespace(doc, namespace):
 
 
 class PharmacophoreAtomMarker(object):
-    def __init__(self, marker_rules, workpath=None):
+    def __init__(self, marker_rules, workpath='.'):
         self.__marker_rules, self.__markers = self.__dump_rules(marker_rules)
-        if workpath is not None:
-            self.set_work_path(workpath)
-        else:
-            self.__load_rules()
+        self.set_work_path(workpath)
 
-    __config = './iam'
+    __config = None
 
     @staticmethod
     def __dump_rules(rules):
@@ -61,13 +59,18 @@ class PharmacophoreAtomMarker(object):
                                                                    'http://www.chemaxon.com').iter('AtomSet')))
         return _rules, marks
 
-    def __load_rules(self):
+    def set_work_path(self, workpath):
+        self.delete_work_path()
+
+        fd, self.__config = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
         with open(self.__config, 'w') as f:
             f.write(self.__marker_rules)
+        close(fd)
 
-    def set_work_path(self, workpath):
-        self.__config = join(workpath, 'iam')
-        self.__load_rules()
+    def delete_work_path(self):
+        if self.__config is not None:
+            remove(self.__config)
+            self.__config = None
 
     def get_count(self):
         return len(self.__markers)

@@ -26,10 +26,8 @@ from .descriptoragregator import PropertyExtractor
 
 
 class BaseGenerator(ABC, PropertyExtractor):
-    def __init__(self, workpath='.', s_option=None):
+    def __init__(self, s_option=None):
         PropertyExtractor.__init__(self, s_option)
-
-        self.workpath = workpath
 
     @abstractmethod
     def get_config(self):
@@ -44,8 +42,13 @@ class BaseGenerator(ABC, PropertyExtractor):
     def markers(self) -> int:
         pass
 
+    @abstractmethod
     def set_work_path(self, workpath):
-        self.workpath = workpath
+        pass
+
+    @abstractmethod
+    def delete_work_path(self):
+        pass
 
     def get(self, structures, **kwargs):
         tmp = self.prepare(structures, **kwargs)

@@ -20,15 +20,15 @@
 #
 from CGRtools.files.SDFrw import SDFwrite
 from io import StringIO
-from pandas import DataFrame, Series, Index, MultiIndex
+from pandas import DataFrame
 from subprocess import Popen, PIPE, STDOUT
-from .descriptoragregator import PropertyExtractor
+from .basegenerator import BaseGenerator
 from ..config import CXCALC
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 from ..preparers.standardizers import StandardizeDragos
 
 
-class Pkab(PropertyExtractor):
+class Pkab(BaseGenerator):
     def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, acid=True, base=True,
                  cgr_reverse=False, is_reaction=False,
                  cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False):
@@ -39,7 +39,7 @@ class Pkab(PropertyExtractor):
         elif cgr_marker:
             raise Exception('for cgr marker is_reaction should be True')
 
-        PropertyExtractor.__init__(self, s_option)
+        BaseGenerator.__init__(self, s_option=s_option)
 
         self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
@@ -48,10 +48,19 @@ class Pkab(PropertyExtractor):
                                           stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
 
         self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
-        self.__workpath = workpath
         self.__reverse = cgr_reverse
         self.__acid = acid
         self.__base = base
+
+        tmp = []
+        if acid:
+            tmp.append('pka')
+        if base:
+            tmp.append('pkb')
+        self.__columns = tmp
+
+        self.__markers = (self.__cgr_marker.get_count() if cgr_marker else
+                          self.__phm_marker.get_count() if marker_rules else None)
 
         locs = locals()
         tmp = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
@@ -64,12 +73,19 @@ class Pkab(PropertyExtractor):
     def get_config(self):
         return self.__config
 
+    @property
+    def markers(self):
+        return self.__markers
+
     def set_work_path(self, workpath):
-        self.__workpath = workpath
         if self.__phm_marker:
             self.__phm_marker.set_work_path(workpath)
 
-    def get(self, structures, **_):
+    def delete_work_path(self):
+        if self.__phm_marker:
+            self.__phm_marker.delete_work_path()
+
+    def prepare(self, structures, **_):
         if self.__dragos_std:
             structures = self.__dragos_std.get(structures)
 
@@ -118,46 +134,41 @@ class Pkab(PropertyExtractor):
 
             res = p.communicate(input=f.getvalue().encode())[0].decode()
 
-        if p.returncode == 0:
-            pk = []
-            with StringIO(res) as f:
-                f.readline()
-                for i in f:
-                    ii = i.rstrip().split('\t')
-                    key = iter(ii[-1].split(','))
-                    val = ii[1: -1]
-                    pk.append([{int(next(key)): float(x.replace(',', '.')) for x in v if x}
-                               for v in [val[:8], val[8:]]])
+        if p.returncode != 0:
+            return False
 
-            new_doubles = []
-            if self.__cgr_marker or self.__phm_marker:
-                old_k = None
-                for lk, v in zip(doubles, pk):
-                    for k in (lk if self.__phm_marker else [lk]):
-                        if k == old_k:
-                            if self.__base:
-                                new_doubles[-1][1].append(v[1].get(k[1 if self.__reverse else 2]))
-                        else:
-                            old_k = k
-                            new_doubles.append([k, ([v[0].get(k[2 if self.__reverse else 1])] if self.__acid else [])])
+        pk = []
+        with StringIO(res) as f:
+            f.readline()
+            for i in f:
+                ii = i.rstrip().split('\t')
+                key = iter(ii[-1].split(','))
+                val = ii[1: -1]
+                pk.append([{int(next(key)): float(x.replace(',', '.')) for x in v if x}
+                           for v in [val[:8], val[8:]]])
 
-            else:
-                for k, v in zip(doubles, pk):
-                    new_doubles.append([k, ([min(v[0].values())] if self.__acid else []) +
-                                           ([max(v[1].values())] if self.__base else [])])
+        new_doubles = []
+        if self.__cgr_marker or self.__phm_marker:
+            old_k = None
+            for lk, v in zip(doubles, pk):
+                for k in (lk if self.__phm_marker else [lk]):
+                    if k == old_k:
+                        if self.__base:
+                            new_doubles[-1][1].append(v[1].get(k[1 if self.__reverse else 2]))
+                    else:
+                        old_k = k
+                        new_doubles.append([k, ([v[0].get(k[2 if self.__reverse else 1])] if self.__acid else [])])
 
-            x = DataFrame([x[1] for x in new_doubles],
-                          columns=(['pka'] if self.__acid else []) + (['pkb'] if self.__base else []))
+        else:
+            for k, v in zip(doubles, pk):
+                new_doubles.append([k, ([min(v[0].values())] if self.__acid else []) +
+                                       ([max(v[1].values())] if self.__base else [])])
 
-            res = dict(X=x, AD=x.isnull().any(axis=1) ^ True, Y=Series(prop, name='Property'),
-                       structures=used_str)  # todo: prepare structures
+        x = DataFrame([x[1] for x in new_doubles], columns=self.__columns)
+        ad = [x.isnull().any(axis=1) ^ True]
+        i = [x[0] for x in new_doubles] if self.markers else doubles
 
-            if self.__cgr_marker or self.__phm_marker:
-                i = MultiIndex.from_tuples([x[0] for x in new_doubles], names=['structure', 'c.0', 'c.1'])
-            else:
-                i = Index(doubles, name='structure')
+        return [x], prop, [ad], i, used_str
 
-            res['X'].index = res['AD'].index = res['Y'].index = i
-            return res
-
-        return False
+    def write_prepared(self, *_):
+        raise Exception('Disabled method')

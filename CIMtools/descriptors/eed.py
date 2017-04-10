@@ -39,7 +39,7 @@ class Eed(BaseGenerator):
         elif cgr_marker:
             raise Exception('for cgr marker is_reaction should be True')
 
-        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
+        BaseGenerator.__init__(self, s_option=s_option)
 
         self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
 
@@ -67,9 +67,12 @@ class Eed(BaseGenerator):
         return self.__markers
 
     def set_work_path(self, workpath):
-        BaseGenerator.set_work_path(self, workpath)
         if self.__phm_marker:
             self.__phm_marker.set_work_path(workpath)
+
+    def delete_work_path(self):
+        if self.__phm_marker:
+            self.__phm_marker.delete_work_path()
 
     def prepare(self, structures, **_):
         if self.__dragos_std:

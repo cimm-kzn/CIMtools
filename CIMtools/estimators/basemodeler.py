@@ -107,7 +107,7 @@ def _iap(y_test, y_prob):
 
 
 class BaseModel(ABC):
-    def __init__(self, descriptors_generator, structures, workpath='.', nfold=5, repetitions=1, rep_boost=100,
+    def __init__(self, descriptors_generator, structures, nfold=5, repetitions=1, rep_boost=100,
                  dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
 
         _scorers = dict(rmse=(_rmse, False), r2=(r2_score, False),
@@ -115,7 +115,6 @@ class BaseModel(ABC):
         self.__model = {}
 
         self.__generator = descriptors_generator
-        self.set_work_path(workpath)
 
         self.__nfold = nfold
         self.__repetitions = repetitions
@@ -154,12 +153,12 @@ class BaseModel(ABC):
         pass
 
     def set_work_path(self, workpath):
-        self.__workpath = mkdtemp(dir=workpath)
         if hasattr(self.__generator, 'set_work_path'):
-            self.__generator.set_work_path(self.__workpath)
+            self.__generator.set_work_path(workpath)
 
     def delete_work_path(self):
-        rmtree(self.__workpath)
+        if hasattr(self.__generator, 'delete_work_path'):
+            self.__generator.delete_work_path()
 
     def get_model_stats(self):
         stat = {x: self.__model[x] for x in self.__scorers}

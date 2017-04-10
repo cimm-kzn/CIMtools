@@ -42,6 +42,11 @@ class DescriptorsChain(object):
             if hasattr(gen, 'set_work_path'):
                 gen.set_work_path(workpath)
 
+    def delete_work_path(self):
+        for gen, _ in self.__generators:
+            if hasattr(gen, 'delete_work_path'):
+                gen.delete_work_path()
+
     def flush(self):
         for gen, _ in self.__generators:
             if hasattr(gen, 'flush'):

@@ -21,10 +21,13 @@
 from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.files.SDFrw import SDFwrite
 from itertools import tee
+from os import close, remove
 from os.path import join, exists, devnull
 from pandas import DataFrame, Series
+from shutil import rmtree
 from subprocess import call
 from sys import stderr
+from tempfile import mkdtemp, mkstemp
 from .basegenerator import BaseGenerator
 from ..config import FRAGMENTOR
 from ..preparers.colorize import Colorize
@@ -38,7 +41,12 @@ class OpenFiles(object):
             files = [files]
         if isinstance(flags, str):
             flags = [flags]
-        assert len(flags) == len(files)
+
+        if len(flags) == 1:
+            flags = flags * len(files)
+        elif len(flags) != len(files):
+            raise Exception('number of flags should be equal to number of files or equal to one')
+
         self.files = files
         self.flags = flags
 
@@ -77,8 +85,9 @@ class Fragmentor(BaseGenerator):
             raise Exception('for cgr or cgr marker is_reaction should be True')
 
         self.__is_reaction = is_reaction
+        self.__workpath = workpath
 
-        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option)
+        BaseGenerator.__init__(self, s_option=s_option)
 
         self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
 
@@ -101,12 +110,12 @@ class Fragmentor(BaseGenerator):
         self.__work_files = self.markers or 1
 
         self.__frag_version = ('-%s' % version) if version else ''
-        tmp = ['-f', 'SVM']
 
         self.__head_dump = {}
         self.__head_size = {}
         self.__head_dict = {}
-        self.__head_columns = {}
+        self.__head_cols = {}
+        self.__head_exec = {}
 
         if header:
             self.__gen_header = False
@@ -116,10 +125,15 @@ class Fragmentor(BaseGenerator):
                 raise Exception('number header files should be equal to number of markers or 1')
 
             for n, h in enumerate(headers):
-                self.__dump_header(n, h)
-            tmp.extend(['-h', ''])
+                (self.__head_dump[n], self.__head_dict[n], self.__head_cols[n],
+                 self.__head_size[n]) = self.__parse_header(h, opened=True)
+            self.__prepare_headers()
 
-        tmp.extend(['-t', str(fragment_type), '-l', str(min_length), '-u', str(max_length)])
+        elif header is not None:
+            self.__gen_header = False
+            self.__headerless = True
+
+        tmp = ['-f', 'SVM', '-t', str(fragment_type), '-l', str(min_length), '-u', str(max_length)]
 
         if colorname:
             tmp.extend(['-c', colorname])
@@ -157,20 +171,19 @@ class Fragmentor(BaseGenerator):
                           'cgr_m_templates', 'cgr_isotope', 'cgr_stereo', 'is_reaction')
     __gen_header = True
     __manual_header = False
+    __headerless = False
 
     def get_config(self):
         return self.__config
 
     def flush(self):
-        if not (self.__gen_header or self.__manual_header):
+        if not (self.__gen_header or self.__manual_header or self.__headerless):
             self.__gen_header = True
-            h_index = self.__exec_params.index('-h')
-            self.__exec_params.pop(h_index)
-            self.__exec_params.pop(h_index)
+            self.__head_exec = {}
             self.__head_dump = {}
             self.__head_size = {}
             self.__head_dict = {}
-            self.__head_columns = {}
+            self.__head_cols = {}
 
     @property
     def markers(self):
@@ -180,35 +193,50 @@ class Fragmentor(BaseGenerator):
     def __fragmentor(self):
         return '%s%s' % (FRAGMENTOR, self.__frag_version)
 
-    def __dump_header(self, n, header):
-        with header as f:
-            self.__head_dump[n] = f.read()
-            lines = self.__head_dump[n].splitlines()
-            self.__head_size[n] = len(lines)
-            self.__head_dict[n] = {int(k[:-1]): v for k, v in (i.split() for i in lines)}
-            self.__head_columns[n] = list(self.__head_dict[n].values())
+    @staticmethod
+    def __parse_header(header, opened=False):
+        with (header if opened else open(header, encoding='utf-8')) as f:
+            head_dump = f.read()
+            head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
+            head_columns = list(head_dict.values())
+            head_size = len(head_dict)
+        return head_dump, head_dict, head_columns, head_size
 
     def set_work_path(self, workpath):
-        super(Fragmentor, self).set_work_path(workpath)
+        self.delete_work_path()
         if self.__phm_marker:
             self.__phm_marker.set_work_path(workpath)
         if self.__do_color:
             self.__do_color.set_work_path(workpath)
 
-    def __prepare_header(self, n):
-        header = join(self.workpath, "model.hdr")
-        with open(header, 'w', encoding='utf-8') as f:
-            f.write(self.__head_dump[n])
-        self.__exec_params[self.__exec_params.index('-h') + 1] = header
+        self.__workpath = workpath
+        if not (self.__headerless or self.__gen_header):
+            self.__prepare_headers()
+
+    def delete_work_path(self):
+        if self.__phm_marker:
+            self.__phm_marker.delete_work_path()
+        if self.__do_color:
+            self.__do_color.delete_work_path()
+
+        if not (self.__headerless or self.__gen_header) and self.__head_exec:
+            for n in range(self.__work_files):
+                remove(self.__head_exec.pop(n))
+
+    def __prepare_headers(self):
+        for n in range(self.__work_files):
+            fd, header = mkstemp(prefix='frg_', suffix='.hdr', dir=self.__workpath)
+            with open(header, 'w', encoding='utf-8') as f:
+                f.write(self.__head_dump[n])
+            close(fd)
+
+            self.__head_exec[n] = header
 
     def prepare(self, structures, **_):
         """ PMAPPER and Standardizer works only with molecules. NOT CGR!
         :param structures: opened file or string io in sdf, mol or rdf, rxn formats
         rdf, rxn work only in CGR or reagent marked atoms mode
         """
-        workfiles = [join(self.workpath, "frg_%d.sdf" % x) for x in range(self.__work_files)]
-        outputfile = join(self.workpath, "frg")
-
         if self.__preprocess:
             if self.__dragos_std:
                 structures = self.__dragos_std.get(structures)
@@ -245,53 +273,65 @@ class Fragmentor(BaseGenerator):
             if not structures:
                 return False
 
-        with OpenFiles(workfiles, ['w'] * self.__work_files) as f:
+        work_dir = mkdtemp(prefix='frg_', dir=self.__workpath)
+        work_sdf_files = [join(work_dir, "frg_%d.sdf" % x) for x in range(self.__work_files)]
+        work_files = [join(work_dir, "frg_%d" % x) for x in range(self.__work_files)]
+
+        with OpenFiles(work_sdf_files, 'w') as f:
             writers = [SDFwrite(x) for x in f]
             prop, doubles, used_str = self.write_prepared(structures, writers)
 
         tx, td = [], []
-        for n, workfile in enumerate(workfiles):
-            if not self.__gen_header:
-                """ prepare header if exist (normally true). run fragmentor.
-                """
-                self.__prepare_header(n)
-
-            execparams = [self.__fragmentor, '-i', workfile, '-o', outputfile]
+        for n, (work_file, work_sdf) in enumerate(zip(work_files, work_sdf_files)):
+            work_file_svm = '%s.svm' % work_file
+            work_file_hdr = '%s.hdr' % work_file
+            execparams = [self.__fragmentor, '-i', work_sdf, '-o', work_file]
+            if not (self.__headerless or self.__gen_header):
+                execparams.extend(['-h', self.__head_exec[n]])
             execparams.extend(self.__exec_params)
+
             print(' '.join(execparams), file=stderr)
             with open(devnull, 'w') as silent:
                 exitcode = call(execparams, stdout=silent, stderr=silent) == 0
 
-            if exitcode and exists(outputfile + '.svm') and exists(outputfile + '.hdr'):
-                if self.__gen_header:  # dump header if don't set on first run
-                    self.__dump_header(n, open(outputfile + '.hdr', encoding='utf-8'))
-                    if n + 1 == len(workfiles):  # disable header generation
-                        self.__gen_header = False
-                        self.__exec_params.insert(self.__exec_params.index('-t'), '-h')
-                        self.__exec_params.insert(self.__exec_params.index('-t'), '')
+            if exitcode and exists(work_file_svm) and exists(work_file_hdr):
+                if self.__headerless:
+                    head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)[1:]
+                elif self.__gen_header:  # dump header if don't set on first run
+                    self.__head_dump[n], self.__head_dict[n], self.__head_cols[n], self.__head_size[n] = \
+                        _, head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)
 
-                x, d = self.__parse_fragmentor_output(n, outputfile)
+                    if n + 1 == len(work_files):  # disable header generation
+                        self.__gen_header = False
+                        self.__prepare_headers()
+                else:
+                    head_dict, head_cols, head_size = self.__head_dict[n], self.__head_cols[n], self.__head_size[n]
+
+                x, d = self.__parse_fragmentor_output(work_file_svm, head_dict, head_cols, head_size)
                 tx.append(x)
                 td.append(d)
             else:
-                return False
+                rmtree(work_dir)
+                raise Exception('Fragmentor execution FAILED')
 
+        rmtree(work_dir)
         return tx, prop, td, doubles, used_str
 
-    def __parse_fragmentor_output(self, n, output_file):
+    @staticmethod
+    def __parse_fragmentor_output(svm_file, head_dict, head_cols, head_size):
         vector, ad = [], []
-        with open(output_file + '.svm') as sf:
+        with open(svm_file) as sf:
             for frag in sf:
                 _, *x = frag.split()
                 ad.append(True)
                 tmp = {}  # X vector
                 for i in x:
                     k, v = (int(x) for x in i.split(':'))
-                    if k <= self.__head_size[n]:
-                        tmp[self.__head_dict[n][k]] = v
+                    if k <= head_size:
+                        tmp[head_dict[k]] = v
                     elif v != 0:
                         ad[-1] = False
                         break
                 vector.append(tmp)
 
-        return DataFrame(vector, columns=self.__head_columns[n]).fillna(0), Series(ad)
+        return DataFrame(vector, columns=head_cols).fillna(0), Series(ad)
