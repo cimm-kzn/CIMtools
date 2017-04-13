@@ -15,10 +15,6 @@ INSTALL
 
     pip install CIMtools
 
-or latest repository version
-
-    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links --allow-all-external
-
 *step 2:*
 
 type
