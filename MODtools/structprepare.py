@@ -20,7 +20,7 @@
 #
 import json
 import networkx as nx
-import os
+from os import path, remove
 import xml.etree.ElementTree as ET
 from io import StringIO
 from requests import post
@@ -61,12 +61,12 @@ class StandardizeDragos(object):
         self.__maxmainsize = 101
 
     def __dumprules(self, rules):
-        with rules or open(os.path.join(os.path.dirname(__file__), "standardrules_dragos.rules")) as f:
+        with rules or open(path.join(path.dirname(__file__), "standardrules_dragos.rules")) as f:
             ruless = f.read()
         return ruless
 
     def __loadunwanted(self):
-        return set(open(os.path.join(os.path.dirname(__file__), "unwanted.elem")).read().split())
+        return set(open(path.join(path.dirname(__file__), "unwanted.elem")).read().split())
 
     def __processor_m(self, structure):
         p = Popen([STANDARDIZER, '-c', self.__stdrules, '-f', 'SDF'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -141,7 +141,7 @@ class Pharmacophoreatommarker(object):
         return _rules, marks
 
     def setworkpath(self, workpath):
-        self.__config = os.path.join(workpath, 'iam')
+        self.__config = path.join(workpath, 'iam')
         with open(self.__config, 'w') as f:
             f.write(self.__markerrule)
 
@@ -183,13 +183,12 @@ class Pharmacophoreatommarker(object):
 
 class CGRatommarker(CGRcombo, CGRreactor):
     def __init__(self, patterns, prepare=None, postprocess=None, reverse=False,
-                 b_templates=None, m_templates=None, extralabels=False, isotope=False, element=True, deep=0,
-                 stereo=False):
+                 b_templates=None, m_templates=None, extralabels=False, isotope=False, element=True, stereo=False):
 
         CGRreactor.__init__(self, stereo=stereo, hyb=extralabels, neighbors=extralabels, isotope=isotope,
-                            element=element, deep=deep)
+                            element=element)
 
-        CGRcombo.__init__(self, cgr_type='0', extralabels=extralabels, isotope=isotope, element=element, deep=deep,
+        CGRcombo.__init__(self, cgr_type='0', extralabels=extralabels, isotope=isotope, element=element,
                           stereo=stereo, b_templates=b_templates, m_templates=m_templates)
 
         self.__stdprerules = self.__dumprules(prepare)
@@ -295,20 +294,20 @@ class Colorize(object):
 
     @staticmethod
     def __dumprules(rules):
-        with rules or open(os.path.join(os.path.dirname(__file__), "standardrules_dragos.rules")) as f:
+        with rules or open(path.join(path.dirname(__file__), "standardrules_dragos.rules")) as f:
             rules = f.read()
         return rules
 
     def setworkpath(self, workpath):
-        self.__input_file = os.path.join(workpath, 'colorin.sdf')
-        self.__out_file = os.path.join(workpath, 'colorout.sdf')
-        self.__std_file = os.path.join(workpath, 'colorstd.xml')
+        self.__input_file = path.join(workpath, 'colorin.sdf')
+        self.__out_file = path.join(workpath, 'colorout.sdf')
+        self.__std_file = path.join(workpath, 'colorstd.xml')
         with open(self.__std_file, 'w') as f:
             f.write(self.__standardize)
 
     def get(self, structure):
-        if os.path.exists(self.__out_file):
-            os.remove(self.__out_file)
+        if path.exists(self.__out_file):
+            remove(self.__out_file)
         with open(self.__input_file, 'w') as f:
             out = SDFwrite(f)
             for i in (structure if isinstance(structure, list) else [structure]):

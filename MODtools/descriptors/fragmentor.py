@@ -46,13 +46,13 @@ class openFiles(object):
             self.fhs.append(open(f, fl))
         return self.fhs
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         for f in self.fhs:
             f.close()
 
 
 def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -65,7 +65,7 @@ class Fragmentor(BaseGenerator):
                  marker_rules=None, standardize=None, docolor=None,
                  cgr_marker=None, cgr_marker_prepare=None, cgr_marker_postprocess=None, cgr_reverse=False,
                  cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
-                 cgr_isotope=False, cgr_element=True, cgr_deep=0, cgr_stereo=False, is_reaction=False):
+                 cgr_isotope=False, cgr_element=True, cgr_stereo=False, is_reaction=False):
 
         if is_reaction and not (cgr_type or cgr_marker):
             raise Exception('only cgr or cgr marker can work with reactions')
@@ -79,7 +79,7 @@ class Fragmentor(BaseGenerator):
         self.__phm_marker = Pharmacophoreatommarker(marker_rules, workpath) if marker_rules else None
 
         self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels,
-                              isotope=cgr_isotope, element=cgr_element, deep=cgr_deep, stereo=cgr_stereo,
+                              isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
                               b_templates=cgr_b_templates, m_templates=cgr_m_templates) if cgr_type else None
 
         self.__cgr_marker = CGRatommarker(cgr_marker, prepare=cgr_marker_prepare,
