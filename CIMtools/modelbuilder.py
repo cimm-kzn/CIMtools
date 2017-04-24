@@ -171,9 +171,9 @@ class ModelBuilder(MBparser):
         else:
             self.__gen_desc(input_file, self.__output, fformat=self.__format, header=True)
 
-        for dgen in self.__generators:
-            if hasattr(dgen, 'delete_work_path'):
-                dgen.delete_work_path()
+            for dgen in self.__generators:
+                if hasattr(dgen, 'delete_work_path'):
+                    dgen.delete_work_path()
 
     def prepare_estimators(self, input_file):
         svm = {'svr', 'svc'}.intersection(self.__estimator).pop()
@@ -277,11 +277,13 @@ class ModelBuilder(MBparser):
         for g, e in self.__estimators:
             for x, y in zip(self.__generators, e):
                 inp = (RDFread(StringIO(data)) if self.__is_reaction else SDFread(StringIO(data))).read()
-                models.add(g(x, list(y.values()), inp, parsesdf=True, dispcoef=self.__disp_coef, fit=self.__fit,
-                             scorers=self.__scorers, n_jobs=self.__n_jobs, nfold=self.__nfold,
-                             rep_boost=self.__rep_boost, repetitions=self.__repetition,
-                             normalize='scale' in y or self.__normalize))
+                model = g(x, list(y.values()), inp, parsesdf=True, dispcoef=self.__disp_coef, fit=self.__fit,
+                          scorers=self.__scorers, n_jobs=self.__n_jobs, nfold=self.__nfold,
+                          rep_boost=self.__rep_boost, repetitions=self.__repetition,
+                          normalize='scale' in y or self.__normalize)
 
+                model.delete_work_path()
+                models.add(model)
                 if len(models) > self.__consensus:
                     models.pop()
 

@@ -136,7 +136,6 @@ class BaseModel(ABC):
         print("Descriptors generated")
 
         self.__cross_val()
-        self.delete_work_path()
 
     @abstractmethod
     def prepare_params(self, param):
