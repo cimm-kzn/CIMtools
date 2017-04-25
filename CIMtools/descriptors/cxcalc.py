@@ -29,25 +29,59 @@ from ..preparers.standardizers import StandardizeDragos
 
 
 class Pkab(BaseGenerator):
-    def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=None, acid=True, base=True,
-                 cgr_reverse=False, is_reaction=False,
-                 cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_stereo=False):
-
+    def __init__(self, workpath='.', s_option=None, marker_rules=None, standardize=False, acid=True, base=True,
+                 cgr_reverse=False, cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None,
+                 cgr_isotope=False, cgr_element=True, cgr_stereo=False, cgr_b_templates=None, cgr_m_templates=None,
+                 cgr_extralabels=False, is_reaction=False):
+        """
+        Chemaxon cxcalc wrapper
+        :param workpath: path for temp files.
+        :param s_option: modeling attribute
+        :param marker_rules: Dragos atom marker procedure. For molecules only. string with chemaxon Pmapper rules xml.
+        :param standardize: Dragos standardization procedure. For molecules only.
+          string with chemaxon standardizer rules (xml or ..- separated params)
+        :param acid: calc acidity
+        :param base: calc basicity
+        :param cgr_reverse: for reactions only. use product structure for calculation.
+        :param cgr_marker: CGRtools.CGRreactor templates  
+        :param cgr_marker_preprocess: prepare (if need) reaction structure for marker. 
+          string with chemaxon standardizer rules (xml or ..- separated params)
+        :param cgr_marker_postprocess: postprocess (if need) after marker [previously prepared] reaction structure  
+          string with chemaxon standardizer rules (xml or ..- separated params)
+        :param cgr_b_templates: list of reactioncontainers with termplates for autobalancing reactions
+        :param cgr_m_templates: list of reactioncontainers with termplates for reactions mapping correction
+        :param cgr_extralabels: match neighbors and hyb marks in substructure search. 
+          Need for CGRatomMarker or CGRcombo balanser/remapper
+        :param cgr_isotope: match isotope. see cgr_extralabels
+        :param cgr_element: match stereo. see cgr_extralabels
+        :param cgr_stereo: match stereo.
+        :param is_reaction: True for reaction data
+        """
         if is_reaction:
             if not cgr_marker:
-                raise Exception('only cgr marker can work with reactions')
+                raise Exception('need CGR marker for work with reactions')
+            if standardize or standardize is None:
+                raise Exception('standardize can work only with molecules')
+            if marker_rules:
+                raise Exception('pharmacophore atom marker can work only with molecules')
         elif cgr_marker:
             raise Exception('for cgr marker is_reaction should be True')
 
         BaseGenerator.__init__(self, s_option=s_option)
 
-        self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
+        if marker_rules:
+            self.__marker = PharmacophoreAtomMarker(marker_rules, workpath)
+        elif cgr_marker:
+            self.__marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
+                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
+                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
+                                          b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
 
-        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
-                                          postprocess=cgr_marker_postprocess,
-                                          stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
+        self.markers = (self.__marker.get_count() if self.__marker is not None else None)
 
-        self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
+        if standardize or standardize is None:
+            self.__dragos_std = StandardizeDragos(rules=standardize)
+
         self.__reverse = cgr_reverse
         self.__acid = acid
         self.__base = base
@@ -59,9 +93,6 @@ class Pkab(BaseGenerator):
             tmp.append('pkb')
         self.__columns = tmp
 
-        self.__markers = (self.__cgr_marker.get_count() if cgr_marker else
-                          self.__phm_marker.get_count() if marker_rules else None)
-
         locs = locals()
         tmp = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
         tmp.update((x, y) for x, y in (('acid', acid), ('base', base)) if not y)
@@ -69,21 +100,23 @@ class Pkab(BaseGenerator):
 
     __optional_configs = ('s_option', 'marker_rules', 'standardize', 'cgr_reverse', 'cgr_marker',
                           'cgr_marker_preprocess', 'cgr_marker_postprocess', 'cgr_stereo', 'is_reaction')
+    __marker = None
+    __dragos_std = None
 
     def get_config(self):
         return self.__config
 
-    @property
-    def markers(self):
-        return self.__markers
-
     def set_work_path(self, workpath):
-        if self.__phm_marker:
-            self.__phm_marker.set_work_path(workpath)
+        if hasattr(self.__marker, 'set_work_path'):
+            self.__marker.set_work_path(workpath)
 
     def delete_work_path(self):
-        if self.__phm_marker:
-            self.__phm_marker.delete_work_path()
+        if hasattr(self.__marker, 'delete_work_path'):
+            self.__marker.delete_work_path()
+
+    def pickle(self):
+        if hasattr(self.__marker, 'pickle'):
+            self.__marker.pickle()
 
     def prepare(self, structures, **_):
         if self.__dragos_std:
@@ -92,11 +125,8 @@ class Pkab(BaseGenerator):
         if not structures:
             return False
 
-        if self.__cgr_marker:
-            structures = self.__cgr_marker.get(structures)
-
-        elif self.__phm_marker:
-            structures = self.__phm_marker.get(structures)
+        if self.__marker:
+            structures = self.__marker.get(structures)
 
         if not structures:
             return False
@@ -109,7 +139,7 @@ class Pkab(BaseGenerator):
         with StringIO() as f:
             writer = SDFwrite(f)
             for s_numb, s in enumerate(structures):
-                if self.__cgr_marker:
+                if isinstance(self.__marker, CGRatomMarker):
                     meta = s[0][0][1].meta
                     for d in s:
                         tmp_d = [s_numb]
@@ -121,7 +151,7 @@ class Pkab(BaseGenerator):
                         prop.append(self.get_property(meta, marks=tmp_d[1:]))
                         doubles.extend([tmp_d] * len(d))
                         used_str.append(tmp_s)
-                elif self.__phm_marker:
+                elif isinstance(self.__marker, PharmacophoreAtomMarker):
                     writer.write(s[0][0][1])
                     prop.extend([self.get_property(d[0][1].meta, marks=[x[0] for x in d]) for d in s])
                     doubles.append([([s_numb] + [x[0] for x in d]) for d in s])
@@ -148,10 +178,10 @@ class Pkab(BaseGenerator):
                            for v in [val[:8], val[8:]]])
 
         new_doubles = []
-        if self.__cgr_marker or self.__phm_marker:
+        if self.__marker:
             old_k = None
             for lk, v in zip(doubles, pk):
-                for k in (lk if self.__phm_marker else [lk]):
+                for k in (lk if isinstance(self.__marker, PharmacophoreAtomMarker) else [lk]):
                     if k == old_k:
                         if self.__base:
                             new_doubles[-1][1].append(v[1].get(k[1 if self.__reverse else 2]))

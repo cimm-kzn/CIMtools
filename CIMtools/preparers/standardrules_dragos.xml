@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StandardizerConfiguration Version="0.1">
+  <Actions>
+    <Transformation Exact="false" ID="C neut" SearchOptions="" Structure="[C+]&gt;&gt;C" format="cxsmarts"/>
+    <Transformation Exact="false" ID="S neut" SearchOptions="" Structure="[S+3]&gt;&gt;S" format="cxsmarts"/>
+    <Neutralize ID="Neutralize"/>
+    <Transformation Exact="false" ID="Pyr dearomatize" SearchOptions="" Structure="[c,nX2]-,:1-,:[c,nX2]:[n;X2:1]:[c,nX2]:[c,nX2]-,:1&gt;&gt;[H][n:1]:1:[c,nX2]-,:[c,nX2]-,:[c,nX2]:[c,nX2]:1" format="cxsmarts"/>
+    <Dearomatize ID="Dearomatize"/>
+    <RemoveExplicitH Bridgehead="false" Charged="false" Hconnected="false" ID="Remove Explicit Hydrogens" Isotopic="false" Lonely="false" Mapped="false" Metalconnected="true" Polymerendgroup="false" Radical="false" Sgroup="false" Sgroupend="false" Valenceerror="false" Wedged="false"/>
+    <Transformation Exact="false" ID="Salt split 1" SearchOptions="" Structure="[#3,#11,#19,#29,#37,#47,#55,#81,#87:2]-[*:1]&gt;&gt;[*-:1].[#3,#11,#19,#29,#37,#47,#55,#81,#87;+:2]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Salt split 2" SearchOptions="" Structure="[*:1][Mg,Ca:2][*:3]&gt;&gt;[*-:1].[#12,#20;++:2].[*-:3]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Salt split 3" SearchOptions="" Structure="[#6]~[#7;v5:1](-[#6])-[#8,F,Cl,Br,I]&gt;&gt;[#6]~[#7;v4+:1]-[#6]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Salt split 4" SearchOptions="" Structure="[#6]~[#7;v4:1]([#6])[F,Cl,Br,I]&gt;&gt;[#6]~[N:1][#6]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Salt split 5" SearchOptions="" Structure="[#6]~[#7;v5:1]([#6])[F,Cl,Br,I]&gt;&gt;[#6]~[N+:1][#6]" format="cxsmarts"/>
+    <Mesomerize ID="Mesomerize"/>
+    <Transformation Exact="false" ID="Transform Nitro" SearchOptions="" Structure="[O;D1:2]=[N:1]=O&gt;&gt;[O;D1-:2][N+:1]=O" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Transform Nitro 2" SearchOptions="" Structure="[O;D1:2][N:1]=O&gt;&gt;[O;D1-:2][N+:1]=O" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Transform N-Oxide" SearchOptions="" Structure="[#7;h0v4:1][O;D1:2]&gt;&gt;[#7;h0v4+:1]-[#8;D1-:2]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Transform Ammonium" SearchOptions="" Structure="[#7;h0v4:1]&gt;&gt;[#7;h0v4+:1]" format="cxsmarts"/>
+    <Transformation Exact="false" ID="Transform Aromatic N-Oxide" SearchOptions="" Structure="[*:3]=,:[#7:1]([*:4])=[O:2]&gt;&gt;[*:4][#7+:1](=,:[*:3])-[#8-:2]" format="cxsmarts"/>
+    <Tautomerize ID="Tautomerize"/>
+    <Aromatize ID="Aromatize" Type="basic"/>
+  </Actions>
+</StandardizerConfiguration>

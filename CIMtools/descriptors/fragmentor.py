@@ -73,14 +73,61 @@ class Fragmentor(BaseGenerator):
                  s_option=None, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0,
                  cgr_dynbonds=0, xml=None, doallways=False, useformalcharge=False, atompairs=False,
                  fragmentstrict=False, getatomfragment=False, overwrite=True, header=None,
-                 marker_rules=None, standardize=None, docolor=None,
+                 marker_rules=None, standardize=False, docolor=False,
                  cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_reverse=False,
                  cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
                  cgr_isotope=False, cgr_element=True, cgr_stereo=False, is_reaction=False):
+        """
+        Fragmentor wrapper
+        :param workpath: path for temp files.
+        :param version: fragmentor version
+        :param s_option: modeling attribute
+        :param fragment_type: 
+        :param min_length: 
+        :param max_length: 
+        :param colorname: 
+        :param marked_atom: 
+        :param cgr_dynbonds: 
+        :param xml: 
+        :param doallways: 
+        :param useformalcharge: 
+        :param atompairs: 
+        :param fragmentstrict: 
+        :param getatomfragment: 
+        :param overwrite: 
+        :param header: 
+        :param marker_rules: Dragos atom marker procedure. For molecules only. string with chemaxon Pmapper rules xml.
+        :param standardize: Dragos standardization procedure. For molecules only.
+          string with chemaxon standardizer rules (xml or ..- separated params)
+          if False - skipped. if None - use predefined rules.
+        :param docolor: Automatic coloring utility. see colorname.
+          string with chemaxon standardizer rules (xml or ..- separated params)
+          if False - skipped. if None - use predefined rules.
+        :param cgr_type: type of generated CGR. see CGRtools help.
+          if None - skipped. usable with is_reaction=True only.
+        :param cgr_b_templates: list of reactioncontainers with termplates for autobalancing reactions
+        :param cgr_m_templates: list of reactioncontainers with termplates for reactions mapping correction
+        :param cgr_extralabels: match neighbors and hyb marks in substructure search. 
+          Need for CGRatomMarker or CGRcombo balanser/remapper
+        :param cgr_isotope: match isotope. see cgr_extralabels
+        :param cgr_element: match stereo. see cgr_extralabels
+        :param cgr_stereo: match stereo.
+        :param cgr_reverse: for reactions only. use product structure for calculation
+        :param cgr_marker: CGRtools.CGRreactor templates  
+        :param cgr_marker_preprocess: prepare (if need) reaction structure for marker 
+          string with chemaxon standardizer rules (xml or ..- separated params)
+        :param cgr_marker_postprocess: postprocess (if need) after marker [previously prepared] reaction structure  
+          string with chemaxon standardizer rules (xml or ..- separated params)
+        :param is_reaction: True for reaction data
+        """
 
         if is_reaction:
             if not (cgr_type or cgr_marker):
                 raise Exception('only cgr or cgr marker can work with reactions')
+            if standardize or standardize is None:
+                raise Exception('standardize can work only with molecules')
+            if marker_rules:
+                raise Exception('pharmacophore atom marker can work only with molecules')
         elif cgr_type or cgr_marker:
             raise Exception('for cgr or cgr marker is_reaction should be True')
 
@@ -89,25 +136,29 @@ class Fragmentor(BaseGenerator):
 
         BaseGenerator.__init__(self, s_option=s_option)
 
-        self.__preprocess = any(x is not None for x in (marker_rules, standardize, cgr_type, cgr_marker, docolor))
+        self.__preprocess = any([marker_rules, standardize, standardize is None, cgr_type, cgr_marker, docolor])
 
-        self.__phm_marker = PharmacophoreAtomMarker(marker_rules, workpath) if marker_rules else None
+        if cgr_type:
+            self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels, isotope=cgr_isotope,
+                                  element=cgr_element, stereo=cgr_stereo,
+                                  b_templates=cgr_b_templates, m_templates=cgr_m_templates)
 
-        self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels,
-                              isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
-                              b_templates=cgr_b_templates, m_templates=cgr_m_templates) if cgr_type else None
+        if marker_rules:
+            self.__marker = PharmacophoreAtomMarker(marker_rules, workpath)
+        elif cgr_marker:
+            self.__marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
+                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
+                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
+                                          b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
 
-        self.__cgr_marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
-                                          postprocess=cgr_marker_postprocess,
-                                          stereo=cgr_stereo, reverse=cgr_reverse) if cgr_marker else None
-
-        self.__dragos_std = StandardizeDragos(standardize) if standardize is not None and not is_reaction else None
-        self.__do_color = Colorize(docolor, workpath) if docolor else None
-
-        self.__markers = self.__cgr_marker.get_count() if cgr_marker else \
-            self.__phm_marker.get_count() if marker_rules else None
-
+        self.markers = (self.__marker.get_count() if self.__marker is not None else None)
         self.__work_files = self.markers or 1
+
+        if standardize or standardize is None:
+            self.__dragos_std = StandardizeDragos(rules=standardize)
+
+        if docolor or docolor is None:
+            self.__do_color = Colorize(docolor, workpath)
 
         self.__frag_version = ('-%s' % version) if version else ''
 
@@ -126,7 +177,7 @@ class Fragmentor(BaseGenerator):
 
             for n, h in enumerate(headers):
                 (self.__head_dump[n], self.__head_dict[n], self.__head_cols[n],
-                 self.__head_size[n]) = self.__parse_header(h, opened=True)
+                 self.__head_size[n]) = self.__parse_header(h)
             self.__prepare_headers()
 
         elif header is not None:
@@ -172,6 +223,10 @@ class Fragmentor(BaseGenerator):
     __gen_header = True
     __manual_header = False
     __headerless = False
+    __marker = None
+    __dragos_std = None
+    __do_color = None
+    __cgr = None
 
     def get_config(self):
         return self.__config
@@ -186,16 +241,12 @@ class Fragmentor(BaseGenerator):
             self.__head_cols = {}
 
     @property
-    def markers(self):
-        return self.__markers
-
-    @property
     def __fragmentor(self):
         return '%s%s' % (FRAGMENTOR, self.__frag_version)
 
     @staticmethod
-    def __parse_header(header, opened=False):
-        with (header if opened else open(header, encoding='utf-8')) as f:
+    def __parse_header(header):
+        with open(header, encoding='utf-8') as f:
             head_dump = f.read()
             head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
             head_columns = list(head_dict.values())
@@ -204,8 +255,8 @@ class Fragmentor(BaseGenerator):
 
     def set_work_path(self, workpath):
         self.delete_work_path()
-        if self.__phm_marker:
-            self.__phm_marker.set_work_path(workpath)
+        if hasattr(self.__marker, 'set_work_path'):
+            self.__marker.set_work_path(workpath)
         if self.__do_color:
             self.__do_color.set_work_path(workpath)
 
@@ -214,14 +265,18 @@ class Fragmentor(BaseGenerator):
             self.__prepare_headers()
 
     def delete_work_path(self):
-        if self.__phm_marker:
-            self.__phm_marker.delete_work_path()
+        if hasattr(self.__marker, 'delete_work_path'):
+            self.__marker.delete_work_path()
         if self.__do_color:
             self.__do_color.delete_work_path()
 
         if not (self.__headerless or self.__gen_header) and self.__head_exec:
             for n in range(self.__work_files):
                 remove(self.__head_exec.pop(n))
+
+    def pickle(self):
+        if hasattr(self.__marker, 'pickle'):
+            self.__marker.pickle()
 
     def __prepare_headers(self):
         for n in range(self.__work_files):
@@ -234,8 +289,7 @@ class Fragmentor(BaseGenerator):
 
     def prepare(self, structures, **_):
         """ PMAPPER and Standardizer works only with molecules. NOT CGR!
-        :param structures: opened file or string io in sdf, mol or rdf, rxn formats
-        rdf, rxn work only in CGR or reagent marked atoms mode
+        :param structures: list of MoleculeContainers or ReactionContainers (work only in CGR or CGR-marked atoms mode)
         """
         if self.__preprocess:
             if self.__dragos_std:
@@ -264,11 +318,8 @@ class Fragmentor(BaseGenerator):
             if self.__cgr:
                 structures = [self.__cgr.getCGR(x) for x in structures]
 
-            elif self.__cgr_marker:
-                structures = self.__cgr_marker.get(structures)
-
-            elif self.__phm_marker:
-                structures = self.__phm_marker.get(structures)
+            elif self.__marker:
+                structures = self.__marker.get(structures)
 
             if not structures:
                 return False

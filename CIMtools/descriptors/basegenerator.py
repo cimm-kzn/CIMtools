@@ -29,17 +29,14 @@ class BaseGenerator(ABC, PropertyExtractor):
     def __init__(self, s_option=None):
         PropertyExtractor.__init__(self, s_option)
 
+    markers = None
+
     @abstractmethod
     def get_config(self):
         pass
 
     @abstractmethod
     def prepare(self, structures, **_):
-        pass
-
-    @property
-    @abstractmethod
-    def markers(self) -> int:
         pass
 
     @abstractmethod

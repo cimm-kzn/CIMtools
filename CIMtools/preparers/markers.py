@@ -46,18 +46,12 @@ def remove_namespace(doc, namespace):
 
 class PharmacophoreAtomMarker(object):
     def __init__(self, marker_rules, workpath='.'):
-        self.__marker_rules, self.__markers = self.__dump_rules(marker_rules)
+        self.__marker_rules = marker_rules
+        self.__markers = list(set(x.get('Symbol') for x in remove_namespace(ElementTree.fromstring(marker_rules),
+                                                                            'http://www.chemaxon.com').iter('AtomSet')))
         self.set_work_path(workpath)
 
     __config = None
-
-    @staticmethod
-    def __dump_rules(rules):
-        with rules as f:
-            _rules = f.read()
-        marks = list(set(x.get('Symbol') for x in remove_namespace(ElementTree.fromstring(_rules),
-                                                                   'http://www.chemaxon.com').iter('AtomSet')))
-        return _rules, marks
 
     def set_work_path(self, workpath):
         self.delete_work_path()
@@ -108,37 +102,41 @@ class PharmacophoreAtomMarker(object):
         return False
 
 
-class CGRatomMarker(CGRcombo, CGRreactor):
+class CGRatomMarker(object):
     def __init__(self, patterns, preprocess=None, postprocess=None, reverse=False,
                  b_templates=None, m_templates=None, extralabels=False, isotope=False, element=True, stereo=False):
-
-        CGRreactor.__init__(self, stereo=stereo, hyb=extralabels, neighbors=extralabels, isotope=isotope,
-                            element=element)
-
-        CGRcombo.__init__(self, cgr_type='0', extralabels=extralabels, isotope=isotope, element=element,
-                          stereo=stereo, b_templates=b_templates, m_templates=m_templates)
-
-        self.__std_prerules = self.__dump_rules(preprocess)
-        self.__std_postrules = self.__dump_rules(postprocess)
-        self.__templates, self.__marks = self.__dump_patterns(patterns)
+        self.__std_prerules = preprocess
+        self.__std_postrules = postprocess
+        self.__markers = len(patterns[0]['products'])
         self.__reverse = reverse
+        self.__stereo = stereo
+        self.__element = element
+        self.__isotope = isotope
+        self.__extralabels = extralabels
+        self.__m_templates = m_templates
+        self.__b_templates = b_templates
 
-    @staticmethod
-    def __dump_rules(rules):
-        if rules:
-            with rules as f:
-                rules = f.read().rstrip()
-        return rules
+        """ AD-HOC if networkx graph pickling will be bad
+        tmp = []
+        for x in patterns:
+            rc = dict(meta=x.meta)
+            for i in ('substrats', 'products'):
+                rc[i] = [node_link_data(s) for s in x[i]]
+            tmp.append(rc)
+        self.__templates = tmp
+        """
+        self.__templates = patterns
 
-    @staticmethod
-    def __dump_patterns(patterns):
-        with patterns as f:
-            templates = CGRreactor.get_templates(f)
-            marks = len(templates[0]['products'])
-        return templates, marks
+    __cgr = None
+    __patterns = None
 
     def get_count(self):
-        return self.__marks
+        return self.__markers
+
+    def pickle(self):
+        """ remove attrs incorrectly dumped with dill
+        """
+        self.__cgr = self.__patterns = None
 
     @staticmethod
     def __processor_s(structure, rules, remap=True):
@@ -168,19 +166,35 @@ class CGRatomMarker(CGRcombo, CGRreactor):
         return False
 
     def get(self, structure):
+        """AD-HOC for pickle"""
+        if self.__patterns is None:
+            tmp = CGRreactor(stereo=self.__stereo, hyb=self.__extralabels, neighbors=self.__extralabels,
+                             isotope=self.__isotope, element=self.__element)
+            """ AD-HOC if networkx graph pickling will be bad
+            templates = []
+            for x in self.__templates:
+                rc = ReactionContainer(meta=x['meta'])
+                for i in ('substrats', 'products'):
+                    rc[i].extend(node_link_graph(s) for s in x[i])
+                templates.append(rc)
+            """
+            self.__patterns = tmp.get_template_searcher(tmp.get_templates(self.__templates))
+        if self.__cgr is None:
+            self.__cgr = CGRcombo(cgr_type='0', extralabels=self.__extralabels, isotope=self.__isotope,
+                                  element=self.__element, stereo=self.__stereo,
+                                  b_templates=self.__b_templates, m_templates=self.__m_templates)
+
         if self.__std_prerules:
             structure = (self.__processor_m(structure, self.__std_prerules) if isinstance(structure, list) else
                          self.__processor_s(structure, self.__std_prerules))
             if not structure:
                 return False
 
-        _patterns = self.get_template_searcher(self.__templates)  # ad_hoc for pickle
-
         markslist = []
-        gs = [self.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
+        gs = [self.__cgr.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
         for g in gs:
             # list of list of tuples(atom, mark) of matched centers
-            marks = [[[x, y['mark']] for x, y in match['products'].nodes(data=True)] for match in _patterns(g)]
+            marks = [[[x, y['mark']] for x, y in match['products'].nodes(data=True)] for match in self.__patterns(g)]
             markslist.append(marks)
 
         if self.__std_postrules:
@@ -211,5 +225,5 @@ class CGRatomMarker(CGRcombo, CGRreactor):
 
                 result.append([(x, y) for _, x, y in sorted(tmp)])
 
-            output.append(result if result else [[(None, ss)] * self.get_count()])
+            output.append(result if result else [[(None, ss)] * self.__markers])
         return output

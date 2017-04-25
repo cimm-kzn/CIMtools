@@ -30,23 +30,25 @@ from ..config import STANDARDIZER
 
 
 class StandardizeDragos(object):
-    def __init__(self, rules, unwanted=None, min_ratio=2, max_ion_size=5, min_main_size=6, max_main_size=101):
-        self.__std_rules = self.__dump_rules(rules)
-        self.__unwanted = self.__dump_unwanted(unwanted)
+    def __init__(self, rules=None, unwanted=None, min_ratio=2, max_ion_size=5, min_main_size=6, max_main_size=101):
+        self.__std_rules = rules or self.__load_rules()
+        self.__unwanted = self.__load_unwanted() if unwanted is None else set(unwanted)
         self.__min_ratio = min_ratio
         self.__max_ion_size = max_ion_size
         self.__min_main_size = min_main_size
         self.__max_main_size = max_main_size
 
     @staticmethod
-    def __dump_rules(rules):
-        with rules or open(join(dirname(__file__), "standardrules_dragos.rules")) as f:
-            rs = f.read()
-        return rs
+    def __load_rules():
+        with open(join(dirname(__file__), "standardrules_dragos.xml")) as f:
+            out = f.read().strip()
+        return out
 
     @staticmethod
-    def __dump_unwanted(unwanted):
-        return set(open(join(dirname(__file__), "unwanted.elem") if unwanted is None else unwanted).read().split())
+    def __load_unwanted():
+        with open(join(dirname(__file__), "unwanted.elem")) as f:
+            out = set(f.read().split())
+        return out
 
     def __processor_m(self, structure):
         p = Popen([STANDARDIZER, '-c', self.__std_rules, '-f', 'SDF'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)

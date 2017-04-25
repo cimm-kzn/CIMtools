@@ -28,17 +28,17 @@ from ..config import COLOR
 
 
 class Colorize(object):
-    def __init__(self, standardize, workpath='.'):
-        self.__standardize = self.__dump_rules(standardize)
+    def __init__(self, standardize=None, workpath='.'):
+        self.__standardize = standardize or self.__load_rules()
         self.set_work_path(workpath)
 
     __std_file = None
 
     @staticmethod
-    def __dump_rules(rules):
-        with rules or open(join(dirname(__file__), "standardrules_dragos.rules")) as f:
-            rules = f.read()
-        return rules
+    def __load_rules():
+        with open(join(dirname(__file__), "standardrules_dragos.xml")) as f:
+            out = f.read().strip()
+        return out
 
     def set_work_path(self, workpath):
         self.delete_work_path()

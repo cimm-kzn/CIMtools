@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.files.RDFrw import RDFread
 from copy import deepcopy
 from pandas import read_csv
 from .estimators.kernels import tanimoto_kernel
@@ -146,11 +147,14 @@ class MBparser(object):
                     key, value = (x.strip() for x in x.split('='))
                     value = True if value == 'True' else False if value == 'False' else value
                     if key in ['header']:
-                        tmp[key] = [open(x.strip(), encoding='utf-8') for x in value.split('|')]
+                        tmp[key] = [x.strip() for x in value.split('|')]
+                    elif key in ('cgr_marker', 'cgr_b_templates', 'cgr_m_templates'):
+                        with open(value) as vf:
+                            tmp[key] = RDFread(vf).read()
                     elif key in ('marker_rules', 'standardize', 'docolor',
-                                 'cgr_marker', 'cgr_marker_preprocess', 'cgr_marker_postprocess',
-                                 'cgr_b_templates', 'cgr_m_templates'):
-                        tmp[key] = open(value)
+                                 'cgr_marker_preprocess', 'cgr_marker_postprocess'):
+                        with open(value) as vf:
+                            tmp[key] = vf.read()
                     else:
                         tmp[key] = value
                 params.append(tmp)
