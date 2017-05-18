@@ -152,6 +152,6 @@ class Eed(BaseGenerator):
                 ad[-1] = False
             vector.append(tmp)
 
-        x = DataFrame(vector, columns=list(range(1, 705))).fillna(0)
+        x = DataFrame(vector, columns=range(1, 705)).fillna(0)
         x.columns = ['eed.%d' % x for x in range(1, 705)]
         return x, Series(ad)

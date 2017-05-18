@@ -54,7 +54,7 @@ class BaseGenerator(ABC, PropertyExtractor):
 
         x, y, ad, i, s = tmp
 
-        res = dict(X=concat(x, axis=1, keys=list(range(len(x)))) if len(x) > 1 else x[0],
+        res = dict(X=concat(x, axis=1, keys=range(len(x))) if len(x) > 1 else x[0],
                    AD=reduce(and_, ad), Y=Series(y, name='Property'), structures=s)  # todo: prepare structures
 
         if self.markers:

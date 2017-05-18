@@ -22,7 +22,6 @@ from functools import partial
 from itertools import product
 from sklearn.svm import SVR, SVC
 from .basemodeler import BaseModel
-import collections
 
 
 class SVModel(BaseModel):
@@ -62,16 +61,16 @@ class SVModel(BaseModel):
         elif param['kernel'] == 'poly':  # (gamma*u'*v + coef0)^degree
             base.update(kernel=['poly'], gamma=param['gamma'], coef0=param['coef0'], degree=param['degree'])
 
-        elif isinstance(param['kernel'], list) and all(isinstance(x, collections.Callable) for x in param['kernel']):
+        elif isinstance(param['kernel'], list) and all(callable(x) for x in param['kernel']):
             base.update(kernel=param['kernel'])
-        elif isinstance(param['kernel'], collections.Callable):
+        elif callable(param['kernel']):
             base.update(kernel=[param['kernel']])
         else:
             return []
 
         k_list = []
         v_list = []
-        for k, v in list(base.items()):
+        for k, v in base.items():
             k_list.append(k)
             v_list.append(v)
 

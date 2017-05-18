@@ -41,7 +41,7 @@ config_dirs = [join(x, '.CIMtools.ini') for x in (dirname(__file__), expanduser(
 
 if not any(exists(x) for x in config_dirs):
     with open(config_dirs[1], 'w') as f:
-        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in list(globals().items()) if x in config_save_list))
+        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in globals().items() if x in config_save_list))
 
 with open(next(x for x in config_dirs if exists(x))) as f:
     for line in f:

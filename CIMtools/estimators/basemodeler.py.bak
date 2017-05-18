@@ -41,7 +41,7 @@ class Score(dict):
         dict.__init__(self, *args, **kwargs)
 
     def __comparer(self, other, op):
-        return all(op(y, other[x]) for x, y in list(self.items()))
+        return all(op(y, other[x]) for x, y in self.items())
 
     def __lt__(self, other):
         return self.__comparer(other, lt)
@@ -102,7 +102,7 @@ def _iap(y_test, y_prob):
             possible_combo = len(in_class) * len(out_class)
             if possible_combo:
                 res[col].append(in_class_dominance / possible_combo)
-    res = Score({x: sum(y) / len(y) for x, y in list(res.items())})
+    res = Score({x: sum(y) / len(y) for x, y in res.items()})
     return res
 
 
@@ -132,7 +132,7 @@ class BaseModel(ABC):
         self.__x = xy['X']
         self.__y = xy['Y']
         self.__box = xy.get('BOX', xy['X'].columns)
-        self.__kfold = list(KFold(n_splits=nfold).split(list(range(len(xy['Y'].index)))))
+        self.__kfold = list(KFold(n_splits=nfold).split(range(len(xy['Y'].index))))
         print("Descriptors generated")
 
         self.__cross_val()
@@ -198,7 +198,7 @@ class BaseModel(ABC):
         depindex = []
         maxdep = []
         print('list of fit params:')
-        print((DataFrame(list(fitparams))))
+        print(DataFrame(list(fitparams)))
         for param in fitparams:
             di = {}
             md = 0
@@ -210,11 +210,11 @@ class BaseModel(ABC):
             depindex.append(di)
             maxdep.append(md)
 
-        print(('========================================\n'
+        print('========================================\n'
               'Y mean +- variance = %s +- %s\n'
               '  max = %s, min = %s\n'
               '========================================' %
-              (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min())))
+              (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
 
         bestmodel = badmodel = dict(model=None, Cr2=inf, Crmse=inf, Ckappa=inf, Cba=inf, Ciap=inf)
         for param, md, di in zip(fitparams, maxdep, depindex):
@@ -224,16 +224,16 @@ class BaseModel(ABC):
                 tmp = self.prepare_params(param)
                 for i in tmp:
                     fcount += 1
-                    print(('%d: fit model with params:' % fcount, i))
+                    print('%d: fit model with params:' % fcount, i)
                     fittedmodel = self.__fit(i, self.__rep_boost)
-                    print((self.__score_reporter % fittedmodel))
+                    print(self.__score_reporter % fittedmodel)
                     if fittedmodel[self.__fit_score] < var_param_model[self.__fit_score]:
                         var_param_model = fittedmodel
 
                 if var_param_model[self.__fit_score] < var_kern_model[self.__fit_score]:
                     var_kern_model = var_param_model
                     tmp = {}
-                    for i, j in list(var_kern_model['params'].items()):
+                    for i, j in var_kern_model['params'].items():
                         if i in ('kernel', 'probability'):
                             tmp[i] = j
                         elif di[i] < md and not param[i][j]:
@@ -248,9 +248,9 @@ class BaseModel(ABC):
 
         if self.__repetitions > self.__rep_boost:
             bestmodel = self.__fit(bestmodel['params'], self.__repetitions)
-        print(('========================================\n' +
-              ('SVM params %(params)s\n' + self.__score_reporter) % bestmodel))
-        print(('========================================\n%s variants checked' % fcount))
+        print('========================================\n' +
+              ('SVM params %(params)s\n' + self.__score_reporter) % bestmodel)
+        print('========================================\n%s variants checked' % fcount)
         self.__model = bestmodel
 
     def __fit(self, fitparams, repetitions):
@@ -285,7 +285,7 @@ class BaseModel(ABC):
                 ky_prob = concat(ky_prob).loc[self.__y.index].fillna(0)
                 y_prob.append(ky_prob)
 
-            for s, (f, p) in list(self.__scorers.items()):
+            for s, (f, p) in self.__scorers.items():
                 fold_scorers[s].append(f(self.__y, (ky_prob if p else ky_pred)))
 
             y_pred.append(ky_pred)
@@ -298,16 +298,16 @@ class BaseModel(ABC):
 
         res = dict(models=models, params=fitparams, y_pred=y_pred, y_ad=y_ad, x_ad=x_ad)
         if y_prob:
-            res['y_prob'] = concat(y_prob, axis=1, keys=list(range(len(y_prob))))
+            res['y_prob'] = concat(y_prob, axis=1, keys=range(len(y_prob)))
 
-        for s, _v in list(fold_scorers.items()):
+        for s, _v in fold_scorers.items():
             if isinstance(_v[0], Score):
                 m, v, c = Score(), Score(), Score()
                 tmp = defaultdict(list)
                 for _s in _v:
-                    for k, val in list(_s.items()):
+                    for k, val in _s.items():
                         tmp[k].append(val)
-                for k, val in list(tmp.items()):
+                for k, val in tmp.items():
                     m[k] = mean(val)
                     v[k] = sqrt(var(val))
                     c[k] = -m[k] + self.__disp_coef * v[k]
@@ -348,7 +348,7 @@ class BaseModel(ABC):
                    domain=concat(x_ad, axis=1), y_domain=concat(y_ad, axis=1))
 
         if prob:
-            out['probability'] = concat(prob, axis=1, keys=list(range(len(prob))))
+            out['probability'] = concat(prob, axis=1, keys=range(len(prob)))
 
         if d_s is not None:
             out['structures'] = d_s

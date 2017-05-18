@@ -96,8 +96,8 @@ class ModelBuilder(MBparser):
             if any(x not in description for x in ('nlim', 'name', 'example', 'description')):
                 raise Exception('Description Invalid')
 
-            print(('model description loaded\nname: {name}\ndescription: {description}\n'
-                  'nlim: {nlim}'.format(**description)))
+            print('model description loaded\nname: {name}\ndescription: {description}\n'
+                  'nlim: {nlim}'.format(**description))
 
             if not model:
                 raise Exception('path to model save file invalid')
@@ -241,7 +241,7 @@ class ModelBuilder(MBparser):
                     ad_chain.setdefault(k, []).append(v)
 
                 combo = []
-                for k, v in list(ad_chain.items()):
+                for k, v in ad_chain.items():
                     try:
                         if len(v) > 1:
                             if len(descgenerator[k]) != len(v):
@@ -256,12 +256,12 @@ class ModelBuilder(MBparser):
                                                     for g, a in (gs if isinstance(gs, list) else [gs])])
                                  for c in product(*combo)])
         else:
-            descgens = [g() for x in list(descgenerator.values()) for g in x]
+            descgens = [g() for x in descgenerator.values() for g in x]
 
         if not descgens:
             raise Exception('Descriptor generators not configured')
 
-        print(('loaded %d descriptors generators' % len(descgens)))
+        print('loaded %d descriptors generators' % len(descgens))
         return descgens
 
     def __order(self, model):
@@ -334,7 +334,7 @@ class ModelBuilder(MBparser):
         print('unordered results of descriptors generation:')
         for i in range(len(self.__generators)):
             res = done_queue.get()
-            print(('\t%d: %s' % res))
+            print('\t%d: %s' % res)
             if not res[1]:
                 return False
 
@@ -355,7 +355,7 @@ class ModelBuilder(MBparser):
 
         print('descriptors generation for GAConf')
         if self.__gen_desc(input_file, files):
-            print(('GAConf exec:', execparams))
+            print('GAConf exec:', execparams)
             if call(execparams) == 0:
                 return self.__parse_dragos_results(dragos_work)
 
