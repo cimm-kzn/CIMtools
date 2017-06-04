@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,92 +18,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from collections import defaultdict
-from functools import reduce
-from operator import and_
-from pandas import DataFrame, Series, concat, merge, Index
+from pandas import DataFrame, Series, concat, Index
 from sys import stderr
-
-
-class DescriptorsChain(object):
-    def __init__(self, *args):
-        """
-        chaining multiple descriptor generators.
-        concatenate X vectors and merge AD
-        :param args: set of generators or set of list[generator, consider their AD {True|False}]
-        """
-        if isinstance(args[0], tuple):
-            self.__generators = args
-        else:
-            self.__generators = [(x, True) for x in args]
-
-    def set_work_path(self, workpath):
-        for gen, _ in self.__generators:
-            if hasattr(gen, 'set_work_path'):
-                gen.set_work_path(workpath)
-
-    def delete_work_path(self):
-        for gen, _ in self.__generators:
-            if hasattr(gen, 'delete_work_path'):
-                gen.delete_work_path()
-
-    def flush(self):
-        for gen, _ in self.__generators:
-            if hasattr(gen, 'flush'):
-                gen.flush()
-
-    def get_config(self):
-        tmp = {}
-        for gen, _ in self.__generators:
-            tmp[gen.__class__.__name__] = gen.get_config()
-        return tmp
-
-    def get(self, structures, **kwargs):
-        """
-        :param structures: list of CGRtools data
-        :param kwargs: generators specific arguments
-        :return: dict(X=DataFrame, AD=Series, Y=Series, BOX=Series, structures=DataFrame)
-        """
-        res = defaultdict(list)
-
-        def merge_wrap(x, y):
-            return merge(x, y, how='outer', left_index=True, right_index=True)
-
-        for gen, ad in self.__generators:
-            for k, v in gen.get(structures, **kwargs).items():
-                res[k].append(v)
-            res['BOX'].append(Series(ad, index=res['X'][-1].columns))
-
-        res['X'] = reduce(merge_wrap, res['X'])
-        res['AD'] = reduce(and_, sorted(res['AD'], key=lambda x: len(x.index), reverse=True))
-        # на данный момент не придумано как поступать с мультицентровостью. пока свойство просто дублируется.
-        res['Y'] = sorted(res['Y'], key=lambda x: len(x.index), reverse=True)[0]
-
-        res['BOX'] = concat(res['BOX'])
-
-        if 'structures' in res:
-            res['structures'] = reduce(merge_wrap, res['structures'])
-
-        return dict(res)
-
-
-class PropertyExtractor(object):
-    def __init__(self, name):
-        self.__name = name
-
-    def get_property(self, meta, marks=None):
-        """
-        for marked atom property can named property_name.1-2-3 - where 1-2-3 sorted marked atoms.
-        for correct work NEED in rdf mapping started from 1 without breaks.
-        or used common property with key property_name
-        :param meta: dict of data
-        :param marks: list of marked atoms
-        :return: float property or None
-        """
-        tmp = marks and meta.get('%s.%s' % (self.__name,
-                                            '-'.join(str(x) for x in sorted(marks)))) or meta.get(self.__name)
-
-        return float(tmp) if tmp else None
+from .propertyextractor import PropertyExtractor
 
 
 class DescriptorsDict(PropertyExtractor):
@@ -113,8 +30,17 @@ class DescriptorsDict(PropertyExtractor):
         self.__ext_header = self.__prepare_ext_header(data)
         self.__config = dict(data=data, s_option=s_option)
 
-    def get_config(self):
-        return self.__config
+    def pickle(self):
+        config = self.__config.copy()
+        config['data'] = {k: v and dict(key=v['key'], value=v['value'].to_dict()) for k, v in config['data'].items()}
+        return config
+
+    @classmethod
+    def unpickle(cls, config):
+        if {'data', 's_option'}.difference(config):
+            raise Exception('Invalid config')
+        return DescriptorsDict(data={k: v and dict(key=v['key'], value=DataFrame(v['value']))
+                                     for k, v in config['data'].items()}, s_option=config['s_option'])
 
     @staticmethod
     def __prepare_ext_header(data):
@@ -187,7 +113,7 @@ class DescriptorsDict(PropertyExtractor):
                          index=Index([0], name='structure'))
 
     def get(self, structures=None, **kwargs):
-        if kwargs.get('parsesdf'):
+        if kwargs.get('in_structures'):
             extblock, prop = self.__parse_file(structures)
 
         elif all(isinstance(x, list) or isinstance(x, dict) for y, x in kwargs.items() if y in self.__extension):

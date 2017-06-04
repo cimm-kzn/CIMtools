@@ -32,7 +32,15 @@ class Colorize(object):
         self.__standardize = standardize or self.__load_rules()
         self.set_work_path(workpath)
 
-    __std_file = None
+    def pickle(self):
+        return dict(standardize=self.__standardize)
+
+    @classmethod
+    def unpickle(cls, config):
+        if {'standardize'}.difference(config):
+            raise Exception('Invalid config')
+
+        return Colorize(standardize=config['standardize'])
 
     @staticmethod
     def __load_rules():
@@ -71,3 +79,5 @@ class Colorize(object):
 
         rmtree(work_dir)
         return res or False
+
+    __std_file = None

@@ -36,8 +36,9 @@ from sortedcontainers import SortedListWithKey
 from subprocess import call
 from tempfile import mkdtemp
 from .config import GACONF
+from .descriptors import DescriptorsChain
 from .descriptors.cxcalc import Pkab
-from .descriptors.descriptoragregator import DescriptorsDict, DescriptorsChain
+from .descriptors.descriptorsdict import DescriptorsDict
 from .descriptors.eed import Eed
 from .descriptors.fragmentor import Fragmentor
 from .estimators.svmodel import SVModel
@@ -61,7 +62,7 @@ def desc_starter(gen, file_dump, out_file, fformat, header, is_reaction):
     with StringIO(file_dump) as f:
         inp = (RDFread(f) if is_reaction else SDFread(f)).read()
 
-    dsc = gen.get(structures=inp, parsesdf=True)
+    dsc = gen.get(structures=inp, in_structures=True)
 
     if dsc and not (dsc['X'].isnull().values.any() or dsc['Y'].isnull().any()):
         (save_svm if fformat == 'svm' else save_csv)(out_file, dsc['X'], dsc['Y'], header=header)
@@ -277,7 +278,7 @@ class ModelBuilder(MBparser):
         for g, e in self.__estimators:
             for x, y in zip(self.__generators, e):
                 inp = (RDFread(StringIO(data)) if self.__is_reaction else SDFread(StringIO(data))).read()
-                model = g(x, list(y.values()), inp, parsesdf=True, dispcoef=self.__disp_coef, fit=self.__fit,
+                model = g(x, list(y.values()), inp, in_structures=True, dispcoef=self.__disp_coef, fit=self.__fit,
                           scorers=self.__scorers, n_jobs=self.__n_jobs, nfold=self.__nfold,
                           rep_boost=self.__rep_boost, repetitions=self.__repetition,
                           normalize='scale' in y or self.__normalize)
@@ -307,11 +308,11 @@ class ModelBuilder(MBparser):
         return est_params
 
     def __clean_desc_gens(self, select):
-        tmp = []
-        for n, gen in enumerate(self.__generators):
-            if n in select:
-                tmp.append(gen)
-            elif hasattr(gen, 'delete_work_path'):
+        tmp = [self.__generators[x] for x in select]
+
+        for n in set(range(len(self.__generators))).difference(select):
+            gen = self.__generators[n]
+            if hasattr(gen, 'delete_work_path'):
                 gen.delete_work_path()
 
         self.__generators = tmp

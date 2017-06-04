@@ -18,7 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.CGRpreparer import CGRcombo
+from CGRtools.preparer import CGRcombo
 from CGRtools.files.SDFrw import SDFwrite
 from itertools import tee
 from os import close, remove

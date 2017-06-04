@@ -38,6 +38,18 @@ class StandardizeDragos(object):
         self.__min_main_size = min_main_size
         self.__max_main_size = max_main_size
 
+    def pickle(self):
+        return dict(rules=self.__std_rules, unwanted=list(self.__unwanted), min_ratio=self.__min_ratio,
+                    max_ion_size=self.__max_ion_size, min_main_size=self.__min_main_size,
+                    max_main_size=self.__max_main_size)
+
+    @classmethod
+    def unpickle(cls, config):
+        args = {'rules', 'unwanted', 'min_ratio', 'max_ion_size', 'min_main_size', 'max_main_size'}
+        if args.difference(config):
+            raise Exception('Invalid config')
+        return StandardizeDragos(**{k: v for k, v in config.items() if k in args})
+
     @staticmethod
     def __load_rules():
         with open(join(dirname(__file__), "standardrules_dragos.xml")) as f:

@@ -18,8 +18,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.CGRpreparer import CGRcombo
-from CGRtools.CGRreactor import CGRreactor
+from CGRtools.containers import ReactionContainer
+from CGRtools.preparer import CGRcombo
+from CGRtools.reactor import CGRreactor
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
 from io import StringIO
@@ -51,7 +52,14 @@ class PharmacophoreAtomMarker(object):
                                                                             'http://www.chemaxon.com').iter('AtomSet')))
         self.set_work_path(workpath)
 
-    __config = None
+    def pickle(self):
+        return dict(marker_rules=self.__marker_rules)
+
+    @classmethod
+    def unpickle(cls, config):
+        if {'marker_rules'}.difference(config):
+            raise Exception('Invalid config')
+        return PharmacophoreAtomMarker(marker_rules=config['marker_rules'])
 
     def set_work_path(self, workpath):
         self.delete_work_path()
@@ -101,42 +109,48 @@ class PharmacophoreAtomMarker(object):
             return output
         return False
 
+    __config = None
+
 
 class CGRatomMarker(object):
-    def __init__(self, patterns, preprocess=None, postprocess=None, reverse=False,
-                 b_templates=None, m_templates=None, extralabels=False, isotope=False, element=True, stereo=False):
+    def __init__(self, patterns, preprocess=None, postprocess=None, reverse=False, b_templates=None, m_templates=None,
+                 extralabels=False, isotope=False, element=True, stereo=False, _reload=None):
         self.__std_prerules = preprocess
         self.__std_postrules = postprocess
-        self.__markers = len(patterns[0]['products'])
+        self.__markers = len(patterns[0]['products'][0])
         self.__reverse = reverse
-        self.__stereo = stereo
-        self.__element = element
-        self.__isotope = isotope
-        self.__extralabels = extralabels
-        self.__m_templates = m_templates
-        self.__b_templates = b_templates
-
-        """ AD-HOC if networkx graph pickling will be bad
-        tmp = []
-        for x in patterns:
-            rc = dict(meta=x.meta)
-            for i in ('substrats', 'products'):
-                rc[i] = [node_link_data(s) for s in x[i]]
-            tmp.append(rc)
-        self.__templates = tmp
-        """
         self.__templates = patterns
 
-    __cgr = None
-    __patterns = None
+        if _reload:
+            self.__cgr = CGRcombo.unpickle(dict(cgr_type='0', **_reload))
+            tmp = CGRreactor.unpickle(_reload)
+        else:
+            self.__cgr = CGRcombo(extralabels=extralabels, isotope=isotope, element=element, stereo=stereo,
+                                  b_templates=b_templates, m_templates=m_templates)
+            tmp = CGRreactor(stereo=stereo, extralabels=extralabels, isotope=isotope, element=element)
+
+        self.__patterns = tmp.get_template_searcher(tmp.get_templates(patterns))
+
+    def pickle(self):
+        config = self.__cgr.pickle()
+        config.pop('cgr_type')
+        config.update(postprocess=self.__std_postrules, preprocess=self.__std_prerules,
+                      reverse=self.__reverse, patterns=[x.pickle() for x in self.__templates])
+        return config
+
+    @classmethod
+    def unpickle(cls, config):
+        if {'postprocess', 'preprocess', 'reverse', 'patterns'}.difference(config):
+            raise Exception('Invalid config')
+        config = config.copy()
+        patterns = [ReactionContainer.unpickle(x) for x in config.pop('patterns')]
+        postprocess = config.pop('postprocess')
+        preprocess = config.pop('preprocess')
+        reverse = config.pop('reverse')
+        return CGRatomMarker(patterns, preprocess=preprocess, postprocess=postprocess, reverse=reverse, _reload=config)
 
     def get_count(self):
         return self.__markers
-
-    def pickle(self):
-        """ remove attrs incorrectly dumped with dill
-        """
-        self.__cgr = self.__patterns = None
 
     @staticmethod
     def __processor_s(structure, rules, remap=True):
@@ -166,24 +180,6 @@ class CGRatomMarker(object):
         return False
 
     def get(self, structure):
-        """AD-HOC for pickle"""
-        if self.__patterns is None:
-            tmp = CGRreactor(stereo=self.__stereo, hyb=self.__extralabels, neighbors=self.__extralabels,
-                             isotope=self.__isotope, element=self.__element)
-            """ AD-HOC if networkx graph pickling will be bad
-            templates = []
-            for x in self.__templates:
-                rc = ReactionContainer(meta=x['meta'])
-                for i in ('substrats', 'products'):
-                    rc[i].extend(node_link_graph(s) for s in x[i])
-                templates.append(rc)
-            """
-            self.__patterns = tmp.get_template_searcher(tmp.get_templates(self.__templates))
-        if self.__cgr is None:
-            self.__cgr = CGRcombo(cgr_type='0', extralabels=self.__extralabels, isotope=self.__isotope,
-                                  element=self.__element, stereo=self.__stereo,
-                                  b_templates=self.__b_templates, m_templates=self.__m_templates)
-
         if self.__std_prerules:
             structure = (self.__processor_m(structure, self.__std_prerules) if isinstance(structure, list) else
                          self.__processor_s(structure, self.__std_prerules))
