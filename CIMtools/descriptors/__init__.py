@@ -18,10 +18,10 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from collections import defaultdict
 from functools import reduce
 from operator import and_
 from pandas import Series, concat, merge
+from .basegenerator import DataContainer
 from .descriptorsdict import DescriptorsDict
 from .eed import Eed
 from .fragmentor import Fragmentor
@@ -61,30 +61,34 @@ class DescriptorsChain(object):
             if hasattr(gen, 'delete_work_path'):
                 gen.delete_work_path()
 
-    def get(self, structures, **kwargs):
+    def get(self, structures, return_box=False, **kwargs):
         """
         :param structures: list of CGRtools data
+        :param return_box: return bitmap of descriptors for box AD  
         :param kwargs: generators specific arguments
         :return: dict(X=DataFrame, AD=Series, Y=Series, BOX=Series, structures=DataFrame)
         """
-        res = defaultdict(list)
-
-        def merge_wrap(x, y):
-            return merge(x, y, how='outer', left_index=True, right_index=True)
+        _x, _y, _ad, _box = [], [], [], []
 
         for gen, ad in self.__generators:
-            for k, v in gen.get(structures, **kwargs).items():
-                res[k].append(v)
-            res['BOX'].append(Series(ad, index=res['X'][-1].columns))
+            out = gen.get(structures, **kwargs)
+            _x.append(out.X)
+            _y.append(out.Y)
+            _ad.append(out.AD)
+            _box.append(Series(ad, index=out.X.columns))
 
-        res['X'] = reduce(merge_wrap, res['X'])
-        res['AD'] = reduce(and_, sorted(res['AD'], key=lambda x: len(x.index), reverse=True))
+        _x = reduce(self.__merge_wrap, _x)
+        _ad = reduce(and_, sorted(_ad, key=lambda x: len(x.index), reverse=True))
         # на данный момент не придумано как поступать с мультицентровостью. пока свойство просто дублируется.
-        res['Y'] = sorted(res['Y'], key=lambda x: len(x.index), reverse=True)[0]
+        _y = sorted(_y, key=lambda x: len(x.index), reverse=True)[0]
 
-        res['BOX'] = concat(res['BOX'])
+        _box = concat(_box)
+        out = DataContainer(_x, _y, _ad)
+        return (out, _box) if return_box else out
 
-        if 'structures' in res:
-            res['structures'] = reduce(merge_wrap, res['structures'])
+    @staticmethod
+    def __merge_wrap(x, y):
+        return merge(x, y, how='outer', left_index=True, right_index=True)
 
-        return dict(res)
+
+__all__ = [DescriptorsChain.__name__, DescriptorsDict.__name__, Fragmentor.__name__, Pkab.__name__, Eed.__name__]

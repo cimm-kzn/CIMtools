@@ -24,8 +24,6 @@ from pandas import DataFrame, Series
 from subprocess import Popen, PIPE
 from .basegenerator import BaseGenerator
 from ..config import EED
-from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
-from ..preparers.standardizers import StandardizeDragos
 
 
 class Eed(BaseGenerator):
@@ -35,86 +33,52 @@ class Eed(BaseGenerator):
                  cgr_extralabels=False, is_reaction=False):
         """
         EED wrapper.
-        :param workpath: path for temp files.
-        :param s_option: modeling attribute
-        :param marker_rules: Dragos atom marker procedure. For molecules only. string with chemaxon Pmapper rules xml.
-        :param standardize: Dragos standardization procedure. For molecules only.
-          string with chemaxon standardizer rules (xml or ..- separated params)
-          if False - skipped. if None - use predefined rules.
-        :param cgr_reverse: for reactions only. use product structure for calculation.
-        :param cgr_marker: CGRtools.CGRreactor templates  
-        :param cgr_marker_preprocess: prepare (if need) reaction structure for marker. 
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param cgr_marker_postprocess: postprocess (if need) after marker [previously prepared] reaction structure  
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param cgr_b_templates: list of reactioncontainers with termplates for autobalancing reactions
-        :param cgr_m_templates: list of reactioncontainers with termplates for reactions mapping correction
-        :param cgr_extralabels: match neighbors and hyb marks in substructure search. 
-          Need for CGRatomMarker or CGRcombo balanser/remapper
-        :param cgr_isotope: match isotope. see cgr_extralabels
-        :param cgr_element: match stereo. see cgr_extralabels
-        :param cgr_stereo: match stereo.
-        :param is_reaction: True for reaction data
         """
+        if is_reaction and not cgr_marker:
+            raise Exception('need CGR marker for work with reactions')
 
-        if is_reaction:
-            if not cgr_marker:
-                raise Exception('need CGR marker for work with reactions')
-            if standardize or standardize is None:
-                raise Exception('standardize can work only with molecules')
-            if marker_rules:
-                raise Exception('pharmacophore atom marker can work only with molecules')
-        elif cgr_marker:
-            raise Exception('for CGR marker is_reaction should be True')
+        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option, marker_rules=marker_rules,
+                               standardize=standardize, cgr_marker=cgr_marker, cgr_isotope=cgr_isotope,
+                               cgr_marker_preprocess=cgr_marker_preprocess, cgr_extralabels=cgr_extralabels,
+                               cgr_marker_postprocess=cgr_marker_postprocess, cgr_element=cgr_element,
+                               cgr_stereo=cgr_stereo, cgr_b_templates=cgr_b_templates, cgr_m_templates=cgr_m_templates,
+                               cgr_reverse=cgr_reverse, is_reaction=is_reaction)
 
-        BaseGenerator.__init__(self, s_option=s_option)
+        self.__workfiles = self._markers_count or 1
 
-        if marker_rules:
-            self.__marker = PharmacophoreAtomMarker(marker_rules, workpath)
-        elif cgr_marker:
-            self.__marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
-                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
-                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
-                                          b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
-
-        self.markers = (self.__marker.get_count() if self.__marker is not None else None)
-        self.__workfiles = self.markers or 1
-
-        if standardize or standardize is None:
-            self.__dragos_std = StandardizeDragos(rules=standardize)
-
-        locs = locals()
-        self.__config = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
-
-    __optional_configs = ('s_option', 'marker_rules', 'standardize', 'cgr_reverse', 'cgr_marker',
-                          'cgr_marker_preprocess', 'cgr_marker_postprocess', 'cgr_stereo', 'is_reaction')
-    __marker = None
-    __dragos_std = None
-
-    def get_config(self):
-        return self.__config
-
-    def set_work_path(self, workpath):
-        if hasattr(self.__marker, 'set_work_path'):
-            self.__marker.set_work_path(workpath)
-
-    def delete_work_path(self):
-        if hasattr(self.__marker, 'delete_work_path'):
-            self.__marker.delete_work_path()
+    def _init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                       cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction, marker_rules, cgr_marker,
+                       cgr_b_templates, cgr_m_templates, standardize, **config):
+        BaseGenerator._init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                                     cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction,
+                                     marker_rules, cgr_marker, cgr_b_templates, cgr_m_templates, standardize, **config)
+        self.__workfiles = self._markers_count or 1
 
     def pickle(self):
-        if hasattr(self.__marker, 'pickle'):
-            self.__marker.pickle()
+        return super(Eed, self).pickle()
+
+    @classmethod
+    def unpickle(cls, config):
+        BaseGenerator.unpickle(config)
+        obj = cls.__new__(cls)  # Does not call __init__
+        obj._init_unpickle(**config)
+        return obj
+
+    def set_work_path(self, workpath):
+        super(Eed, self).set_work_path()
+
+    def delete_work_path(self):
+        super(Eed, self).delete_work_path()
 
     def prepare(self, structures, **_):
-        if self.__dragos_std:
-            structures = self.__dragos_std.get(structures)
+        if self._dragos_std:
+            structures = self._dragos_std.get(structures)
 
         if not structures:
             return False
 
-        if self.__marker:
-            structures = self.__marker.get(structures)
+        if self._marker:
+            structures = self._marker.get(structures)
 
         if not structures:
             return False
@@ -122,7 +86,7 @@ class Eed(BaseGenerator):
         workfiles = [StringIO() for _ in range(self.__workfiles)]
         writers = [SDFwrite(x, mark_to_map=True) for x in workfiles]
 
-        prop, doubles, used_str = self.write_prepared(structures, writers)
+        prop, doubles = self.write_prepared(structures, writers)
 
         tx, td = [], []
         for n, workfile in enumerate(workfiles):
@@ -136,7 +100,7 @@ class Eed(BaseGenerator):
             tx.append(x)
             td.append(d)
 
-        return tx, prop, td, doubles, used_str
+        return tx, prop, td, doubles
 
     @staticmethod
     def __parse_eed_output(output):

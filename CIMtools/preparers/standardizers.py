@@ -48,7 +48,7 @@ class StandardizeDragos(object):
         args = {'rules', 'unwanted', 'min_ratio', 'max_ion_size', 'min_main_size', 'max_main_size'}
         if args.difference(config):
             raise Exception('Invalid config')
-        return StandardizeDragos(**{k: v for k, v in config.items() if k in args})
+        return cls(**{k: v for k, v in config.items() if k in args})
 
     @staticmethod
     def __load_rules():

@@ -31,8 +31,6 @@ from tempfile import mkdtemp, mkstemp
 from .basegenerator import BaseGenerator
 from ..config import FRAGMENTOR
 from ..preparers.colorize import Colorize
-from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
-from ..preparers.standardizers import StandardizeDragos
 
 
 class OpenFiles(object):
@@ -71,17 +69,15 @@ def pairwise(iterable):
 class Fragmentor(BaseGenerator):
     def __init__(self, workpath='.', version=None,
                  s_option=None, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0,
-                 cgr_dynbonds=0, xml=None, doallways=False, useformalcharge=False, atompairs=False,
-                 fragmentstrict=False, getatomfragment=False, overwrite=True, header=None,
-                 marker_rules=None, standardize=False, docolor=False,
-                 cgr_marker=None, cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_reverse=False,
-                 cgr_type=None, cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None,
-                 cgr_isotope=False, cgr_element=True, cgr_stereo=False, is_reaction=False):
+                 cgr_dynbonds=0, xml=None, doallways=False, useformalcharge=False, atompairs=False, header=None,
+                 fragmentstrict=False, getatomfragment=False, overwrite=True, docolor=False, cgr_type=None,
+                 cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None, cgr_isotope=False, cgr_element=True,
+                 cgr_stereo=False, is_reaction=False, marker_rules=None, standardize=False, cgr_marker=None,
+                 cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_reverse=False):
         """
         Fragmentor wrapper
         :param workpath: path for temp files.
         :param version: fragmentor version
-        :param s_option: modeling attribute
         :param fragment_type: 
         :param min_length: 
         :param max_length: 
@@ -96,10 +92,6 @@ class Fragmentor(BaseGenerator):
         :param getatomfragment: 
         :param overwrite: 
         :param header: 
-        :param marker_rules: Dragos atom marker procedure. For molecules only. string with chemaxon Pmapper rules xml.
-        :param standardize: Dragos standardization procedure. For molecules only.
-          string with chemaxon standardizer rules (xml or ..- separated params)
-          if False - skipped. if None - use predefined rules.
         :param docolor: Automatic coloring utility. see colorname.
           string with chemaxon standardizer rules (xml or ..- separated params)
           if False - skipped. if None - use predefined rules.
@@ -112,55 +104,61 @@ class Fragmentor(BaseGenerator):
         :param cgr_isotope: match isotope. see cgr_extralabels
         :param cgr_element: match stereo. see cgr_extralabels
         :param cgr_stereo: match stereo.
-        :param cgr_reverse: for reactions only. use product structure for calculation
-        :param cgr_marker: CGRtools.CGRreactor templates  
-        :param cgr_marker_preprocess: prepare (if need) reaction structure for marker 
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param cgr_marker_postprocess: postprocess (if need) after marker [previously prepared] reaction structure  
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param is_reaction: True for reaction data
         """
-
         if is_reaction:
             if not (cgr_type or cgr_marker):
-                raise Exception('only cgr or cgr marker can work with reactions')
-            if standardize or standardize is None:
-                raise Exception('standardize can work only with molecules')
-            if marker_rules:
-                raise Exception('pharmacophore atom marker can work only with molecules')
-        elif cgr_type or cgr_marker:
-            raise Exception('for cgr or cgr marker is_reaction should be True')
+                raise Exception('only cgr_type or cgr_marker can work with reactions')
+        elif cgr_type:
+            raise Exception('for cgr_type is_reaction should be True')
 
-        self.__is_reaction = is_reaction
-        self.__workpath = workpath
-
-        BaseGenerator.__init__(self, s_option=s_option)
-
-        self.__preprocess = any([marker_rules, standardize, standardize is None, cgr_type, cgr_marker, docolor])
+        BaseGenerator.__init__(self,  workpath=workpath, s_option=s_option, marker_rules=marker_rules,
+                               standardize=standardize, cgr_marker=cgr_marker, cgr_isotope=cgr_isotope,
+                               cgr_marker_preprocess=cgr_marker_preprocess, cgr_extralabels=cgr_extralabels,
+                               cgr_marker_postprocess=cgr_marker_postprocess, cgr_element=cgr_element,
+                               cgr_stereo=cgr_stereo, cgr_b_templates=cgr_b_templates, cgr_m_templates=cgr_m_templates,
+                               cgr_reverse=cgr_reverse, is_reaction=is_reaction)
 
         if cgr_type:
             self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels, isotope=cgr_isotope,
                                   element=cgr_element, stereo=cgr_stereo,
                                   b_templates=cgr_b_templates, m_templates=cgr_m_templates)
 
-        if marker_rules:
-            self.__marker = PharmacophoreAtomMarker(marker_rules, workpath)
-        elif cgr_marker:
-            self.__marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
-                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
-                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
-                                          b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
-
-        self.markers = (self.__marker.get_count() if self.__marker is not None else None)
-        self.__work_files = self.markers or 1
-
-        if standardize or standardize is None:
-            self.__dragos_std = StandardizeDragos(rules=standardize)
-
         if docolor or docolor is None:
             self.__do_color = Colorize(docolor, workpath)
 
+        self.__init_common(version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
+                           doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite,
+                           is_reaction, header, workpath=workpath)
+
+    def _init_unpickle(self, version, s_option, fragment_type, min_length, max_length, colorname, marked_atom,
+                       cgr_dynbonds, xml, doallways, useformalcharge, atompairs, header, fragmentstrict,
+                       getatomfragment, overwrite, docolor, cgr_type, cgr_extralabels, cgr_b_templates, cgr_m_templates,
+                       cgr_isotope, cgr_element, cgr_stereo, is_reaction, marker_rules, standardize, cgr_marker,
+                       cgr_marker_preprocess, cgr_marker_postprocess, cgr_reverse, **config):
+
+        BaseGenerator._init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                                     cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction,
+                                     marker_rules, cgr_marker, cgr_b_templates, cgr_m_templates, standardize, **config)
+
+        if cgr_type:
+            self.__cgr = CGRcombo.unpickle(dict(cgr_type=cgr_type, extralabels=cgr_extralabels, isotope=cgr_isotope,
+                                                element=cgr_element, stereo=cgr_stereo,
+                                                b_templates=cgr_b_templates, m_templates=cgr_m_templates))
+
+        if docolor:
+            self.__do_color = Colorize.unpickle(dict(standardize=docolor))
+
+        self.__init_common(version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
+                           doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite,
+                           is_reaction, header, reload=True)
+
+    def __init_common(self, version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
+                      doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite, is_reaction,
+                      header, workpath='.', reload=False):
         self.__frag_version = ('-%s' % version) if version else ''
+        self.__work_files = self._markers_count or 1
+        self.__is_reaction = is_reaction
+        self.__workpath = workpath
 
         self.__head_dump = {}
         self.__head_size = {}
@@ -177,7 +175,7 @@ class Fragmentor(BaseGenerator):
 
             for n, h in enumerate(headers):
                 (self.__head_dump[n], self.__head_dict[n], self.__head_cols[n],
-                 self.__head_size[n]) = self.__parse_header(h)
+                 self.__head_size[n]) = self.__parse_header(h, reload=reload)
             self.__prepare_headers()
 
         elif header is not None:
@@ -209,54 +207,66 @@ class Fragmentor(BaseGenerator):
 
         self.__exec_params = tmp
 
-        locs = locals()
-        tmp = dict(fragment_type=fragment_type, min_length=min_length, max_length=max_length)
-        tmp.update((x, y) for x, y in (('overwrite', overwrite), ('cgr_element', cgr_element)) if not y)
-        tmp.update((x, locs[x]) for x in self.__optional_configs if locs[x])
-        self.__config = tmp
+        self.__pickle = dict(version=version, fragment_type=fragment_type, min_length=min_length, max_length=max_length,
+                             colorname=colorname, marked_atom=marked_atom, cgr_dynbonds=cgr_dynbonds, xml=xml,
+                             doallways=doallways, useformalcharge=useformalcharge, atompairs=atompairs,
+                             fragmentstrict=fragmentstrict, getatomfragment=getatomfragment, overwrite=overwrite,
+                             header=None, docolor=False, cgr_type=None)
 
-    __optional_configs = ('version', 's_option', 'colorname', 'marked_atom', 'cgr_dynbonds', 'xml', 'doallways',
-                          'useformalcharge',  'atompairs', 'fragmentstrict', 'getatomfragment', 'header',
-                          'marker_rules', 'standardize', 'docolor', 'cgr_marker', 'cgr_marker_preprocess',
-                          'cgr_marker_postprocess', 'cgr_reverse', 'cgr_type', 'cgr_extralabels', 'cgr_b_templates',
-                          'cgr_m_templates', 'cgr_isotope', 'cgr_stereo', 'is_reaction')
     __gen_header = True
     __manual_header = False
     __headerless = False
-    __marker = None
-    __dragos_std = None
     __do_color = None
     __cgr = None
 
-    def get_config(self):
-        return self.__config
+    def pickle(self):
+        config = super(Fragmentor, self).pickle()
+        config.update(self.__pickle)
 
-    def flush(self):
-        if not (self.__gen_header or self.__manual_header or self.__headerless):
-            self.__gen_header = True
-            self.__head_exec = {}
-            self.__head_dump = {}
-            self.__head_size = {}
-            self.__head_dict = {}
-            self.__head_cols = {}
+        if self.__cgr is not None:
+            tmp = self.__cgr.pickle()
+            config.update(cgr_type=tmp['cgr_type'], cgr_b_templates=tmp['b_templates'],
+                          cgr_m_templates=tmp['m_templates'])
+        if self.__do_color is not None:
+            config['docolor'] = self.__do_color.pickle()['standardize']
+        if self.__headerless:
+            config['header'] = False
+        elif not self.__gen_header:
+            config['header'] = [self.__head_dump[x] for x in sorted(self.__head_dump)]
+        return config
+
+    @classmethod
+    def unpickle(cls, config):
+        args = {'version', 'fragment_type', 'min_length', 'max_length', 'colorname', 'marked_atom', 'cgr_dynbonds',
+                'xml', 'doallways', 'useformalcharge', 'atompairs', 'fragmentstrict', 'getatomfragment', 'overwrite',
+                'header', 'docolor', 'cgr_type'}
+        if args.difference(config):
+            raise Exception('Invalid config')
+
+        BaseGenerator.unpickle(config)
+        obj = cls.__new__(cls)  # Does not call __init__
+        obj._init_unpickle(**config)
+        return obj
 
     @property
     def __fragmentor(self):
         return '%s%s' % (FRAGMENTOR, self.__frag_version)
 
     @staticmethod
-    def __parse_header(header):
-        with open(header, encoding='utf-8') as f:
-            head_dump = f.read()
-            head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
-            head_columns = list(head_dict.values())
-            head_size = len(head_dict)
+    def __parse_header(header, reload=False):
+        if reload:
+            head_dump = header
+        else:
+            with open(header, encoding='utf-8') as f:
+                head_dump = f.read()
+        head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
+        head_columns = list(head_dict.values())
+        head_size = len(head_dict)
         return head_dump, head_dict, head_columns, head_size
 
     def set_work_path(self, workpath):
         self.delete_work_path()
-        if hasattr(self.__marker, 'set_work_path'):
-            self.__marker.set_work_path(workpath)
+        super(Fragmentor, self).set_work_path()
         if self.__do_color:
             self.__do_color.set_work_path(workpath)
 
@@ -265,8 +275,7 @@ class Fragmentor(BaseGenerator):
             self.__prepare_headers()
 
     def delete_work_path(self):
-        if hasattr(self.__marker, 'delete_work_path'):
-            self.__marker.delete_work_path()
+        super(Fragmentor, self).delete_work_path()
         if self.__do_color:
             self.__do_color.delete_work_path()
 
@@ -274,55 +283,49 @@ class Fragmentor(BaseGenerator):
             for n in range(self.__work_files):
                 remove(self.__head_exec.pop(n))
 
-    def pickle(self):
-        if hasattr(self.__marker, 'pickle'):
-            self.__marker.pickle()
-
     def __prepare_headers(self):
         for n in range(self.__work_files):
             fd, header = mkstemp(prefix='frg_', suffix='.hdr', dir=self.__workpath)
             with open(header, 'w', encoding='utf-8') as f:
                 f.write(self.__head_dump[n])
             close(fd)
-
             self.__head_exec[n] = header
 
     def prepare(self, structures, **_):
         """ PMAPPER and Standardizer works only with molecules. NOT CGR!
         :param structures: list of MoleculeContainers or ReactionContainers (work only in CGR or CGR-marked atoms mode)
         """
-        if self.__preprocess:
-            if self.__dragos_std:
-                structures = self.__dragos_std.get(structures)
+        if self._dragos_std:
+            structures = self._dragos_std.get(structures)
 
-            if self.__do_color:
-                if self.__is_reaction:
-                    for i in ('substrats', 'products'):
-                        mols, shifts = [], [0]
-                        for x in structures:
-                            shifts.append(len(x[i]) + shifts[-1])
-                            mols.extend(x[i])
+        if self.__do_color:
+            if self.__is_reaction:
+                for i in ('substrats', 'products'):
+                    mols, shifts = [], [0]
+                    for x in structures:
+                        shifts.append(len(x[i]) + shifts[-1])
+                        mols.extend(x[i])
 
-                        colored = self.__do_color.get(mols)
-                        if not colored:
-                            return False
+                    colored = self.__do_color.get(mols)
+                    if not colored:
+                        return False
 
-                        for (y, z), x in zip(pairwise(shifts), structures):
-                            x[i] = colored[y: z]
-                else:
-                    structures = self.__do_color.get(structures)
+                    for (y, z), x in zip(pairwise(shifts), structures):
+                        x[i] = colored[y: z]
+            else:
+                structures = self.__do_color.get(structures)
 
-            if not structures:
-                return False
+        if not structures:
+            return False
 
-            if self.__cgr:
-                structures = [self.__cgr.getCGR(x) for x in structures]
+        if self.__cgr:
+            structures = [self.__cgr.getCGR(x) for x in structures]
 
-            elif self.__marker:
-                structures = self.__marker.get(structures)
+        elif self._marker:
+            structures = self._marker.get(structures)
 
-            if not structures:
-                return False
+        if not structures:
+            return False
 
         work_dir = mkdtemp(prefix='frg_', dir=self.__workpath)
         work_sdf_files = [join(work_dir, "frg_%d.sdf" % x) for x in range(self.__work_files)]
@@ -330,7 +333,7 @@ class Fragmentor(BaseGenerator):
 
         with OpenFiles(work_sdf_files, 'w') as f:
             writers = [SDFwrite(x) for x in f]
-            prop, doubles, used_str = self.write_prepared(structures, writers)
+            prop, doubles = self.write_prepared(structures, writers)
 
         tx, td = [], []
         for n, (work_file, work_sdf) in enumerate(zip(work_files, work_sdf_files)):
@@ -366,7 +369,7 @@ class Fragmentor(BaseGenerator):
                 raise Exception('Fragmentor execution FAILED')
 
         rmtree(work_dir)
-        return tx, prop, td, doubles, used_str
+        return tx, prop, td, doubles
 
     @staticmethod
     def __parse_fragmentor_output(svm_file, head_dict, head_cols, head_size):

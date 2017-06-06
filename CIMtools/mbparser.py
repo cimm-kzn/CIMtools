@@ -165,16 +165,15 @@ class MBparser(object):
         extdata = {}
         s_option = None
         for e in rawext:
-            record = None
-            ext, *file = e.split(':')
+            ext, *add = e.split(':')
             if ext == 's_option':
-                if file:
-                    s_option = file[0]
-                continue
-
-            if file:
-                v = read_csv(file[0])
-                k = v.pop('EXTKEY')
-                record = dict(key=k, value=v.rename(columns=lambda x: '%s.%s' % (ext, x)))
-            extdata[ext] = record
+                if add:
+                    s_option = add[0]
+            elif add:
+                tmp = read_csv(add[0])
+                k = tmp.pop('EXTKEY')
+                v = tmp.rename(columns=lambda x: '%s.%s' % (ext, x))
+                extdata[ext] = {x: y.to_dict() for x, (_, y) in zip(k, v.iterrows())}
+            else:
+                extdata[ext] = None
         return dict(s_option=s_option, data=extdata)

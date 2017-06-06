@@ -39,8 +39,7 @@ class Colorize(object):
     def unpickle(cls, config):
         if {'standardize'}.difference(config):
             raise Exception('Invalid config')
-
-        return Colorize(standardize=config['standardize'])
+        return cls(config['standardize'])
 
     @staticmethod
     def __load_rules():

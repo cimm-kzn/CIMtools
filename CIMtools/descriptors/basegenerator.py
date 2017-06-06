@@ -19,12 +19,16 @@
 #  MA 02110-1301, USA.
 #
 from abc import ABC, abstractmethod
+from collections import namedtuple
 from functools import reduce
 from operator import and_
 from pandas import Series, Index, MultiIndex, concat
 from .propertyextractor import PropertyExtractor
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 from ..preparers.standardizers import StandardizeDragos
+
+
+DataContainer = namedtuple('ResultsContainer', ['X', 'Y', 'AD'])
 
 
 class BaseGenerator(ABC, PropertyExtractor):
@@ -56,8 +60,6 @@ class BaseGenerator(ABC, PropertyExtractor):
         :param is_reaction: True for reaction data
         """
         if is_reaction:
-            if not cgr_marker:
-                raise Exception('only cgr or cgr marker can work with reactions')
             if standardize or standardize is None:
                 raise Exception('standardize can work only with molecules')
             if marker_rules:
@@ -65,18 +67,41 @@ class BaseGenerator(ABC, PropertyExtractor):
         elif cgr_marker:
             raise Exception('for cgr_marker is_reaction should be True')
 
-        PropertyExtractor.__init__(self, s_option)
-
         if standardize or standardize is None:
             self._dragos_std = StandardizeDragos(rules=standardize)
 
         if marker_rules:
             self._marker = PharmacophoreAtomMarker(marker_rules, workpath)
         elif cgr_marker:
-            self._marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
+            self._marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess, reverse=cgr_reverse,
                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
-                                         b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
+                                         b_templates=cgr_b_templates, m_templates=cgr_m_templates)
+
+        self.__init_common(s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                           cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction)
+
+    def _init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                       cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction,
+                       marker_rules, cgr_marker, cgr_b_templates, cgr_m_templates, standardize, **config):
+        if standardize:
+            self._dragos_std = StandardizeDragos.unpickle(dict(rules=standardize, **config))
+
+        if marker_rules:
+            self._marker = PharmacophoreAtomMarker.unpickle(dict(marker_rules=marker_rules))
+        elif cgr_marker:
+            self._marker = CGRatomMarker.unpickle(dict(patterns=cgr_marker, preprocess=cgr_marker_preprocess,
+                                                       postprocess=cgr_marker_postprocess, reverse=cgr_reverse,
+                                                       b_templates=cgr_b_templates, m_templates=cgr_m_templates,
+                                                       extralabels=cgr_extralabels, isotope=cgr_isotope,
+                                                       element=cgr_element, stereo=cgr_stereo))
+
+        self.__init_common(s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                           cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction)
+
+    def __init_common(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                      cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction):
+        PropertyExtractor.__init__(self, s_option)
 
         self._markers_count = self._marker.get_count() if self._marker is not None else None
         self.__pickle = dict(s_option=s_option, cgr_isotope=cgr_isotope, cgr_element=cgr_element, cgr_stereo=cgr_stereo,
@@ -93,9 +118,19 @@ class BaseGenerator(ABC, PropertyExtractor):
         elif isinstance(self._marker, CGRatomMarker):
             x = self._marker.pickle()
             config.update(cgr_marker=x['patterns'], cgr_b_templates=x['b_templates'], cgr_m_templates=x['m_templates'])
-        if self._dragos_std is not None:
-            config['standardize'] = self._dragos_std.pickle()['rules']
+        if self._dragos_std:
+            tmp = self._dragos_std.pickle()
+            config.update(standardize=tmp.pop('rules'), **tmp)
         return config
+
+    @classmethod
+    @abstractmethod
+    def unpickle(cls, config):
+        args = {'s_option', 'cgr_isotope', 'cgr_element', 'cgr_stereo', 'cgr_marker_preprocess',
+                'cgr_marker_postprocess', 'cgr_extralabels', 'cgr_reverse', 'is_reaction',
+                'marker_rules', 'cgr_marker', 'cgr_b_templates', 'cgr_m_templates', 'standardize'}
+        if args.difference(config):
+            raise Exception('Invalid config')
 
     @abstractmethod
     def prepare(self, structures, **_):
@@ -103,34 +138,35 @@ class BaseGenerator(ABC, PropertyExtractor):
 
     @abstractmethod
     def set_work_path(self, workpath):
-        pass
+        if hasattr(self._marker, 'set_work_path'):
+            self._marker.set_work_path(workpath)
 
     @abstractmethod
     def delete_work_path(self):
-        pass
+        if hasattr(self._marker, 'delete_work_path'):
+            self._marker.delete_work_path()
 
     def get(self, structures, **kwargs):
         tmp = self.prepare(structures, **kwargs)
         if not tmp:
             return False
 
-        x, y, ad, i, s = tmp
-
-        res = dict(X=concat(x, axis=1, keys=range(len(x))) if len(x) > 1 else x[0],
-                   AD=reduce(and_, ad), Y=Series(y, name='Property'), structures=s)  # todo: prepare structures
+        x, y, ad, i = tmp
+        _x = concat(x, axis=1, keys=range(len(x))) if len(x) > 1 else x[0]
+        _ad = reduce(and_, ad)
+        _y = Series(y, name='Property')
 
         if self._markers_count:
             _i = MultiIndex.from_tuples(i, names=['structure'] + ['c.%d' % x for x in range(self._markers_count)])
         else:
             _i = Index(i, name='structure')
 
-        res['X'].index = res['AD'].index = res['Y'].index = _i
-        return res
+        _x.index = _ad.index = _y.index = _i
+        return DataContainer(X=_x, Y=_y, AD=_ad)
 
     def write_prepared(self, structures, writers):
         prop = []
         doubles = []
-        used_str = []
         for s_numb, s in enumerate(structures):
             if isinstance(s, list):
                 meta = s[0][0][1].meta
@@ -143,13 +179,11 @@ class BaseGenerator(ABC, PropertyExtractor):
                         tmp_s.append(y)
                     prop.append(self.get_property(meta, marks=tmp_d[1:]))
                     doubles.append(tmp_d)
-                    used_str.append(tmp_s)
             else:
                 writers[0].write(s)
                 prop.append(self.get_property(s.meta))
                 doubles.append(s_numb)
-                used_str.append(s)
 
-        return prop, doubles, used_str
+        return prop, doubles
 
     _marker = _dragos_std = None

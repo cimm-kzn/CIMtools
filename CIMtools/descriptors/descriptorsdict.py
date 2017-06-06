@@ -20,6 +20,7 @@
 #
 from pandas import DataFrame, Series, concat, Index
 from sys import stderr
+from .basegenerator import DataContainer
 from .propertyextractor import PropertyExtractor
 
 
@@ -31,16 +32,13 @@ class DescriptorsDict(PropertyExtractor):
         self.__config = dict(data=data, s_option=s_option)
 
     def pickle(self):
-        config = self.__config.copy()
-        config['data'] = {k: v and dict(key=v['key'], value=v['value'].to_dict()) for k, v in config['data'].items()}
-        return config
+        return self.__config.copy()
 
     @classmethod
     def unpickle(cls, config):
         if {'data', 's_option'}.difference(config):
             raise Exception('Invalid config')
-        return DescriptorsDict(data={k: v and dict(key=v['key'], value=DataFrame(v['value']))
-                                     for k, v in config['data'].items()}, s_option=config['s_option'])
+        return cls(data=config['data'], s_option=config['s_option'])
 
     @staticmethod
     def __prepare_ext_header(data):
@@ -51,7 +49,7 @@ class DescriptorsDict(PropertyExtractor):
         tmp = []
         for i, j in data.items():
             if j:
-                tmp.extend(j['value'].columns)
+                tmp.extend(list(j.values())[0])
             else:
                 tmp.append(i)
         return tmp
@@ -68,8 +66,8 @@ class DescriptorsDict(PropertyExtractor):
             tmp = []
             for key, value in i.meta.items():
                 if key in self.__extension:
-                    data = self.__extension[key]['value'].loc[self.__extension[key]['key'] == value] if \
-                        self.__extension[key] else DataFrame([{key: float(value)}])
+                    data = DataFrame(self.__extension[key][value] if self.__extension[key] else {key: float(value)},
+                                     index=[0])
                     if not data.empty:
                         data.index = [0]
                         tmp.append(data)
@@ -87,10 +85,8 @@ class DescriptorsDict(PropertyExtractor):
         for i, j in kwargs.items():
             if i in self.__extension:
                 for n, k in enumerate(j) if isinstance(j, list) else j.items():
-                    data = self.__extension[i]['value'].loc[self.__extension[i]['key'] == k] if \
-                        self.__extension[i] else DataFrame([{i: k}])
+                    data = DataFrame(self.__extension[i][k] if self.__extension[i] else {i: k}, index=[0])
                     if not data.empty:
-                        data.index = [0]
                         if len(extblock) > n:
                             extblock[n].append(data)
                         else:
@@ -104,10 +100,8 @@ class DescriptorsDict(PropertyExtractor):
         tmp = []
         for i, j in kwargs.items():
             if i in self.__extension:
-                data = self.__extension[i]['value'].loc[self.__extension[i]['key'] == j] if \
-                       self.__extension[i] else DataFrame([{i: j}])
+                data = DataFrame(self.__extension[i][j] if self.__extension[i] else {i: j}, index=[0])
                 if not data.empty:
-                    data.index = [0]
                     tmp.append(data)
         return DataFrame(concat(tmp, axis=1) if tmp else DataFrame([{}]), columns=self.__ext_header,
                          index=Index([0], name='structure'))
@@ -128,4 +122,4 @@ class DescriptorsDict(PropertyExtractor):
             print('WHAT DO YOU WANT? use correct extentions params', file=stderr)
             return False
 
-        return dict(X=extblock, AD=-extblock.isnull().any(axis=1), Y=prop)
+        return DataContainer(X=extblock, Y=prop, AD=-extblock.isnull().any(axis=1))

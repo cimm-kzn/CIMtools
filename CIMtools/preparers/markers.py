@@ -59,7 +59,7 @@ class PharmacophoreAtomMarker(object):
     def unpickle(cls, config):
         if {'marker_rules'}.difference(config):
             raise Exception('Invalid config')
-        return PharmacophoreAtomMarker(marker_rules=config['marker_rules'])
+        return cls(config['marker_rules'])
 
     def set_work_path(self, workpath):
         self.delete_work_path()
@@ -114,22 +114,24 @@ class PharmacophoreAtomMarker(object):
 
 class CGRatomMarker(object):
     def __init__(self, patterns, preprocess=None, postprocess=None, reverse=False, b_templates=None, m_templates=None,
-                 extralabels=False, isotope=False, element=True, stereo=False, _reload=None):
+                 extralabels=False, isotope=False, element=True, stereo=False):
+        self.__cgr = CGRcombo(extralabels=extralabels, isotope=isotope, element=element, stereo=stereo,
+                              b_templates=b_templates, m_templates=m_templates)
+        self.__react = CGRreactor(stereo=stereo, extralabels=extralabels, isotope=isotope, element=element)
+        self.__init_common(patterns, preprocess, postprocess, reverse)
+
+    def _init_unpickle(self, patterns, preprocess, postprocess, reverse, **config):
+        self.__cgr = CGRcombo.unpickle(dict(cgr_type='0', **config))
+        self.__react = CGRreactor.unpickle(config)
+        self.__init_common([ReactionContainer.unpickle(x) for x in patterns], preprocess, postprocess, reverse)
+
+    def __init_common(self, patterns, preprocess, postprocess, reverse):
         self.__std_prerules = preprocess
         self.__std_postrules = postprocess
         self.__markers = len(patterns[0]['products'][0])
         self.__reverse = reverse
         self.__templates = patterns
-
-        if _reload:
-            self.__cgr = CGRcombo.unpickle(dict(cgr_type='0', **_reload))
-            tmp = CGRreactor.unpickle(_reload)
-        else:
-            self.__cgr = CGRcombo(extralabels=extralabels, isotope=isotope, element=element, stereo=stereo,
-                                  b_templates=b_templates, m_templates=m_templates)
-            tmp = CGRreactor(stereo=stereo, extralabels=extralabels, isotope=isotope, element=element)
-
-        self.__patterns = tmp.get_template_searcher(tmp.get_templates(patterns))
+        self.__patterns = self.__react.get_template_searcher(self.__react.get_templates(patterns))
 
     def pickle(self):
         config = self.__cgr.pickle()
@@ -140,14 +142,12 @@ class CGRatomMarker(object):
 
     @classmethod
     def unpickle(cls, config):
-        if {'postprocess', 'preprocess', 'reverse', 'patterns'}.difference(config):
+        args = {'postprocess', 'preprocess', 'reverse', 'patterns'}
+        if args.difference(config):
             raise Exception('Invalid config')
-        config = config.copy()
-        patterns = [ReactionContainer.unpickle(x) for x in config.pop('patterns')]
-        postprocess = config.pop('postprocess')
-        preprocess = config.pop('preprocess')
-        reverse = config.pop('reverse')
-        return CGRatomMarker(patterns, preprocess=preprocess, postprocess=postprocess, reverse=reverse, _reload=config)
+        obj = cls.__new__(cls)  # Does not call __init__
+        obj._init_unpickle(**config)
+        return obj
 
     def get_count(self):
         return self.__markers

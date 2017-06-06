@@ -35,53 +35,31 @@ class Pkab(BaseGenerator):
                  cgr_extralabels=False, is_reaction=False):
         """
         Chemaxon cxcalc wrapper
-        :param workpath: path for temp files.
-        :param s_option: modeling attribute
-        :param marker_rules: Dragos atom marker procedure. For molecules only. string with chemaxon Pmapper rules xml.
-        :param standardize: Dragos standardization procedure. For molecules only.
-          string with chemaxon standardizer rules (xml or ..- separated params)
         :param acid: calc acidity
         :param base: calc basicity
-        :param cgr_reverse: for reactions only. use product structure for calculation.
-        :param cgr_marker: CGRtools.CGRreactor templates  
-        :param cgr_marker_preprocess: prepare (if need) reaction structure for marker. 
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param cgr_marker_postprocess: postprocess (if need) after marker [previously prepared] reaction structure  
-          string with chemaxon standardizer rules (xml or ..- separated params)
-        :param cgr_b_templates: list of reactioncontainers with termplates for autobalancing reactions
-        :param cgr_m_templates: list of reactioncontainers with termplates for reactions mapping correction
-        :param cgr_extralabels: match neighbors and hyb marks in substructure search. 
-          Need for CGRatomMarker or CGRcombo balanser/remapper
-        :param cgr_isotope: match isotope. see cgr_extralabels
-        :param cgr_element: match stereo. see cgr_extralabels
-        :param cgr_stereo: match stereo.
-        :param is_reaction: True for reaction data
         """
-        if is_reaction:
-            if not cgr_marker:
-                raise Exception('need CGR marker for work with reactions')
-            if standardize or standardize is None:
-                raise Exception('standardize can work only with molecules')
-            if marker_rules:
-                raise Exception('pharmacophore atom marker can work only with molecules')
-        elif cgr_marker:
-            raise Exception('for cgr marker is_reaction should be True')
+        if is_reaction and not cgr_marker:
+            raise Exception('need CGR marker for work with reactions')
 
-        BaseGenerator.__init__(self, s_option=s_option)
+        BaseGenerator.__init__(self, workpath=workpath, s_option=s_option, marker_rules=marker_rules,
+                               standardize=standardize, cgr_marker=cgr_marker, cgr_isotope=cgr_isotope,
+                               cgr_marker_preprocess=cgr_marker_preprocess, cgr_extralabels=cgr_extralabels,
+                               cgr_marker_postprocess=cgr_marker_postprocess, cgr_element=cgr_element,
+                               cgr_stereo=cgr_stereo, cgr_b_templates=cgr_b_templates, cgr_m_templates=cgr_m_templates,
+                               cgr_reverse=cgr_reverse, is_reaction=is_reaction)
 
-        if marker_rules:
-            self.__marker = PharmacophoreAtomMarker(marker_rules, workpath)
-        elif cgr_marker:
-            self.__marker = CGRatomMarker(cgr_marker, preprocess=cgr_marker_preprocess,
-                                          postprocess=cgr_marker_postprocess, extralabels=cgr_extralabels,
-                                          isotope=cgr_isotope, element=cgr_element, stereo=cgr_stereo,
-                                          b_templates=cgr_b_templates, m_templates=cgr_m_templates, reverse=cgr_reverse)
+        self.__init_common(cgr_reverse, acid, base)
 
-        self.markers = (self.__marker.get_count() if self.__marker is not None else None)
+    def _init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                       cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction, marker_rules, cgr_marker,
+                       cgr_b_templates, cgr_m_templates, standardize, acid, base, **config):
+        BaseGenerator._init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
+                                     cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction,
+                                     marker_rules, cgr_marker, cgr_b_templates, cgr_m_templates, standardize, **config)
 
-        if standardize or standardize is None:
-            self.__dragos_std = StandardizeDragos(rules=standardize)
+        self.__init_common(cgr_reverse, acid, base)
 
+    def __init_common(self, cgr_reverse, acid, base):
         self.__reverse = cgr_reverse
         self.__acid = acid
         self.__base = base
@@ -93,45 +71,39 @@ class Pkab(BaseGenerator):
             tmp.append('pkb')
         self.__columns = tmp
 
-        locs = locals()
-        tmp = dict((x, locs[x]) for x in self.__optional_configs if locs[x])
-        tmp.update((x, y) for x, y in (('acid', acid), ('base', base)) if not y)
-        self.__config = tmp
+    def pickle(self):
+        return dict(acid=self.__acid, base=self.__base, **super(Pkab, self).pickle())
 
-    __optional_configs = ('s_option', 'marker_rules', 'standardize', 'cgr_reverse', 'cgr_marker',
-                          'cgr_marker_preprocess', 'cgr_marker_postprocess', 'cgr_stereo', 'is_reaction')
-    __marker = None
-    __dragos_std = None
-
-    def get_config(self):
-        return self.__config
+    @classmethod
+    def unpickle(cls, config):
+        args = {'acid', 'base'}
+        if args.difference(config):
+            raise Exception('Invalid config')
+        BaseGenerator.unpickle(config)
+        obj = cls.__new__(cls)  # Does not call __init__
+        obj._init_unpickle(**config)
+        return obj
 
     def set_work_path(self, workpath):
-        if hasattr(self.__marker, 'set_work_path'):
-            self.__marker.set_work_path(workpath)
+        super(Pkab, self).set_work_path()
 
     def delete_work_path(self):
-        if hasattr(self.__marker, 'delete_work_path'):
-            self.__marker.delete_work_path()
-
-    def pickle(self):
-        if hasattr(self.__marker, 'pickle'):
-            self.__marker.pickle()
+        super(Pkab, self).delete_work_path()
 
     def prepare(self, structures, **_):
-        if self.__dragos_std:
-            structures = self.__dragos_std.get(structures)
+        if self._dragos_std:
+            structures = self._dragos_std.get(structures)
 
         if not structures:
             return False
 
-        if self.__marker:
-            structures = self.__marker.get(structures)
+        if self._marker:
+            structures = self._marker.get(structures)
 
         if not structures:
             return False
 
-        prop, doubles, used_str = [], [], []
+        prop, doubles = [], []
 
         p = Popen([CXCALC] + 'pka -x 50 -i -50 -a 8 -b 8 -P dynamic -m micro'.split(),
                   stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -139,7 +111,7 @@ class Pkab(BaseGenerator):
         with StringIO() as f:
             writer = SDFwrite(f)
             for s_numb, s in enumerate(structures):
-                if isinstance(self.__marker, CGRatomMarker):
+                if isinstance(self._marker, CGRatomMarker):
                     meta = s[0][0][1].meta
                     for d in s:
                         tmp_d = [s_numb]
@@ -150,17 +122,14 @@ class Pkab(BaseGenerator):
                             tmp_s.append(y)
                         prop.append(self.get_property(meta, marks=tmp_d[1:]))
                         doubles.extend([tmp_d] * len(d))
-                        used_str.append(tmp_s)
-                elif isinstance(self.__marker, PharmacophoreAtomMarker):
+                elif isinstance(self._marker, PharmacophoreAtomMarker):
                     writer.write(s[0][0][1])
                     prop.extend([self.get_property(d[0][1].meta, marks=[x[0] for x in d]) for d in s])
                     doubles.append([([s_numb] + [x[0] for x in d]) for d in s])
-                    used_str.extend([s[0][0][1]]*len(s))
                 else:
                     writer.write(s)
                     prop.append(self.get_property(s.meta))
                     doubles.append(s_numb)
-                    used_str.append(s)
 
             res = p.communicate(input=f.getvalue().encode())[0].decode()
 
@@ -178,10 +147,10 @@ class Pkab(BaseGenerator):
                            for v in [val[:8], val[8:]]])
 
         new_doubles = []
-        if self.__marker:
+        if self._marker:
             old_k = None
             for lk, v in zip(doubles, pk):
-                for k in (lk if isinstance(self.__marker, PharmacophoreAtomMarker) else [lk]):
+                for k in (lk if isinstance(self._marker, PharmacophoreAtomMarker) else [lk]):
                     if k == old_k:
                         if self.__base:
                             new_doubles[-1][1].append(v[1].get(k[1 if self.__reverse else 2]))
@@ -196,9 +165,9 @@ class Pkab(BaseGenerator):
 
         x = DataFrame([x[1] for x in new_doubles], columns=self.__columns)
         ad = [x.isnull().any(axis=1) ^ True]
-        i = [x[0] for x in new_doubles] if self.markers else doubles
+        i = [x[0] for x in new_doubles] if self._markers_count else doubles
 
-        return [x], prop, [ad], i, used_str
+        return [x], prop, [ad], i
 
     def write_prepared(self, *_):
         raise Exception('Disabled method')

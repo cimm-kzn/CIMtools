@@ -26,14 +26,13 @@ from math import sqrt, ceil
 from numpy import inf, mean, var, arange
 from operator import lt, le
 from pandas import DataFrame, Series, concat
-from shutil import rmtree
 from sklearn.model_selection import KFold
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.metrics import mean_squared_error, r2_score, cohen_kappa_score, accuracy_score
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import shuffle
-from tempfile import mkdtemp
 from typing import Iterable
+from ..descriptors import *
 
 
 class Score(dict):
@@ -50,15 +49,9 @@ class Score(dict):
         return self.__comparer(other, le)
 
 
-def _kfold(est, x, y, train, test, svmparams, normalize, box):
+def _kfold(est, x, y, train, test, est_params, normalize, box):
     x_train, y_train = x.iloc[train], y.iloc[train]
     x_test, y_test = x.iloc[test], y.iloc[test]
-    x_min = x_train.min().loc[box]
-    x_max = x_train.max().loc[box]
-    y_min = y_train.min()
-    y_max = y_train.max()
-
-    x_ad = ((x_test.loc[:, box] - x_min).min(axis=1) >= 0) & ((x_max - x_test.loc[:, box]).min(axis=1) >= 0)
 
     if normalize:
         normal = MinMaxScaler()
@@ -67,10 +60,16 @@ def _kfold(est, x, y, train, test, svmparams, normalize, box):
     else:
         normal = None
 
-    model = est(**svmparams)
+    model = est(**est_params)
     model.fit(x_train, y_train)
     y_pred = Series(model.predict(x_test), index=y_test.index)
 
+    x_min = x_train.min().loc[box]
+    x_max = x_train.max().loc[box]
+    y_min = y_train.min()
+    y_max = y_train.max()
+
+    x_ad = ((x_test.loc[:, box] - x_min).min(axis=1) >= 0) & ((x_max - x_test.loc[:, box]).min(axis=1) >= 0)
     y_ad = (y_pred >= y_min) & (y_pred <= y_max)
 
     output = dict(model=model, normal=normal, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max,
@@ -109,33 +108,60 @@ def _iap(y_test, y_prob):
 class BaseModel(ABC):
     def __init__(self, descriptors_generator, structures, nfold=5, repetitions=1, rep_boost=100,
                  dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
+        print("Descriptors generation start")
+        if isinstance(descriptors_generator, DescriptorsChain):
+            xy, box = descriptors_generator.get(structures, return_box=True, **kwargs)
+        else:
+            xy = descriptors_generator.get(structures, **kwargs)
+            box = Series(True, index=xy.X.columns)
 
-        _scorers = dict(rmse=(_rmse, False), r2=(r2_score, False),
-                        kappa=(cohen_kappa_score, False), acc=(_accuracy, False), iap=(_iap, True))
-        self.__model = {}
+        self.__x = xy.X
+        self.__y = xy.Y
+        self.__box = box
+        print("Descriptors generated")
 
+        self.__init_common(nfold, repetitions, normalize, scorers)
         self.__generator = descriptors_generator
 
-        self.__nfold = nfold
-        self.__repetitions = repetitions
+        # need for fit only
         self.__rep_boost = ceil(repetitions * (rep_boost % 100) / 100) or repetitions
         self.__n_jobs = n_jobs
-
-        self.__normalize = normalize
         self.__disp_coef = dispcoef
-        self.__scorers = {x: _scorers[x] for x in scorers if x in _scorers}
         self.__fit_score = 'C' + (fit if fit in scorers else scorers[0])
         self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
 
-        print("Descriptors generation start")
-        xy = descriptors_generator.get(structures, **kwargs)
-        self.__x = xy['X']
-        self.__y = xy['Y']
-        self.__box = xy.get('BOX', xy['X'].columns)
-        self.__kfold = list(KFold(n_splits=nfold).split(range(len(xy['Y'].index))))
-        print("Descriptors generated")
-
         self.__cross_val()
+
+    def _init_unpickle(self, generator, normalize, repetitions, nfold, scorers, box, x, y):
+        self.__x = x
+        self.__y = y
+        self.__box = box
+        self.__init_common(nfold, repetitions, normalize, scorers)
+        self.__generator = globals()[generator[0]].unpickle(generator[1])
+
+    def __init_common(self, nfold, repetitions, normalize, scorers):
+        self.__nfold = nfold
+        self.__repetitions = repetitions
+        self.__normalize = normalize
+        self.__scorers = {x: self.__scorers_dict[x] for x in scorers}
+        self.__model = {}
+
+        self.__pickle = dict(normalize=normalize, repetitions=repetitions, nfold=nfold, scorers=scorers,
+                             box=self.__box, x=self.__x, y=self.__y)
+
+    def pickle(self):
+        config = self.__pickle.copy()
+        config.update(generator=[self.__generator.__class__.__name__, self.__generator.pickle()])
+        return config
+
+    @classmethod
+    def unpickle(cls, config):
+        args = {'generator', 'normalize', 'repetitions', 'nfold', 'scorers', 'box', 'x', 'y'}
+        if args.difference(config):
+            raise Exception('Invalid config')
+        obj = cls.__new__(cls)  # Does not call __init__
+        obj._init_unpickle(**config)
+        return obj
 
     @abstractmethod
     def prepare_params(self, param):
@@ -257,11 +283,9 @@ class BaseModel(ABC):
         models, y_pred, y_prob, y_ad, x_ad = [], [], [], [], []
         fold_scorers = defaultdict(list)
         parallel = Parallel(n_jobs=self.__n_jobs)
-        setindexes = arange(len(self.__y.index))
-        folds = parallel(delayed(_kfold)(self.estimator, self.__x, self.__y, s[train], s[test],
+        folds = parallel(delayed(_kfold)(self.estimator, self.__x, self.__y, train, test,
                                          fitparams, self.__normalize, self.__box)
-                         for s in (self.__shuffle(setindexes, i) for i in range(repetitions))
-                         for train, test in self.__kfold)
+                         for i in range(repetitions) for train, test in self.__cv_naive(i))
 
         #  street magic. split folds to repetitions
         for kfold in zip(*[iter(folds)] * self.__nfold):
@@ -318,12 +342,13 @@ class BaseModel(ABC):
 
         return res
 
-    @staticmethod
-    def __shuffle(setindexes, seed):
+    def __cv_naive(self, seed):
         """ shuffling method for CV. may be smartest.
         """
+        setindexes = arange(len(self.__y.index))
         shuffled = shuffle(setindexes, random_state=seed)
-        return shuffled
+        for train, test in KFold(n_splits=self.__nfold).split(setindexes):
+            yield shuffled[train], shuffled[test]
 
     def predict(self, structures, **kwargs):
         res = self.__generator.get(structures, **kwargs)
@@ -354,3 +379,6 @@ class BaseModel(ABC):
             out['structures'] = d_s
 
         return out
+
+    __scorers_dict = dict(rmse=(_rmse, False), r2=(r2_score, False), kappa=(cohen_kappa_score, False),
+                          acc=(_accuracy, False), iap=(_iap, True))
