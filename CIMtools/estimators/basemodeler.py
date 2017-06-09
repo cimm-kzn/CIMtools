@@ -19,158 +19,135 @@
 #  MA 02110-1301, USA.
 #
 from abc import ABC, abstractmethod
-from collections import defaultdict
-from copy import deepcopy
-from itertools import product
+from collections import defaultdict, namedtuple
+from itertools import count
 from math import sqrt, ceil
 from numpy import inf, mean, var, arange
-from operator import lt, le
 from pandas import DataFrame, Series, concat
 from sklearn.model_selection import KFold
 from sklearn.externals.joblib import Parallel, delayed
-from sklearn.metrics import mean_squared_error, r2_score, cohen_kappa_score, accuracy_score
+from sklearn.metrics import r2_score, cohen_kappa_score
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import shuffle
-from typing import Iterable
 from ..descriptors import *
+from ..domains import *
+from ..scorers import *
 
 
-class Score(dict):
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
-
-    def __comparer(self, other, op):
-        return all(op(y, other[x]) for x, y in self.items())
-
-    def __lt__(self, other):
-        return self.__comparer(other, lt)
-
-    def __le__(self, other):
-        return self.__comparer(other, le)
+FoldContainer = namedtuple('FoldContainer', ['estimator', 'scaler', 'pred', 'prob'])
+FitContainer = namedtuple('FitContainer', ['models', 'scalers', 'params', 'pred', 'prob', 'scores'])
+ResultContainer = namedtuple('ResultContainer', ['prediction', 'probability', 'domain'])
 
 
-def _kfold(est, x, y, train, test, est_params, normalize, box):
-    x_train, y_train = x.iloc[train], y.iloc[train]
-    x_test, y_test = x.iloc[test], y.iloc[test]
-
+def _kfold(est, est_params, x_train, y_train, x_test, normalize):
     if normalize:
         normal = MinMaxScaler()
         x_train = DataFrame(normal.fit_transform(x_train), columns=x_train.columns)
-        x_test = DataFrame(normal.transform(x_test), columns=x_train.columns)
+        x_test = DataFrame(normal.transform(x_test), columns=x_test.columns)
     else:
         normal = None
 
     model = est(**est_params)
     model.fit(x_train, y_train)
-    y_pred = Series(model.predict(x_test), index=y_test.index)
 
-    x_min = x_train.min().loc[box]
-    x_max = x_train.max().loc[box]
-    y_min = y_train.min()
-    y_max = y_train.max()
+    y_pred = Series(model.predict(x_test), index=x_test.index)
+    y_prob = DataFrame(model.predict_proba(x_test),
+                       index=x_test.index, columns=model.classes_) if hasattr(model, 'predict_proba') else None
 
-    x_ad = ((x_test.loc[:, box] - x_min).min(axis=1) >= 0) & ((x_max - x_test.loc[:, box]).min(axis=1) >= 0)
-    y_ad = (y_pred >= y_min) & (y_pred <= y_max)
-
-    output = dict(model=model, normal=normal, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max,
-                  y_test=y_test, y_pred=y_pred, x_ad=x_ad, y_ad=y_ad)
-
-    if hasattr(model, 'predict_proba'):
-        output['y_prob'] = DataFrame(model.predict_proba(x_test), index=y_test.index, columns=model.classes_)
-
-    return output
-
-
-def _rmse(y_test, y_pred):
-    return sqrt(mean_squared_error(y_test, y_pred))
-
-
-def _accuracy(y_test, y_pred):
-    return accuracy_score(y_test, y_pred, normalize=True)
-
-
-def _iap(y_test, y_prob):
-    res = defaultdict(list)
-    for sid, s_prob in y_prob.groupby(level='structure'):
-        s_test = y_test.xs(sid, level='structure', drop_level=False)
-        for col in s_prob.columns:
-            in_class = s_test.loc[s_test == col].index
-            out_class = s_test.loc[s_test != col].index
-
-            in_class_dominance = sum(s_prob.loc[i][col] > s_prob.loc[o][col] for i, o in product(in_class, out_class))
-            possible_combo = len(in_class) * len(out_class)
-            if possible_combo:
-                res[col].append(in_class_dominance / possible_combo)
-    res = Score({x: sum(y) / len(y) for x, y in res.items()})
-    return res
+    return FoldContainer(estimator=model, scaler=normal, pred=y_pred, prob=y_prob)
 
 
 class BaseModel(ABC):
-    def __init__(self, descriptors_generator, structures, nfold=5, repetitions=1, rep_boost=100,
-                 dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False, n_jobs=2, **kwargs):
-        print("Descriptors generation start")
-        if isinstance(descriptors_generator, DescriptorsChain):
-            xy, box = descriptors_generator.get(structures, return_box=True, **kwargs)
-        else:
-            xy = descriptors_generator.get(structures, **kwargs)
-            box = Series(True, index=xy.X.columns)
-
-        self.__x = xy.X
-        self.__y = xy.Y
-        self.__box = box
-        print("Descriptors generated")
-
-        self.__init_common(nfold, repetitions, normalize, scorers)
+    def __init__(self, descriptors_generator, structures, fit_params=None, nfold=5, repetitions=1, dispcoef=0,
+                 fit='rmse', scorers=('rmse', 'r2'), normalize=False,
+                 domain=None, domain_params=None, domain_normalize=False, n_jobs=2, **kwargs):
+        self.__fit_params = fit_params
         self.__generator = descriptors_generator
 
+        print("Descriptors generation start")
+        xy = descriptors_generator.get(structures, **kwargs)
+        self.__x = xy.X
+        self.__y = xy.Y
+        print("Descriptors generated")
+        print('========================================\n'
+              'Y mean +- variance = %s +- %s\n'
+              '  max = %s, min = %s\n'
+              '========================================' %
+              (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
+
+        self.__domain_class = domain or Box
+        self.__domain_params = domain_params
+        self.__domain_normalize = domain_normalize
+        self.__init_common(nfold, repetitions, normalize, scorers)
+
         # need for fit only
-        self.__rep_boost = ceil(repetitions * (rep_boost % 100) / 100) or repetitions
+        self.__cv = self.__cv_naive
         self.__n_jobs = n_jobs
         self.__disp_coef = dispcoef
         self.__fit_score = 'C' + (fit if fit in scorers else scorers[0])
         self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
+        self.__scores_unfitted = FitContainer(None, None, None, None, None, scores={'C%s' % x: inf for x in scorers})
 
-        self.__cross_val()
+        self.__model, self.__domain = self.__fit()
 
-    def _init_unpickle(self, generator, normalize, repetitions, nfold, scorers, box, x, y):
+    def _init_unpickle(self, generator, domain, normalize, repetitions, nfold, scorers, x, y):
         self.__x = x
         self.__y = y
-        self.__box = box
+        self.__generator = globals()[generator['name']].unpickle(generator['config'])
         self.__init_common(nfold, repetitions, normalize, scorers)
-        self.__generator = globals()[generator[0]].unpickle(generator[1])
 
     def __init_common(self, nfold, repetitions, normalize, scorers):
         self.__nfold = nfold
         self.__repetitions = repetitions
         self.__normalize = normalize
         self.__scorers = {x: self.__scorers_dict[x] for x in scorers}
-        self.__model = {}
 
         self.__pickle = dict(normalize=normalize, repetitions=repetitions, nfold=nfold, scorers=scorers,
-                             box=self.__box, x=self.__x, y=self.__y)
+                             x=self.__x, y=self.__y)
 
+    @abstractmethod
     def pickle(self):
         config = self.__pickle.copy()
-        config.update(generator=[self.__generator.__class__.__name__, self.__generator.pickle()])
+        config.update(generator=dict(name=self.__generator.__class__.__name__, config=self.__generator.pickle()),
+                      domain=[dict(name=x.__class__.__name__, config=x.pickle(), normalize=y)
+                              for x in self.__domain.models],
+                      models=[dict(name=x.__class__.__name__, config=x.pickle(), normalize=y)
+                              for x, y in self.__model.models])
         return config
 
     @classmethod
+    @abstractmethod
     def unpickle(cls, config):
-        args = {'generator', 'normalize', 'repetitions', 'nfold', 'scorers', 'box', 'x', 'y'}
+        args = {'generator', 'domain', 'normalize', 'repetitions', 'nfold', 'scorers', 'x', 'y'}
         if args.difference(config):
             raise Exception('Invalid config')
         obj = cls.__new__(cls)  # Does not call __init__
         obj._init_unpickle(**config)
         return obj
 
+    def predict(self, structures, **kwargs):
+        res = self.__generator.get(structures, **kwargs)
+        d_x, d_ad = res.X, res.AD
+
+        pred, prob, dom = [], [], []
+        for i, (model, scaler, domain, domain_scaler) in enumerate(zip(self.__model.models, self.__model.scalers,
+                                                                       self.__domain.models, self.__domain.scalers)):
+            x_t = DataFrame(scaler.transform(d_x), columns=d_x.columns) if scaler else d_x
+            pred.append(Series(model.predict(x_t), index=d_x.index))
+
+            if hasattr(model, 'predict_proba'):
+                y_pa = DataFrame(model.predict_proba(x_t), index=d_x.index, columns=model.classes_)
+                prob.append(y_pa)
+
+            x_t = DataFrame(domain_scaler.transform(d_x), columns=d_x.columns) if domain_scaler else d_x
+            dom.append(Series(domain.predict(x_t), index=d_x.index))
+
+        return ResultContainer(prediction=concat(pred, axis=1), domain=concat(dom, axis=1),
+                               probability=concat(prob, axis=1, keys=range(len(prob))) if prob else None)
+
     @abstractmethod
     def prepare_params(self, param):
-        pass
-
-    @property
-    @abstractmethod
-    def fit_params(self) -> Iterable:
-        pass
+        return []
 
     @property
     @abstractmethod
@@ -186,199 +163,182 @@ class BaseModel(ABC):
             self.__generator.delete_work_path()
 
     def get_model_stats(self):
-        stat = {x: self.__model[x] for x in self.__scorers}
-        stat.update({'%s_var' % x: self.__model['v%s' % x] for x in self.__scorers})
+        stat = dict(fitparams=self.__model.params, repetitions=self.__repetitions, nfolds=self.__nfold,
+                    normalize=self.__normalize, dragostolerance=sqrt(self.__y.var()))
 
-        stat.update(dict(fitparams=self.__model['params'], repetitions=self.__repetitions,
-                         nfolds=self.__nfold, normalize=self.__normalize, dragostolerance=sqrt(self.__y.var())))
+        stat.update({x: self.__model.scores[x] for x in self.__scorers})
+        stat.update({'%s_var' % x: self.__model.scores['v%s' % x] for x in self.__scorers})
         return stat
 
     def get_fit_predictions(self):
-        output = dict(property=self.__y, prediction=self.__model['y_pred'], y_domain=self.__model['y_ad'],
-                      domain=self.__model['x_ad'])
-        if 'y_prob' in self.__model:
-            output['probability'] = self.__model['y_prob']
-        return output
-
-    def get_models(self):
-        return self.__model['models']
+        return dict(property=self.__y, prediction=self.__model.pred, probability=self.__model.prob,
+                    domain=self.__domain.pred)
 
     def get_descriptors_generator(self):
         return self.__generator
 
-    def __split_range(self, param, dep=0):
+    def __fit(self):
+        depindex, maxdep, fitparams, max_params = self.__inception(self.__fit_params)
+        fcount = count(1)
+        bestmodel = badmodel = self.__scores_unfitted
+        for param, md, di in zip(fitparams, maxdep, depindex):
+            var_kern_model = badmodel
+            while param:
+                var_param_model = badmodel
+                tmp = self.prepare_params({k: list(v) for k, v in param.items()})
+                for i in tmp:
+                    print('%d (max=%d): fit model with params:' % (next(fcount), max_params), i)
+                    fitted = self.__cv_model_fit(i)
+                    print(self.__score_reporter % fitted.scores)
+                    if fitted.scores[self.__fit_score] < var_param_model.scores[self.__fit_score]:
+                        var_param_model = fitted
+
+                if var_param_model.scores[self.__fit_score] < var_kern_model.scores[self.__fit_score]:
+                    var_kern_model = var_param_model
+                    param = self.__dive(var_kern_model.params, param, md, di)
+                else:
+                    break
+            if var_kern_model.scores[self.__fit_score] < bestmodel.scores[self.__fit_score]:
+                bestmodel = var_kern_model
+
+        print('========================================\nparams:', bestmodel.params)
+        print(self.__score_reporter % bestmodel.scores)
+        print('%s variants checked\n========================================' % next(fcount))
+
+        if self.__domain_params:
+            raise Exception('NOT IMPLEMENTED')
+        else:
+            bestdomain = self.__domain_fit()
+
+        return bestmodel, bestdomain
+
+    def __cv_model_fit(self, fitparams):
+        models, scalers, y_pred, y_prob = [], [], [], []
+        fold_scorers = defaultdict(list)
+        parallel = Parallel(n_jobs=self.__n_jobs)
+        folds = parallel(delayed(_kfold)(self.estimator, fitparams, self.__x.iloc[train], self.__y.iloc[train],
+                                         self.__x.iloc[test], self.__normalize) for train, test in self.__cv())
+
+        #  street magic. split folds to repetitions
+        for kfold in zip(*[iter(folds)] * self.__nfold):
+            ky_pred, ky_prob = [], []
+            for fold in kfold:
+                ky_pred.append(fold.pred)
+                if fold.prob is not None:
+                    ky_prob.append(fold.prob)
+
+                models.append(fold.estimator)
+                scalers.append(fold.scaler)
+
+            ky_pred = concat(ky_pred).loc[self.__y.index]
+            y_pred.append(ky_pred)
+
+            if ky_prob:
+                ky_prob = concat(ky_prob).loc[self.__y.index]
+                y_prob.append(ky_prob)
+
+            for s, (f, p) in self.__scorers.items():
+                fold_scorers[s].append(f(self.__y, (ky_prob if p else ky_pred)))
+
+        y_pred = concat(y_pred, axis=1)
+        y_prob = concat(y_prob, axis=1, keys=range(len(y_prob))) if y_prob else None
+
+        res = {}
+        for s, _v in fold_scorers.items():
+            m, v = mean(_v), sqrt(var(_v))
+            c = (1 if s == 'rmse' else -1) * m + self.__disp_coef * v
+            res.update({s: m, 'C%s' % s: c, 'v%s' % s: v})
+
+        return FitContainer(models=models, scalers=scalers, params=fitparams, pred=y_pred, prob=y_prob, scores=res)
+
+    def __cv_domain_fit(self, fitparams):
+        """ NEED IMPLEMENT!
+        parallel = Parallel(n_jobs=self.__n_jobs)
+        folds = parallel(delayed(_kfold)(self.__domain_class, fitparams, self.__x.iloc[train], self.__y.iloc[train],
+                                         self.__x.iloc[test], self.__y.iloc[test], self.__normalize)
+                         for i in range(repetitions) for train, test in self.__cv_naive(i))
+        #  street magic. split folds to repetitions
+        for kfold in zip(*[iter(folds)] * self.__nfold):
+            domains.append(kfold)
+        """
+        raise Exception('NOT IMPLEMENTED')
+
+    def __domain_fit(self):
+        models, scalers, y_pred, y_prob = [], [], [], []
+        parallel = Parallel(n_jobs=self.__n_jobs)
+        folds = parallel(delayed(_kfold)(self.__domain_class, {}, self.__x.iloc[train], self.__y.iloc[train],
+                                         self.__x.iloc[test], self.__normalize) for train, test in self.__cv())
+
+        for kfold in zip(*[iter(folds)] * self.__nfold):
+            ky_pred, ky_prob = [], []
+            for fold in kfold:
+                ky_pred.append(fold.pred)
+                if fold.prob is not None:
+                    ky_prob.append(fold.prob)
+
+                models.append(fold.estimator)
+                scalers.append(fold.scaler)
+
+            ky_pred = concat(ky_pred).loc[self.__y.index]
+            y_pred.append(ky_pred)
+
+            if ky_prob:
+                ky_prob = concat(ky_prob).loc[self.__y.index]
+                y_prob.append(ky_prob)
+
+        y_pred = concat(y_pred, axis=1)
+        y_prob = concat(y_prob, axis=1, keys=range(len(y_prob))) if y_prob else None
+
+        return FitContainer(models=models, scalers=scalers, params=None, pred=y_pred, prob=y_prob, scores=None)
+
+    def __cv_naive(self):
+        """ shuffling method for CV. may be smartest.
+        """
+        setindexes = arange(len(self.__y.index))
+        for i in range(self.__repetitions):
+            shuffled = shuffle(setindexes, random_state=i)
+            for train, test in KFold(n_splits=self.__nfold).split(setindexes):
+                yield shuffled[train], shuffled[test]
+
+    @staticmethod
+    def __dive(fit, param, md, di):
+        tmp = {}
+        for i, j in fit.items():
+            if di[i] < md and not param[i][j]:
+                tmp[i] = param[i]
+            else:
+                tmp[i] = param[i][j]
+        if all(x for x in tmp.values()):
+            return tmp
+
+    @classmethod
+    def __inception(cls, fit_params):
+        max_params, fitparams, depindex, maxdep = 0, [], [], []
+        for param in fit_params:
+            md, mp, di, pr = 0, 1, {}, {}
+            for i, j in param.items():
+                mp *= len(j)
+                pr[i], di[i] = cls.__split_range(j)
+                if di[i] > md:
+                    md = di[i]
+            depindex.append(di)
+            maxdep.append(md)
+            fitparams.append(pr)
+            max_params += mp
+        return depindex, maxdep, fitparams, max_params
+
+    @classmethod
+    def __split_range(cls, param, dep=0):
         tmp = {}
         fdep = dep
         stepindex = list(range(0, len(param), round(len(param)/10) or 1))
         stepindex.insert(0, -1)
         stepindex.append(len(param))
         for i, j, k in zip(stepindex, stepindex[1:], stepindex[2:]):
-            tmp[param[j]], tmpd = self.__split_range(param[i + 1:j] + param[j + 1:k], dep=dep + 1)
+            tmp[param[j]], tmpd = cls.__split_range(param[i + 1:j] + param[j + 1:k], dep=dep + 1)
             if tmpd > fdep:
                 fdep = tmpd
         return tmp, fdep
 
-    def __cross_val(self):
-        fitparams = deepcopy(self.fit_params)
-        fcount = 0
-        depindex = []
-        maxdep = []
-        print('list of fit params:')
-        print(DataFrame(list(fitparams)))
-        for param in fitparams:
-            di = {}
-            md = 0
-            for i in param:
-                if i != 'kernel':
-                    param[i], di[i] = self.__split_range(param[i])
-                    if di[i] > md:
-                        md = di[i]
-            depindex.append(di)
-            maxdep.append(md)
-
-        print('========================================\n'
-              'Y mean +- variance = %s +- %s\n'
-              '  max = %s, min = %s\n'
-              '========================================' %
-              (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
-
-        bestmodel = badmodel = dict(model=None, Cr2=inf, Crmse=inf, Ckappa=inf, Cba=inf, Ciap=inf)
-        for param, md, di in zip(fitparams, maxdep, depindex):
-            var_kern_model = badmodel
-            while True:
-                var_param_model = badmodel
-                tmp = self.prepare_params(param)
-                for i in tmp:
-                    fcount += 1
-                    print('%d: fit model with params:' % fcount, i)
-                    fittedmodel = self.__fit(i, self.__rep_boost)
-                    print(self.__score_reporter % fittedmodel)
-                    if fittedmodel[self.__fit_score] < var_param_model[self.__fit_score]:
-                        var_param_model = fittedmodel
-
-                if var_param_model[self.__fit_score] < var_kern_model[self.__fit_score]:
-                    var_kern_model = var_param_model
-                    tmp = {}
-                    for i, j in var_kern_model['params'].items():
-                        if i in ('kernel', 'probability'):
-                            tmp[i] = j
-                        elif di[i] < md and not param[i][j]:
-                            tmp[i] = param[i]
-                        else:
-                            tmp[i] = param[i][j]
-                    param = tmp
-                else:
-                    break
-            if var_kern_model[self.__fit_score] < bestmodel[self.__fit_score]:
-                bestmodel = var_kern_model
-
-        if self.__repetitions > self.__rep_boost:
-            bestmodel = self.__fit(bestmodel['params'], self.__repetitions)
-        print('========================================\n' +
-              ('SVM params %(params)s\n' + self.__score_reporter) % bestmodel)
-        print('========================================\n%s variants checked' % fcount)
-        self.__model = bestmodel
-
-    def __fit(self, fitparams, repetitions):
-        models, y_pred, y_prob, y_ad, x_ad = [], [], [], [], []
-        fold_scorers = defaultdict(list)
-        parallel = Parallel(n_jobs=self.__n_jobs)
-        folds = parallel(delayed(_kfold)(self.estimator, self.__x, self.__y, train, test,
-                                         fitparams, self.__normalize, self.__box)
-                         for i in range(repetitions) for train, test in self.__cv_naive(i))
-
-        #  street magic. split folds to repetitions
-        for kfold in zip(*[iter(folds)] * self.__nfold):
-            ky_pred, ky_prob, ky_ad, kx_ad = [], [], [], []
-            for fold in kfold:
-                ky_pred.append(fold.pop('y_pred'))
-                ky_ad.append(fold.pop('y_ad'))
-                kx_ad.append(fold.pop('x_ad'))
-
-                if 'y_prob' in fold:
-                    ky_prob.append(fold.pop('y_prob'))
-
-                fold.pop('y_test')
-                models.append(fold)
-
-            ky_pred = concat(ky_pred).loc[self.__y.index]
-            ky_ad = concat(ky_ad).loc[self.__y.index]
-            kx_ad = concat(kx_ad).loc[self.__y.index]
-
-            if ky_prob:
-                ky_prob = concat(ky_prob).loc[self.__y.index].fillna(0)
-                y_prob.append(ky_prob)
-
-            for s, (f, p) in self.__scorers.items():
-                fold_scorers[s].append(f(self.__y, (ky_prob if p else ky_pred)))
-
-            y_pred.append(ky_pred)
-            y_ad.append(ky_ad)
-            x_ad.append(kx_ad)
-
-        y_pred = concat(y_pred, axis=1)
-        y_ad = concat(y_ad, axis=1)
-        x_ad = concat(x_ad, axis=1)
-
-        res = dict(models=models, params=fitparams, y_pred=y_pred, y_ad=y_ad, x_ad=x_ad)
-        if y_prob:
-            res['y_prob'] = concat(y_prob, axis=1, keys=range(len(y_prob)))
-
-        for s, _v in fold_scorers.items():
-            if isinstance(_v[0], Score):
-                m, v, c = Score(), Score(), Score()
-                tmp = defaultdict(list)
-                for _s in _v:
-                    for k, val in _s.items():
-                        tmp[k].append(val)
-                for k, val in tmp.items():
-                    m[k] = mean(val)
-                    v[k] = sqrt(var(val))
-                    c[k] = -m[k] + self.__disp_coef * v[k]
-            else:
-                m, v = mean(_v), sqrt(var(_v))
-                c = (1 if s == 'rmse' else -1) * m + self.__disp_coef * v
-            res.update({s: m, 'C%s' % s: c, 'v%s' % s: v})
-
-        return res
-
-    def __cv_naive(self, seed):
-        """ shuffling method for CV. may be smartest.
-        """
-        setindexes = arange(len(self.__y.index))
-        shuffled = shuffle(setindexes, random_state=seed)
-        for train, test in KFold(n_splits=self.__nfold).split(setindexes):
-            yield shuffled[train], shuffled[test]
-
-    def predict(self, structures, **kwargs):
-        res = self.__generator.get(structures, **kwargs)
-        d_x, d_ad, d_s = res['X'], res['AD'], res.get('structures')
-
-        pred, prob, x_ad, y_ad = [], [], [], []
-        for i, model in enumerate(self.__model['models']):
-            x_t = DataFrame(model['normal'].transform(d_x), columns=d_x.columns) if model['normal'] else d_x
-
-            y_p = Series(model['model'].predict(x_t), index=d_x.index)
-            pred.append(y_p)
-
-            if hasattr(model['model'], 'predict_proba'):
-                y_pa = DataFrame(model['model'].predict_proba(x_t), index=d_x.index, columns=model['model'].classes_)
-                prob.append(y_pa)
-
-            y_ad.append((y_p >= model['y_min']) & (y_p <= model['y_max']))
-            x_ad.append(((d_x.loc[:, self.__box] - model['x_min']).min(axis=1) >= 0) &
-                        ((model['x_max'] - d_x.loc[:, self.__box]).min(axis=1) >= 0) & d_ad)
-
-        out = dict(prediction=concat(pred, axis=1),
-                   domain=concat(x_ad, axis=1), y_domain=concat(y_ad, axis=1))
-
-        if prob:
-            out['probability'] = concat(prob, axis=1, keys=range(len(prob)))
-
-        if d_s is not None:
-            out['structures'] = d_s
-
-        return out
-
-    __scorers_dict = dict(rmse=(_rmse, False), r2=(r2_score, False), kappa=(cohen_kappa_score, False),
-                          acc=(_accuracy, False), iap=(_iap, True))
+    __scorers_dict = dict(rmse=(rmse, False), r2=(r2_score, False), kappa=(cohen_kappa_score, False),
+                          acc=(accuracy, False))

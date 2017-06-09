@@ -22,25 +22,22 @@ from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from collections import OrderedDict
 from copy import deepcopy
-from dill import load, dump
+from deepdish.io import save
 from functools import partial
 from gzip import open as gzip_open
 from io import StringIO
 from itertools import product, cycle
 from multiprocess import Queue, Process
-from os import W_OK, access, mkdir
+from os import W_OK, access
 from os.path import join, exists, isdir, dirname
 from pandas import concat
-from shutil import rmtree
+from pickle import load, dump
 from sortedcontainers import SortedListWithKey
 from subprocess import call
 from tempfile import mkdtemp
 from .config import GACONF
-from .descriptors import DescriptorsChain
-from .descriptors.cxcalc import Pkab
-from .descriptors.descriptorsdict import DescriptorsDict
-from .descriptors.eed import Eed
-from .descriptors.fragmentor import Fragmentor
+from .descriptors import *
+from .domains import *
 from .estimators.svmodel import SVModel
 from .mbparser import MBparser
 
@@ -273,17 +270,15 @@ class ModelBuilder(MBparser):
     def fit(self, input_file):
         models = SortedListWithKey(key=self.__order)
         with open(input_file) as f:
-            data = f.read()
+            inp = (RDFread(f) if self.__is_reaction else SDFread(f)).read()
 
         for g, e in self.__estimators:
             for x, y in zip(self.__generators, e):
-                inp = (RDFread(StringIO(data)) if self.__is_reaction else SDFread(StringIO(data))).read()
-                model = g(x, list(y.values()), inp, in_structures=True, dispcoef=self.__disp_coef, fit=self.__fit,
-                          scorers=self.__scorers, n_jobs=self.__n_jobs, nfold=self.__nfold,
-                          rep_boost=self.__rep_boost, repetitions=self.__repetition,
+                model = g(x, inp, fit_params=list(y.values()), domain=Box, domain_params=None, in_structures=True,
+                          dispcoef=self.__disp_coef, fit=self.__fit, scorers=self.__scorers, n_jobs=self.__n_jobs,
+                          nfold=self.__nfold, rep_boost=self.__rep_boost, repetitions=self.__repetition,
                           normalize='scale' in y or self.__normalize)
 
-                model.delete_work_path()
                 models.add(model)
                 if len(models) > self.__consensus:
                     models.pop()
@@ -291,7 +286,7 @@ class ModelBuilder(MBparser):
         if 'tol' not in self.__description:
             self.__description['tol'] = models[0].get_model_stats()['dragostolerance']
 
-        dump(dict(models=models, config=self.__description), gzip_open(self.__model, 'wb'))
+        save(self.__model, [x.pickle() for x in models], compression=('blosc', 5))
 
     def __chk_est(self, est_params):
         if not est_params or 1 < len(est_params) < len(self.__generators) or len(est_params) > len(self.__generators):
@@ -370,8 +365,8 @@ class ModelBuilder(MBparser):
                     break
                 dset, normal, *_, attempt, _, _ = line.split()
                 parsed = list(self.get_svm_param([join(dragos_work, attempt, 'svm.pars')])[0].values())[0]
-                if (parsed['kernel'], dset) not in svm:
-                    svm[(parsed['kernel'], dset)] = {'scale' if normal == 'scaled' else 'orig': parsed}
+                if (tuple(parsed['kernel']), dset) not in svm:
+                    svm[(tuple(parsed['kernel']), dset)] = {'scale' if normal == 'scaled' else 'orig': parsed}
                     cleared.append(int(dset[5:]) - 1)
 
         if not svm:

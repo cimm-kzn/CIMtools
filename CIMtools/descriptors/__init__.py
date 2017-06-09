@@ -20,7 +20,7 @@
 #
 from functools import reduce
 from operator import and_
-from pandas import Series, concat, merge
+from pandas import merge
 from .basegenerator import DataContainer
 from .descriptorsdict import DescriptorsDict
 from .eed import Eed
@@ -33,62 +33,58 @@ class DescriptorsChain(object):
         """
         chaining multiple descriptor generators.
         concatenate X vectors and merge AD
-        :param args: set of generators or set of list[generator, consider their AD {True|False}]
+        :param args: set of generators
         """
-        if isinstance(args[0], tuple):
-            self.__generators = args
-        else:
-            self.__generators = [(x, True) for x in args]
+        self.__generators = args
 
     def pickle(self):
         tmp = {}
-        for gen, box in self.__generators:
-            tmp[gen.__class__.__name__] = [gen.pickle(), box]
+        for gen in self.__generators:
+            tmp[gen.__class__.__name__] = gen.pickle()
 
         return tmp
 
     @classmethod
     def unpickle(cls, config):
-        return DescriptorsChain(*((globals()[k].unpickle(gc), b) for k, (gc, b) in config.items()))
+        return DescriptorsChain(*(cls.generators[k].unpickle(gc) for k, gc in config.items()))
 
     def set_work_path(self, workpath):
-        for gen, _ in self.__generators:
+        for gen in self.__generators:
             if hasattr(gen, 'set_work_path'):
                 gen.set_work_path(workpath)
 
     def delete_work_path(self):
-        for gen, _ in self.__generators:
+        for gen in self.__generators:
             if hasattr(gen, 'delete_work_path'):
                 gen.delete_work_path()
 
-    def get(self, structures, return_box=False, **kwargs):
+    def get(self, structures, **kwargs):
         """
         :param structures: list of CGRtools data
-        :param return_box: return bitmap of descriptors for box AD  
         :param kwargs: generators specific arguments
-        :return: dict(X=DataFrame, AD=Series, Y=Series, BOX=Series, structures=DataFrame)
+        :return: DataContainer
         """
-        _x, _y, _ad, _box = [], [], [], []
+        _x, _y, _ad = [], [], []
 
-        for gen, ad in self.__generators:
+        for gen in self.__generators:
             out = gen.get(structures, **kwargs)
             _x.append(out.X)
             _y.append(out.Y)
             _ad.append(out.AD)
-            _box.append(Series(ad, index=out.X.columns))
 
         _x = reduce(self.__merge_wrap, _x)
         _ad = reduce(and_, sorted(_ad, key=lambda x: len(x.index), reverse=True))
         # на данный момент не придумано как поступать с мультицентровостью. пока свойство просто дублируется.
         _y = sorted(_y, key=lambda x: len(x.index), reverse=True)[0]
 
-        _box = concat(_box)
-        out = DataContainer(_x, _y, _ad)
-        return (out, _box) if return_box else out
+        return DataContainer(_x, _y, _ad)
 
     @staticmethod
     def __merge_wrap(x, y):
         return merge(x, y, how='outer', left_index=True, right_index=True)
 
+    generators = {DescriptorsDict.__name__: DescriptorsDict, Fragmentor.__name__: Fragmentor,
+                  Pkab.__name__: Pkab, Eed.__name__: Eed}
 
-__all__ = [DescriptorsChain.__name__, DescriptorsDict.__name__, Fragmentor.__name__, Pkab.__name__, Eed.__name__]
+
+__all__ = [DescriptorsChain.__name__] + list(DescriptorsChain.generators)

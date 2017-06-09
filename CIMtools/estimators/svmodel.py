@@ -25,40 +25,43 @@ from .basemodeler import BaseModel
 
 
 class SVModel(BaseModel):
-    def __init__(self, descriptors_generator, fitparams, structures, workpath='.', nfold=5, repetitions=1,
-                 rep_boost=100, dispcoef=0, fit='rmse', estimator='svr', probability=False, scorers=('rmse', 'r2'),
-                 normalize=False, n_jobs=2, max_iter=100000, **kwargs):
-
+    def __init__(self, descriptors_generator, structures, fit_params=None, estimator='svr', probability=False,
+                 nfold=5, repetitions=1, dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False,
+                 domain=None, domain_params=None, domain_normalize=False, n_jobs=2, max_iter=100000, **kwargs):
         self.__max_iter = max_iter
         self.__estimator = estimator
         self.__probability = [probability]
-        self.__fit_params = fitparams
-        BaseModel.__init__(self, descriptors_generator, structures, nfold=nfold, repetitions=repetitions,
-                           rep_boost=rep_boost, dispcoef=dispcoef, fit=fit, scorers=scorers, workpath=workpath,
-                           normalize=normalize, n_jobs=n_jobs, **kwargs)
+
+        BaseModel.__init__(self, descriptors_generator, structures, fit_params=fit_params, repetitions=repetitions,
+                           nfold=nfold, dispcoef=dispcoef, fit=fit, scorers=scorers, normalize=normalize,
+                           domain=domain, domain_params=domain_params, domain_normalize=domain_normalize,
+                           n_jobs=n_jobs, **kwargs)
 
     __estimators = dict(svr=SVR, svc=SVC)
+
+    def pickle(self):
+        pass
+
+    @classmethod
+    def unpickle(cls, config):
+        pass
 
     @property
     def estimator(self):
         return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter)
-
-    @property
-    def fit_params(self):
-        return self.__fit_params
 
     def prepare_params(self, param):
         base = dict(C=param['C'], tol=param['tol'])
         base.update(dict(epsilon=param['epsilon'])
                     if self.__estimator == 'svr' else dict(probability=self.__probability))
 
-        if param['kernel'] == 'linear':  # u'*v
+        if param['kernel'][0] == 'linear':  # u'*v
             base.update(kernel=['linear'])
-        elif param['kernel'] == 'rbf':  # exp(-gamma*|u-v|^2)
+        elif param['kernel'][0] == 'rbf':  # exp(-gamma*|u-v|^2)
             base.update(kernel=['rbf'], gamma=param['gamma'])
-        elif param['kernel'] == 'sigmoid':  # tanh(gamma*u'*v + coef0)
+        elif param['kernel'][0] == 'sigmoid':  # tanh(gamma*u'*v + coef0)
             base.update(kernel=['sigmoid'], gamma=param['gamma'], coef0=param['coef0'])
-        elif param['kernel'] == 'poly':  # (gamma*u'*v + coef0)^degree
+        elif param['kernel'][0] == 'poly':  # (gamma*u'*v + coef0)^degree
             base.update(kernel=['poly'], gamma=param['gamma'], coef0=param['coef0'], degree=param['degree'])
 
         elif isinstance(param['kernel'], list) and all(callable(x) for x in param['kernel']):

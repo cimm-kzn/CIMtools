@@ -87,35 +87,35 @@ class MBparser(object):
                                 for k in ('C', 'epsilon', 'tol'):
                                     svm[i][k].extend(tmp[k])
                             else:
-                                svm[i] = dict(kernel=i, C=tmp['C'], epsilon=tmp['epsilon'],
+                                svm[i] = dict(kernel=[i], C=tmp['C'], epsilon=tmp['epsilon'],
                                               tol=tmp['tol'])
                         elif i == 'rbf':  # exp(-gamma*|u-v|^2)
                             if svm.get(i):
                                 for k in ('C', 'epsilon', 'tol', 'gamma'):
                                     svm[i][k].extend(tmp[k])
                             else:
-                                svm[i] = dict(kernel=i, C=tmp['C'], epsilon=tmp['epsilon'], tol=tmp['tol'],
+                                svm[i] = dict(kernel=[i], C=tmp['C'], epsilon=tmp['epsilon'], tol=tmp['tol'],
                                               gamma=tmp['gamma'])
                         elif i == 'sigmoid':  # tanh(gamma*u'*v + coef0)
                             if svm.get(i):
                                 for k in ('C', 'epsilon', 'tol', 'gamma', 'coef0'):
                                     svm[i][k].extend(tmp[k])
                             else:
-                                svm[i] = dict(kernel=i, C=tmp['C'], epsilon=tmp['epsilon'],
+                                svm[i] = dict(kernel=[i], C=tmp['C'], epsilon=tmp['epsilon'],
                                               tol=tmp['tol'], gamma=tmp['gamma'], coef0=tmp['coef0'])
                         elif i == 'poly':  # (gamma*u'*v + coef0)^degree
                             if svm.get(i):
                                 for k in ('C', 'epsilon', 'tol', 'gamma', 'coef0', 'degree'):
                                     svm[i][k].extend(tmp[k])
                             else:
-                                svm[i] = dict(kernel=i, C=tmp['C'], epsilon=tmp['epsilon'], tol=tmp['tol'],
+                                svm[i] = dict(kernel=[i], C=tmp['C'], epsilon=tmp['epsilon'], tol=tmp['tol'],
                                               gamma=tmp['gamma'], coef0=tmp['coef0'], degree=tmp['degree'])
                         elif i == 'tanimoto':
                             if svm.get(i):
                                 for k in ('C', 'epsilon', 'tol'):
                                     svm[i][k].extend(tmp[k])
                             else:
-                                svm[i] = dict(kernel=tanimoto_kernel,
+                                svm[i] = dict(kernel=[tanimoto_kernel],
                                               C=tmp['C'], epsilon=tmp['epsilon'], tol=tmp['tol'])
 
             if svm:

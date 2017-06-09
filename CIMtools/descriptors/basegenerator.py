@@ -28,7 +28,7 @@ from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
 from ..preparers.standardizers import StandardizeDragos
 
 
-DataContainer = namedtuple('ResultsContainer', ['X', 'Y', 'AD'])
+DataContainer = namedtuple('DataContainer', ['X', 'Y', 'AD'])
 
 
 class BaseGenerator(ABC, PropertyExtractor):
