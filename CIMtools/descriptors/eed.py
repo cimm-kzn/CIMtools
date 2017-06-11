@@ -60,7 +60,7 @@ class Eed(BaseGenerator):
     @classmethod
     def unpickle(cls, config):
         BaseGenerator.unpickle(config)
-        obj = cls.__new__(cls)  # Does not call __init__
+        obj = cls.__new__(cls)
         obj._init_unpickle(**config)
         return obj
 
@@ -70,7 +70,7 @@ class Eed(BaseGenerator):
     def delete_work_path(self):
         super(Eed, self).delete_work_path()
 
-    def prepare(self, structures, **_):
+    def _prepare(self, structures, **_):
         if self._dragos_std:
             structures = self._dragos_std.get(structures)
 
@@ -86,7 +86,7 @@ class Eed(BaseGenerator):
         workfiles = [StringIO() for _ in range(self.__workfiles)]
         writers = [SDFwrite(x, mark_to_map=True) for x in workfiles]
 
-        prop, doubles = self.write_prepared(structures, writers)
+        prop, doubles = self._write_prepared(structures, writers)
 
         tx, td = [], []
         for n, workfile in enumerate(workfiles):

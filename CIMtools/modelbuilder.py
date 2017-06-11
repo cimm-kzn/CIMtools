@@ -79,7 +79,7 @@ class ModelBuilder(MBparser):
     def __init__(self, description, workpath='.', is_reaction=True, model=None, reload=None, resume=None, output=None,
                  out_format='svm', fragments=None, extension=None, eed=None, pka=None, chains=None, ad=None,
                  estimator='svr', svm=None, max_iter=100000, probability=False, fit='rmse', dispcoef=0,
-                 n_jobs=2, nfold=5, repetition=1, rep_boost=25, consensus=10, normalize=False, ga_maxconfigs=3000,
+                 n_jobs=2, nfold=5, repetition=1, consensus=10, normalize=False, ga_maxconfigs=3000,
                  scorers=('rmse', 'r2')):
         clean_descgens = False
         if not (exists(workpath) and access(workpath, W_OK)):
@@ -151,7 +151,6 @@ class ModelBuilder(MBparser):
         self.__n_jobs = n_jobs
         self.__nfold = nfold
         self.__repetition = repetition
-        self.__rep_boost = rep_boost
         self.__consensus = consensus
         self.__normalize = normalize
         self.__ga_maxconfigs = ga_maxconfigs
@@ -274,10 +273,9 @@ class ModelBuilder(MBparser):
 
         for g, e in self.__estimators:
             for x, y in zip(self.__generators, e):
-                model = g(x, inp, fit_params=list(y.values()), domain=Box, domain_params=None, in_structures=True,
+                model = g(x, inp, fit_params=list(y.values()), in_structures=True,
                           dispcoef=self.__disp_coef, fit=self.__fit, scorers=self.__scorers, n_jobs=self.__n_jobs,
-                          nfold=self.__nfold, rep_boost=self.__rep_boost, repetitions=self.__repetition,
-                          normalize='scale' in y or self.__normalize)
+                          nfold=self.__nfold, repetitions=self.__repetition, normalize='scale' in y or self.__normalize)
 
                 models.add(model)
                 if len(models) > self.__consensus:

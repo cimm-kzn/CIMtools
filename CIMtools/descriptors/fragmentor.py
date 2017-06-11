@@ -244,7 +244,7 @@ class Fragmentor(BaseGenerator):
             raise Exception('Invalid config')
 
         BaseGenerator.unpickle(config)
-        obj = cls.__new__(cls)  # Does not call __init__
+        obj = cls.__new__(cls)
         obj._init_unpickle(**config)
         return obj
 
@@ -291,7 +291,7 @@ class Fragmentor(BaseGenerator):
             close(fd)
             self.__head_exec[n] = header
 
-    def prepare(self, structures, **_):
+    def _prepare(self, structures, **_):
         """ PMAPPER and Standardizer works only with molecules. NOT CGR!
         :param structures: list of MoleculeContainers or ReactionContainers (work only in CGR or CGR-marked atoms mode)
         """
@@ -333,7 +333,7 @@ class Fragmentor(BaseGenerator):
 
         with OpenFiles(work_sdf_files, 'w') as f:
             writers = [SDFwrite(x) for x in f]
-            prop, doubles = self.write_prepared(structures, writers)
+            prop, doubles = self._write_prepared(structures, writers)
 
         tx, td = [], []
         for n, (work_file, work_sdf) in enumerate(zip(work_files, work_sdf_files)):

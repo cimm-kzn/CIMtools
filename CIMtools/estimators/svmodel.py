@@ -21,7 +21,7 @@
 from functools import partial
 from itertools import product
 from sklearn.svm import SVR, SVC
-from .basemodeler import BaseModel
+from .basemodeler import BaseModel, MinMaxScalerWrapper, FitContainer
 
 
 class SVModel(BaseModel):
@@ -39,18 +39,31 @@ class SVModel(BaseModel):
 
     __estimators = dict(svr=SVR, svc=SVC)
 
+    def _init_unpickle(self, models, scalers, scores, fitparams, pred, prob, **config):
+        super(SVModel, self)._init_unpickle(**config)
+        self._model = FitContainer(models=[x for x in models],
+                                   scalers=[(x and MinMaxScalerWrapper.unpickle(x) or None) for x in scalers],
+                                   params=fitparams, pred=pred, prob=prob, scores=scores)
+
     def pickle(self):
-        pass
+        config = super(SVModel, self).pickle()
+        config.update(models=[x for x in self._model.models])
+        return config
 
     @classmethod
     def unpickle(cls, config):
-        pass
+        if 'models' not in config:
+            raise Exception('Invalid config')
+        BaseModel.unpickle(config)
+        obj = cls.__new__(cls)
+        obj._init_unpickle(**config)
+        return obj
 
     @property
-    def estimator(self):
+    def _estimator(self):
         return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter)
 
-    def prepare_params(self, param):
+    def _prepare_params(self, param):
         base = dict(C=param['C'], tol=param['tol'])
         base.update(dict(epsilon=param['epsilon'])
                     if self.__estimator == 'svr' else dict(probability=self.__probability))

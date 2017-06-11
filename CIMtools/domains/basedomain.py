@@ -42,5 +42,5 @@ class Domain(ABC):
 
     @staticmethod
     @abstractmethod
-    def prepare_params(param):
+    def _prepare_params(param):
         pass

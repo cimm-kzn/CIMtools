@@ -80,7 +80,7 @@ class Pkab(BaseGenerator):
         if args.difference(config):
             raise Exception('Invalid config')
         BaseGenerator.unpickle(config)
-        obj = cls.__new__(cls)  # Does not call __init__
+        obj = cls.__new__(cls)
         obj._init_unpickle(**config)
         return obj
 
@@ -90,7 +90,7 @@ class Pkab(BaseGenerator):
     def delete_work_path(self):
         super(Pkab, self).delete_work_path()
 
-    def prepare(self, structures, **_):
+    def _prepare(self, structures, **_):
         if self._dragos_std:
             structures = self._dragos_std.get(structures)
 
@@ -169,5 +169,5 @@ class Pkab(BaseGenerator):
 
         return [x], prop, [ad], i
 
-    def write_prepared(self, *_):
+    def _write_prepared(self, *_):
         raise Exception('Disabled method')

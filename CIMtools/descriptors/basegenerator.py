@@ -133,7 +133,7 @@ class BaseGenerator(ABC, PropertyExtractor):
             raise Exception('Invalid config')
 
     @abstractmethod
-    def prepare(self, structures, **_):
+    def _prepare(self, structures, **_):
         pass
 
     @abstractmethod
@@ -147,7 +147,7 @@ class BaseGenerator(ABC, PropertyExtractor):
             self._marker.delete_work_path()
 
     def get(self, structures, **kwargs):
-        tmp = self.prepare(structures, **kwargs)
+        tmp = self._prepare(structures, **kwargs)
         if not tmp:
             return False
 
@@ -164,7 +164,7 @@ class BaseGenerator(ABC, PropertyExtractor):
         _x.index = _ad.index = _y.index = _i
         return DataContainer(X=_x, Y=_y, AD=_ad)
 
-    def write_prepared(self, structures, writers):
+    def _write_prepared(self, structures, writers):
         prop = []
         doubles = []
         for s_numb, s in enumerate(structures):

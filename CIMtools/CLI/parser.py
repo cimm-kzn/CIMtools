@@ -77,8 +77,6 @@ def modelbuilder(subparsers):
                         help="number of generations in Dragos Genetic SVM optimizer")
     parser.add_argument("--nfold", "-n", type=int, default=5, help="number of folds")
     parser.add_argument("--repetition", "-r", type=int, default=1, help="number of repetitions")
-    parser.add_argument("--rep_boost", "-R", type=int, default=25,
-                        help="percentage of repetitions for use in greed search for optimization speedup")
     parser.add_argument("--n_jobs", "-j", type=int, default=2, help="number of parallel fit jobs")
 
     parser.add_argument("--estimator", "-E", action='append', type=str, default=DefaultList(['svr']),

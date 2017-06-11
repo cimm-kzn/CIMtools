@@ -52,7 +52,7 @@ class Box(Domain):
         return ((x - self.__x_min).min(axis=1) >= 0) & ((self.__x_max - x).min(axis=1) >= 0)
 
     @staticmethod
-    def prepare_params(_):
-        return [{}]
+    def _prepare_params(_):
+        pass
 
     __x_min = __x_max = None

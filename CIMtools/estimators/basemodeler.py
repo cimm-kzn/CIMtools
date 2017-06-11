@@ -21,7 +21,8 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
 from itertools import count
-from math import sqrt, ceil
+from json import loads, dumps
+from math import sqrt
 from numpy import inf, mean, var, arange
 from pandas import DataFrame, Series, concat
 from sklearn.model_selection import KFold
@@ -39,11 +40,27 @@ FitContainer = namedtuple('FitContainer', ['models', 'scalers', 'params', 'pred'
 ResultContainer = namedtuple('ResultContainer', ['prediction', 'probability', 'domain'])
 
 
+class MinMaxScalerWrapper(MinMaxScaler):
+    def pickle(self):
+        return dict(min=self.min_, scale=self.scale_, copy=self.copy)
+
+    @classmethod
+    def unpickle(cls, config):
+        args = {'min', 'scale', 'copy'}
+        if args.difference(config):
+            raise Exception('Invalid config')
+        obj = cls.__new__(cls)
+        obj.min_ = config['min']
+        obj.copy = config['copy']
+        obj.scale_ = config['scale']
+        return obj
+
+
 def _kfold(est, est_params, x_train, y_train, x_test, normalize):
     if normalize:
-        normal = MinMaxScaler()
-        x_train = DataFrame(normal.fit_transform(x_train), columns=x_train.columns)
-        x_test = DataFrame(normal.transform(x_test), columns=x_test.columns)
+        normal = MinMaxScalerWrapper()
+        x_train = DataFrame(normal.fit_transform(x_train), columns=x_train.columns, index=x_train.index)
+        x_test = DataFrame(normal.transform(x_test), columns=x_test.columns, index=x_test.index)
     else:
         normal = None
 
@@ -76,61 +93,68 @@ class BaseModel(ABC):
               (self.__y.mean(), sqrt(self.__y.var()), self.__y.max(), self.__y.min()))
 
         self.__domain_class = domain or Box
-        self.__domain_params = domain_params
-        self.__domain_normalize = domain_normalize
-        self.__init_common(nfold, repetitions, normalize, scorers)
+        self.__init_common(nfold, repetitions, normalize, domain_normalize)
 
         # need for fit only
+        self.__domain_params = domain_params
         self.__cv = self.__cv_naive
         self.__n_jobs = n_jobs
         self.__disp_coef = dispcoef
-        self.__fit_score = 'C' + (fit if fit in scorers else scorers[0])
-        self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %(v{0})s'.format(i) for i in self.__scorers])
-        self.__scores_unfitted = FitContainer(None, None, None, None, None, scores={'C%s' % x: inf for x in scorers})
+        self.__scorers = {x: self.__scorers_dict[x] for x in scorers}
+        self.__fit_score = '$' + (fit if fit in scorers else scorers[0])
+        self.__score_reporter = '\n'.join(['{0} +- variance = %({0})s +- %({0}_var)s'.format(i) for i in scorers])
+        self.__scores_unfitted = FitContainer(None, None, None, None, None, scores={'$%s' % x: inf for x in scorers})
 
-        self.__model, self.__domain = self.__fit()
+        self._model, self.__domain = self.__fit()
 
-    def _init_unpickle(self, generator, domain, normalize, repetitions, nfold, scorers, x, y):
+    def _init_unpickle(self, generator, normalize, repetitions, nfold, x, y, domain_class, domain,
+                       domain_normalize, domain_scalers, domain_scores, domain_fitparams, domain_pred, domain_prob):
         self.__x = x
         self.__y = y
-        self.__generator = globals()[generator['name']].unpickle(generator['config'])
-        self.__init_common(nfold, repetitions, normalize, scorers)
+        self.__generator = globals()[generator['name']].unpickle(loads(generator['config']))
+        self.__domain_class = globals()[domain_class]
+        self.__domain = FitContainer(models=[self.__domain_class.unpickle(x) for x in domain],
+                                     scalers=[(x and MinMaxScalerWrapper.unpickle(x) or None) for x in domain_scalers],
+                                     params=domain_fitparams, pred=domain_pred, prob=domain_prob, scores=domain_scores)
+        self.__init_common(nfold, repetitions, normalize, domain_normalize)
 
-    def __init_common(self, nfold, repetitions, normalize, scorers):
+    def __init_common(self, nfold, repetitions, normalize, domain_normalize):
         self.__nfold = nfold
         self.__repetitions = repetitions
         self.__normalize = normalize
-        self.__scorers = {x: self.__scorers_dict[x] for x in scorers}
+        self.__domain_normalize = domain_normalize
 
-        self.__pickle = dict(normalize=normalize, repetitions=repetitions, nfold=nfold, scorers=scorers,
-                             x=self.__x, y=self.__y)
+        self.__pickle = dict(normalize=normalize, repetitions=repetitions, nfold=nfold, x=self.__x, y=self.__y,
+                             domain_normalize=domain_normalize)
 
     @abstractmethod
     def pickle(self):
         config = self.__pickle.copy()
-        config.update(generator=dict(name=self.__generator.__class__.__name__, config=self.__generator.pickle()),
-                      domain=[dict(name=x.__class__.__name__, config=x.pickle(), normalize=y)
-                              for x in self.__domain.models],
-                      models=[dict(name=x.__class__.__name__, config=x.pickle(), normalize=y)
-                              for x, y in self.__model.models])
+        config.update(generator=dict(name=self.__generator.__class__.__name__, config=dumps(self.__generator.pickle())),
+                      domain=[x.pickle() for x in self.__domain.models], domain_class=self.__domain_class.__name__,
+                      domain_scalers=[(x and x.pickle() or None) for x in self.__domain.scalers],
+                      domain_scores=self.__domain.scores, domain_fitparams=self.__domain.params,
+                      domain_pred=self.__domain.pred, domain_prob=self.__domain.prob,
+                      scalers=[(x and x.pickle() or None) for x in self._model.scalers],
+                      scores=self._model.scores, fitparams=self._model.params,
+                      pred=self._model.pred, prob=self._model.prob)
         return config
 
     @classmethod
     @abstractmethod
     def unpickle(cls, config):
-        args = {'generator', 'domain', 'normalize', 'repetitions', 'nfold', 'scorers', 'x', 'y'}
+        args = {'generator', 'domain', 'domain_normalize', 'domain_scalers', 'domain_scores', 'scalers', 'scores',
+                'normalize', 'repetitions', 'nfold', 'x', 'y', 'models', 'domain_fitparams', 'fitparams', 'domain_pred',
+                'domain_prob', 'pred', 'prob', 'domain_class'}
         if args.difference(config):
             raise Exception('Invalid config')
-        obj = cls.__new__(cls)  # Does not call __init__
-        obj._init_unpickle(**config)
-        return obj
 
     def predict(self, structures, **kwargs):
         res = self.__generator.get(structures, **kwargs)
         d_x, d_ad = res.X, res.AD
 
         pred, prob, dom = [], [], []
-        for i, (model, scaler, domain, domain_scaler) in enumerate(zip(self.__model.models, self.__model.scalers,
+        for i, (model, scaler, domain, domain_scaler) in enumerate(zip(self._model.models, self._model.scalers,
                                                                        self.__domain.models, self.__domain.scalers)):
             x_t = DataFrame(scaler.transform(d_x), columns=d_x.columns) if scaler else d_x
             pred.append(Series(model.predict(x_t), index=d_x.index))
@@ -146,12 +170,12 @@ class BaseModel(ABC):
                                probability=concat(prob, axis=1, keys=range(len(prob))) if prob else None)
 
     @abstractmethod
-    def prepare_params(self, param):
+    def _prepare_params(self, param):
         return []
 
     @property
     @abstractmethod
-    def estimator(self):
+    def _estimator(self):
         pass
 
     def set_work_path(self, workpath):
@@ -163,15 +187,15 @@ class BaseModel(ABC):
             self.__generator.delete_work_path()
 
     def get_model_stats(self):
-        stat = dict(fitparams=self.__model.params, repetitions=self.__repetitions, nfolds=self.__nfold,
-                    normalize=self.__normalize, dragostolerance=sqrt(self.__y.var()))
+        stat = dict(fitparams=self._model.params, repetitions=self.__repetitions, nfolds=self.__nfold,
+                    normalize=self.__normalize, dragostolerance=sqrt(self.__y.var()),
+                    domain=self.__domain_class.__name__, domain_normalize=self.__domain_normalize)
 
-        stat.update({x: self.__model.scores[x] for x in self.__scorers})
-        stat.update({'%s_var' % x: self.__model.scores['v%s' % x] for x in self.__scorers})
+        stat.update({x: y for x, y in self._model.scores.items() if not x.startswith('$')})
         return stat
 
     def get_fit_predictions(self):
-        return dict(property=self.__y, prediction=self.__model.pred, probability=self.__model.prob,
+        return dict(property=self.__y, prediction=self._model.pred, probability=self._model.prob,
                     domain=self.__domain.pred)
 
     def get_descriptors_generator(self):
@@ -185,7 +209,7 @@ class BaseModel(ABC):
             var_kern_model = badmodel
             while param:
                 var_param_model = badmodel
-                tmp = self.prepare_params({k: list(v) for k, v in param.items()})
+                tmp = self._prepare_params({k: list(v) for k, v in param.items()})
                 for i in tmp:
                     print('%d (max=%d): fit model with params:' % (next(fcount), max_params), i)
                     fitted = self.__cv_model_fit(i)
@@ -216,7 +240,7 @@ class BaseModel(ABC):
         models, scalers, y_pred, y_prob = [], [], [], []
         fold_scorers = defaultdict(list)
         parallel = Parallel(n_jobs=self.__n_jobs)
-        folds = parallel(delayed(_kfold)(self.estimator, fitparams, self.__x.iloc[train], self.__y.iloc[train],
+        folds = parallel(delayed(_kfold)(self._estimator, fitparams, self.__x.iloc[train], self.__y.iloc[train],
                                          self.__x.iloc[test], self.__normalize) for train, test in self.__cv())
 
         #  street magic. split folds to repetitions
@@ -247,7 +271,7 @@ class BaseModel(ABC):
         for s, _v in fold_scorers.items():
             m, v = mean(_v), sqrt(var(_v))
             c = (1 if s == 'rmse' else -1) * m + self.__disp_coef * v
-            res.update({s: m, 'C%s' % s: c, 'v%s' % s: v})
+            res.update({s: m, '$%s' % s: c, '%s_var' % s: v})
 
         return FitContainer(models=models, scalers=scalers, params=fitparams, pred=y_pred, prob=y_prob, scores=res)
 
@@ -267,7 +291,7 @@ class BaseModel(ABC):
         models, scalers, y_pred, y_prob = [], [], [], []
         parallel = Parallel(n_jobs=self.__n_jobs)
         folds = parallel(delayed(_kfold)(self.__domain_class, {}, self.__x.iloc[train], self.__y.iloc[train],
-                                         self.__x.iloc[test], self.__normalize) for train, test in self.__cv())
+                                         self.__x.iloc[test], self.__domain_normalize) for train, test in self.__cv())
 
         for kfold in zip(*[iter(folds)] * self.__nfold):
             ky_pred, ky_prob = [], []

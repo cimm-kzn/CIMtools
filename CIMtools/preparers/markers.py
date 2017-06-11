@@ -145,7 +145,7 @@ class CGRatomMarker(object):
         args = {'postprocess', 'preprocess', 'reverse', 'patterns'}
         if args.difference(config):
             raise Exception('Invalid config')
-        obj = cls.__new__(cls)  # Does not call __init__
+        obj = cls.__new__(cls)
         obj._init_unpickle(**config)
         return obj
 
