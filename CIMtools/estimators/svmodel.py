@@ -28,31 +28,44 @@ class SVModel(BaseModel):
     def __init__(self, descriptors_generator, structures, fit_params=None, estimator='svr', probability=False,
                  nfold=5, repetitions=1, dispcoef=0, fit='rmse', scorers=('rmse', 'r2'), normalize=False,
                  domain=None, domain_params=None, domain_normalize=False, n_jobs=2, max_iter=100000, **kwargs):
-        self.__max_iter = max_iter
-        self.__estimator = estimator
-        self.__probability = [probability]
-
+        self.__init_common(estimator, max_iter, probability)
         BaseModel.__init__(self, descriptors_generator, structures, fit_params=fit_params, repetitions=repetitions,
                            nfold=nfold, dispcoef=dispcoef, fit=fit, scorers=scorers, normalize=normalize,
                            domain=domain, domain_params=domain_params, domain_normalize=domain_normalize,
                            n_jobs=n_jobs, **kwargs)
 
-    __estimators = dict(svr=SVR, svc=SVC)
-
-    def _init_unpickle(self, models, scalers, scores, fitparams, pred, prob, **config):
+    def _init_unpickle(self, models, estimator, max_iter, probability, scalers, scores, fitparams, pred, prob,
+                       **config):
+        self.__init_common(estimator, max_iter, probability)
         super(SVModel, self)._init_unpickle(**config)
-        self._model = FitContainer(models=[x for x in models],
-                                   scalers=[(x and MinMaxScalerWrapper.unpickle(x) or None) for x in scalers],
-                                   params=fitparams, pred=pred, prob=prob, scores=scores)
+
+        svm = []
+        for x in models:
+            m = self._estimator(**fitparams)
+            for k, v in x.items():
+                setattr(m, k, v)
+            svm.append(m)
+
+        self._model = FitContainer(models=svm, params=fitparams, pred=pred, prob=prob, scores=scores,
+                                   scalers=[(x and MinMaxScalerWrapper.unpickle(x) or None) for x in scalers])
+
+    def __init_common(self, estimator, max_iter, probability):
+        self.__max_iter = max_iter
+        self.__estimator = estimator
+        self.__probability = [probability]
 
     def pickle(self):
         config = super(SVModel, self).pickle()
-        config.update(models=[x for x in self._model.models])
+        config.update(estimator=self.__estimator, max_iter=self.__max_iter, probability=self.__probability[0],
+                      models=[dict(shape_fit_=x.shape_fit_, support_=x.support_, support_vectors_=x.support_vectors_,
+                                   n_support_=x.n_support_, _dual_coef_=x._dual_coef_, _intercept_=x._intercept_,
+                                   probA_=x.probA_, probB_=x.probB_, _sparse=x._sparse, _gamma=x._gamma)
+                              for x in self._model.models])
         return config
 
     @classmethod
     def unpickle(cls, config):
-        if 'models' not in config:
+        if {'models', 'estimator', 'max_iter', 'probability'}.difference(config):
             raise Exception('Invalid config')
         BaseModel.unpickle(config)
         obj = cls.__new__(cls)
@@ -91,3 +104,5 @@ class SVModel(BaseModel):
             v_list.append(v)
 
         return [{k: v for k, v in zip(k_list, x)} for x in product(*v_list)]
+
+    __estimators = dict(svr=SVR, svc=SVC)

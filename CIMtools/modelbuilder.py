@@ -22,11 +22,9 @@ from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from collections import OrderedDict
 from copy import deepcopy
-from deepdish.io import save
 from functools import partial
-from gzip import open as gzip_open
 from io import StringIO
-from itertools import product, cycle
+from itertools import product
 from multiprocess import Queue, Process
 from os import W_OK, access
 from os.path import join, exists, isdir, dirname
@@ -77,7 +75,7 @@ def worker(input_queue, output_queue):
 
 class ModelBuilder(MBparser):
     def __init__(self, description, workpath='.', is_reaction=True, model=None, reload=None, resume=None, output=None,
-                 out_format='svm', fragments=None, extension=None, eed=None, pka=None, chains=None, ad=None,
+                 out_format='svm', fragments=None, extension=None, eed=None, pka=None, chains=None,
                  estimator='svr', svm=None, max_iter=100000, probability=False, fit='rmse', dispcoef=0,
                  n_jobs=2, nfold=5, repetition=1, consensus=10, normalize=False, ga_maxconfigs=3000,
                  scorers=('rmse', 'r2')):
@@ -112,7 +110,7 @@ class ModelBuilder(MBparser):
                 raise Exception('resume dir path incorrect')
 
             if reload:
-                tmp = load(gzip_open(reload, 'rb'))
+                tmp = load(open(reload, 'rb'))
                 clean_descgens = tmp.pop('descgens')
                 print('reloaded save')
                 if 'svm' in tmp:  # for svm. todo: for rf etc.
@@ -131,7 +129,7 @@ class ModelBuilder(MBparser):
             self.__format = out_format
 
         self.__generators = self.__descriptors_config(is_reaction, workpath, fragments=fragments, extension=extension,
-                                                      eed=eed, pka=pka, chains=chains, ad=ad)
+                                                      eed=eed, pka=pka, chains=chains)
 
         if clean_descgens:
             self.__clean_desc_gens(clean_descgens)
@@ -184,15 +182,14 @@ class ModelBuilder(MBparser):
                 print('SVM params loaded')
 
                 for_save = dict(descgens=cleared, svm=self.__svm)
-                dump(for_save, gzip_open(self.__model_save, 'wb'))
+                dump(for_save, open(self.__model_save, 'wb'))
                 print('configuration saved')
 
             self.__estimators.append((partial(SVModel, estimator=svm, probability=self.__probability,
                                       max_iter=self.__max_iter), self.__svm))
 
     @staticmethod
-    def __descriptors_config(is_reaction, workpath, fragments=None, extension=None, eed=None, pka=None,
-                             chains=None, ad=None):
+    def __descriptors_config(is_reaction, workpath, fragments=None, extension=None, eed=None, pka=None, chains=None):
         descgenerator = OrderedDict()
 
         def s_choice(params):
@@ -220,37 +217,29 @@ class ModelBuilder(MBparser):
                                   for x in MBparser.parse_fragmentor_opts(pka)]
 
         if chains:
-            if ad and len(ad) != len(chains):
-                raise Exception('number of generators chains should be equal to number of ad modifiers')
-
             descgens = []
-            for ch, ad in zip(chains, ad or cycle([None])):
+            for ch in chains:
                 gen_chain = [x for x in ch.split(':') if x in descgenerator]
-                if ad:
-                    ad_marks = [x in ('y', 'Y', '1', 'True', 'true') for x in ad.split(':')]
-                    if len(ad_marks) != len(gen_chain):
-                        raise Exception('length of generators chain should be equal to length of ad modifier')
-                else:
-                    ad_marks = cycle([True])
-
                 ad_chain = OrderedDict()
-                for k, v in zip(gen_chain, ad_marks):
-                    ad_chain.setdefault(k, []).append(v)
+                for k in gen_chain:
+                    if k in ad_chain:
+                        ad_chain[k] += 1
+                    else:
+                        ad_chain[k] = 1
 
                 combo = []
                 for k, v in ad_chain.items():
                     try:
-                        if len(v) > 1:
-                            if len(descgenerator[k]) != len(v):
+                        if v > 1:
+                            if len(descgenerator[k]) != v:
                                 raise Exception('length of same generators chain should be equal '
                                                 'to number of same generators')
-                            combo.append([list(zip(descgenerator[k], v))])
+                            combo.append([descgenerator[k]])
                         else:
-                            combo.append(list(zip(descgenerator[k], cycle(v))))
+                            combo.append(descgenerator[k])
                     except:
                         raise Exception('Invalid chain. check configured descriptors generators')
-                descgens.extend([DescriptorsChain(*[(g(), a) for gs in c
-                                                    for g, a in (gs if isinstance(gs, list) else [gs])])
+                descgens.extend([DescriptorsChain(*[g() for gs in c for g in (gs if isinstance(gs, list) else [gs])])
                                  for c in product(*combo)])
         else:
             descgens = [g() for x in descgenerator.values() for g in x]
@@ -284,7 +273,7 @@ class ModelBuilder(MBparser):
         if 'tol' not in self.__description:
             self.__description['tol'] = models[0].get_model_stats()['dragostolerance']
 
-        save(self.__model, [x.pickle() for x in models], compression=('blosc', 5))
+        dump(dict(models=[x.pickle() for x in models], config=self.__description), open(self.__model, 'wb'))
 
     def __chk_est(self, est_params):
         if not est_params or 1 < len(est_params) < len(self.__generators) or len(est_params) > len(self.__generators):

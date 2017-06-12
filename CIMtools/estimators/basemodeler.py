@@ -21,7 +21,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
 from itertools import count
-from json import loads, dumps
 from math import sqrt
 from numpy import inf, mean, var, arange
 from pandas import DataFrame, Series, concat
@@ -107,11 +106,11 @@ class BaseModel(ABC):
 
         self._model, self.__domain = self.__fit()
 
-    def _init_unpickle(self, generator, normalize, repetitions, nfold, x, y, domain_class, domain,
+    def _init_unpickle(self, generator, generator_class, normalize, repetitions, nfold, x, y, domain_class, domain,
                        domain_normalize, domain_scalers, domain_scores, domain_fitparams, domain_pred, domain_prob):
         self.__x = x
         self.__y = y
-        self.__generator = globals()[generator['name']].unpickle(loads(generator['config']))
+        self.__generator = globals()[generator_class].unpickle(generator)
         self.__domain_class = globals()[domain_class]
         self.__domain = FitContainer(models=[self.__domain_class.unpickle(x) for x in domain],
                                      scalers=[(x and MinMaxScalerWrapper.unpickle(x) or None) for x in domain_scalers],
@@ -130,7 +129,7 @@ class BaseModel(ABC):
     @abstractmethod
     def pickle(self):
         config = self.__pickle.copy()
-        config.update(generator=dict(name=self.__generator.__class__.__name__, config=dumps(self.__generator.pickle())),
+        config.update(generator=self.__generator.pickle(), generator_class=self.__generator.__class__.__name__,
                       domain=[x.pickle() for x in self.__domain.models], domain_class=self.__domain_class.__name__,
                       domain_scalers=[(x and x.pickle() or None) for x in self.__domain.scalers],
                       domain_scores=self.__domain.scores, domain_fitparams=self.__domain.params,
@@ -143,9 +142,9 @@ class BaseModel(ABC):
     @classmethod
     @abstractmethod
     def unpickle(cls, config):
-        args = {'generator', 'domain', 'domain_normalize', 'domain_scalers', 'domain_scores', 'scalers', 'scores',
-                'normalize', 'repetitions', 'nfold', 'x', 'y', 'models', 'domain_fitparams', 'fitparams', 'domain_pred',
-                'domain_prob', 'pred', 'prob', 'domain_class'}
+        args = {'generator', 'generator_class', 'domain', 'domain_normalize', 'domain_scalers', 'domain_scores',
+                'scalers', 'scores', 'normalize', 'repetitions', 'nfold', 'x', 'y', 'models', 'domain_fitparams',
+                'fitparams', 'domain_pred', 'domain_prob', 'pred', 'prob', 'domain_class'}
         if args.difference(config):
             raise Exception('Invalid config')
 
@@ -203,7 +202,7 @@ class BaseModel(ABC):
 
     def __fit(self):
         depindex, maxdep, fitparams, max_params = self.__inception(self.__fit_params)
-        fcount = count(1)
+        fcount = count(0)
         bestmodel = badmodel = self.__scores_unfitted
         for param, md, di in zip(fitparams, maxdep, depindex):
             var_kern_model = badmodel

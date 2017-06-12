@@ -60,10 +60,6 @@ def modelbuilder(subparsers):
     parser.add_argument("--chains", "-c", action='append', type=str, default=None,
                         help="descriptors chains. where F-fragmentor, D-eed, E-extension, P-pka. "
                              "-c F:E [-c E:D:P]")
-    parser.add_argument("-ad", action='append', type=str, default=None,
-                        help="consider descriptor generator AD in descriptors chains. "
-                             "example: -ad y:n:y [True = y Y True true 1] for -c F:E:P [ignore extension AD] "
-                             "number of -ad should be equal to number of --chains or skipped")
 
     parser.add_argument("--description", "-ds", type=str, default='model.dsc', help="model description file")
 
