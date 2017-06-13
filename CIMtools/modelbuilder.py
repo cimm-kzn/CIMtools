@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from bz2 import open as bz2_open
 from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from collections import OrderedDict
@@ -110,7 +111,7 @@ class ModelBuilder(MBparser):
                 raise Exception('resume dir path incorrect')
 
             if reload:
-                tmp = load(open(reload, 'rb'))
+                tmp = load(bz2_open(reload, 'rb'))
                 clean_descgens = tmp.pop('descgens')
                 print('reloaded save')
                 if 'svm' in tmp:  # for svm. todo: for rf etc.
@@ -182,7 +183,7 @@ class ModelBuilder(MBparser):
                 print('SVM params loaded')
 
                 for_save = dict(descgens=cleared, svm=self.__svm)
-                dump(for_save, open(self.__model_save, 'wb'))
+                dump(for_save, bz2_open(self.__model_save, 'wb'))
                 print('configuration saved')
 
             self.__estimators.append((partial(SVModel, estimator=svm, probability=self.__probability,
@@ -273,7 +274,8 @@ class ModelBuilder(MBparser):
         if 'tol' not in self.__description:
             self.__description['tol'] = models[0].get_model_stats()['dragostolerance']
 
-        dump(dict(models=[x.pickle() for x in models], config=self.__description), open(self.__model, 'wb'))
+        dump(dict(models=[x.pickle() for x in models], config=self.__description),
+             bz2_open(self.__model, 'wb', compresslevel=1))
 
     def __chk_est(self, est_params):
         if not est_params or 1 < len(est_params) < len(self.__generators) or len(est_params) > len(self.__generators):
