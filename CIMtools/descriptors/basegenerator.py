@@ -136,12 +136,10 @@ class BaseGenerator(ABC, PropertyExtractor):
     def _prepare(self, structures, **_):
         pass
 
-    @abstractmethod
     def set_work_path(self, workpath):
         if hasattr(self._marker, 'set_work_path'):
             self._marker.set_work_path(workpath)
 
-    @abstractmethod
     def delete_work_path(self):
         if hasattr(self._marker, 'delete_work_path'):
             self._marker.delete_work_path()

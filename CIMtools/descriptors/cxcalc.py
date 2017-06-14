@@ -84,12 +84,6 @@ class Pkab(BaseGenerator):
         obj._init_unpickle(**config)
         return obj
 
-    def set_work_path(self, workpath):
-        super(Pkab, self).set_work_path()
-
-    def delete_work_path(self):
-        super(Pkab, self).delete_work_path()
-
     def _prepare(self, structures, **_):
         if self._dragos_std:
             structures = self._dragos_std.get(structures)

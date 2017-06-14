@@ -266,7 +266,7 @@ class Fragmentor(BaseGenerator):
 
     def set_work_path(self, workpath):
         self.delete_work_path()
-        super(Fragmentor, self).set_work_path()
+        super(Fragmentor, self).set_work_path(workpath)
         if self.__do_color:
             self.__do_color.set_work_path(workpath)
 
