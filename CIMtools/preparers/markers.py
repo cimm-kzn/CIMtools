@@ -23,10 +23,10 @@ from CGRtools.preparer import CGRcombo
 from CGRtools.reactor import CGRreactor
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
+from functools import reduce
 from io import StringIO
 from itertools import product
 from json import loads
-from networkx import union_all
 from os import close, remove
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkstemp
@@ -203,7 +203,7 @@ class CGRatomMarker(object):
 
         output = []
         for s, marks in zip((structure if isinstance(structure, list) else [structure]), markslist):
-            ss = union_all(s.products if self.__reverse else s.substrats)
+            ss = reduce(self.__cgr.union, s.products if self.__reverse else s.substrats)
             ss.meta.update(s.meta)
             ps = []
             for x in (s.products if self.__reverse else s.substrats):
