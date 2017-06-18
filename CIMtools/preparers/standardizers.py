@@ -18,10 +18,10 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.core import CGRcore
 from CGRtools.files.SDFrw import SDFread, SDFwrite
 from io import StringIO
 from json import loads
-from networkx import connected_component_subgraphs
 from operator import itemgetter
 from os.path import join, dirname
 from subprocess import Popen, PIPE, STDOUT
@@ -106,7 +106,7 @@ class StandardizeDragos(object):
             output = []
             for s in structure:
                 species = sorted(((len([n for n, d in x.nodes(data=True) if d['element'] != 'H']), x) for x in
-                                  connected_component_subgraphs(s)), key=itemgetter(0))
+                                  CGRcore.split(s)), key=itemgetter(0))
                 if species[-1][0] <= self.__max_main_size \
                         and (len(species) == 1 or
                              (species[-1][0] / species[-2][0] >= self.__min_ratio and
