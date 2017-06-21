@@ -60,8 +60,8 @@ def desc_starter(gen, file_dump, out_file, fformat, header, is_reaction):
 
     dsc = gen.get(structures=inp, in_structures=True)
 
-    if dsc and not (dsc['X'].isnull().values.any() or dsc['Y'].isnull().any()):
-        (save_svm if fformat == 'svm' else save_csv)(out_file, dsc['X'], dsc['Y'], header=header)
+    if dsc and not (dsc.X.isnull().values.any() or dsc.Y.isnull().any()):
+        (save_svm if fformat == 'svm' else save_csv)(out_file, dsc.X, dsc.Y, header=header)
         return True
 
     print('BAD Descriptor generator params')
