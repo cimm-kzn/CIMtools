@@ -21,9 +21,10 @@
 from CGRtools.preparer import CGRcombo
 from CGRtools.files.SDFrw import SDFwrite
 from itertools import tee
-from os import close, remove
-from os.path import join, exists, devnull
+from os import close
+from os.path import devnull
 from pandas import DataFrame, Series
+from pathlib import Path
 from shutil import rmtree
 from subprocess import call
 from sys import stderr
@@ -35,7 +36,7 @@ from ..preparers.colorize import Colorize
 
 class OpenFiles(object):
     def __init__(self, files, flags):
-        if isinstance(files, str):
+        if isinstance(files, Path):
             files = [files]
         if isinstance(flags, str):
             flags = [flags]
@@ -51,7 +52,7 @@ class OpenFiles(object):
     def __enter__(self):
         self.fhs = []
         for f, fl in zip(self.files, self.flags):
-            self.fhs.append(open(f, fl))
+            self.fhs.append(f.open(fl))
         return self.fhs
 
     def __exit__(self, type_, value, traceback):
@@ -60,7 +61,7 @@ class OpenFiles(object):
 
 
 def pairwise(iterable):
-    """"s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -158,7 +159,7 @@ class Fragmentor(BaseGenerator):
         self.__frag_version = ('-%s' % version) if version else ''
         self.__work_files = self._markers_count or 1
         self.__is_reaction = is_reaction
-        self.__workpath = workpath
+        self.__workpath = Path(workpath)
 
         self.__head_dump = {}
         self.__head_size = {}
@@ -175,7 +176,7 @@ class Fragmentor(BaseGenerator):
 
             for n, h in enumerate(headers):
                 (self.__head_dump[n], self.__head_dict[n], self.__head_cols[n],
-                 self.__head_size[n]) = self.__parse_header(h, reload=reload)
+                 self.__head_size[n]) = self.__parse_header(h if reload else Path(h), reload=reload)
             self.__prepare_headers()
 
         elif header is not None:
@@ -257,7 +258,7 @@ class Fragmentor(BaseGenerator):
         if reload:
             head_dump = header
         else:
-            with open(header, encoding='utf-8') as f:
+            with header.open(encoding='utf-8') as f:
                 head_dump = f.read()
         head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
         head_columns = list(head_dict.values())
@@ -270,7 +271,7 @@ class Fragmentor(BaseGenerator):
         if self.__do_color:
             self.__do_color.set_work_path(workpath)
 
-        self.__workpath = workpath
+        self.__workpath = Path(workpath)
         if not (self.__headerless or self.__gen_header):
             self.__prepare_headers()
 
@@ -281,12 +282,13 @@ class Fragmentor(BaseGenerator):
 
         if not (self.__headerless or self.__gen_header) and self.__head_exec:
             for n in range(self.__work_files):
-                remove(self.__head_exec.pop(n))
+                self.__head_exec.pop(n).unlink()
 
     def __prepare_headers(self):
         for n in range(self.__work_files):
-            fd, header = mkstemp(prefix='frg_', suffix='.hdr', dir=self.__workpath)
-            with open(header, 'w', encoding='utf-8') as f:
+            fd, fn = mkstemp(prefix='frg_', suffix='.hdr', dir=str(self.__workpath))
+            header = Path(fn)
+            with header.open('w', encoding='utf-8') as f:
                 f.write(self.__head_dump[n])
             close(fd)
             self.__head_exec[n] = header
@@ -327,35 +329,34 @@ class Fragmentor(BaseGenerator):
         if not structures:
             return False
 
-        work_dir = mkdtemp(prefix='frg_', dir=self.__workpath)
-        work_sdf_files = [join(work_dir, "frg_%d.sdf" % x) for x in range(self.__work_files)]
-        work_files = [join(work_dir, "frg_%d" % x) for x in range(self.__work_files)]
+        work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
+        work_sdf_files = [work_dir / ('frg_%d.sdf' % x) for x in range(self.__work_files)]
+        work_files = [(work_dir / ('frg_%d' % x), work_dir / ('frg_%d.svm' % x), work_dir / ('frg_%d.hdr' % x))
+                      for x in range(self.__work_files)]
 
         with OpenFiles(work_sdf_files, 'w') as f:
             writers = [SDFwrite(x) for x in f]
             prop, doubles = self._write_prepared(structures, writers)
 
         tx, td = [], []
-        for n, (work_file, work_sdf) in enumerate(zip(work_files, work_sdf_files)):
-            work_file_svm = '%s.svm' % work_file
-            work_file_hdr = '%s.hdr' % work_file
-            execparams = [self.__fragmentor, '-i', work_sdf, '-o', work_file]
+        for n, ((work_file, work_file_svm, work_file_hdr), work_sdf) in enumerate(zip(work_files, work_sdf_files)):
+            execparams = [self.__fragmentor, '-i', str(work_sdf), '-o', str(work_file)]
             if not (self.__headerless or self.__gen_header):
-                execparams.extend(['-h', self.__head_exec[n]])
+                execparams.extend(['-h', str(self.__head_exec[n])])
             execparams.extend(self.__exec_params)
 
             print(' '.join(execparams), file=stderr)
             with open(devnull, 'w') as silent:
                 exitcode = call(execparams, stdout=silent, stderr=silent) == 0
 
-            if exitcode and exists(work_file_svm) and exists(work_file_hdr):
+            if exitcode and work_file_svm.exists() and work_file_hdr.exists():
                 if self.__headerless:
                     head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)[1:]
                 elif self.__gen_header:  # dump header if don't set on first run
                     self.__head_dump[n], self.__head_dict[n], self.__head_cols[n], self.__head_size[n] = \
                         _, head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)
 
-                    if n + 1 == len(work_files):  # disable header generation
+                    if n + 1 == self.__work_files:  # disable header generation
                         self.__gen_header = False
                         self.__prepare_headers()
                 else:
@@ -365,16 +366,16 @@ class Fragmentor(BaseGenerator):
                 tx.append(x)
                 td.append(d)
             else:
-                rmtree(work_dir)
+                rmtree(str(work_dir))
                 raise Exception('Fragmentor execution FAILED')
 
-        rmtree(work_dir)
+        rmtree(str(work_dir))
         return tx, prop, td, doubles
 
     @staticmethod
     def __parse_fragmentor_output(svm_file, head_dict, head_cols, head_size):
         vector, ad = [], []
-        with open(svm_file) as sf:
+        with svm_file.open() as sf:
             for frag in sf:
                 _, *x = frag.split()
                 ad.append(True)

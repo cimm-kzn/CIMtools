@@ -20,7 +20,7 @@
 #  MA 02110-1301, USA.
 #
 from CIMtools.version import version
-from os.path import join, dirname
+from pathlib import Path
 from setuptools import setup, find_packages
 
 setup(
@@ -38,7 +38,7 @@ setup(
     install_requires=['CGRtools>=2.7,<2.8', 'pandas>=0.19', 'scipy', 'sortedcontainers', 'sklearn', 'requests',
                       'multiprocess'],
     dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools-2.7'],
-    long_description=open(join(dirname(__file__), 'README.md')).read(),
+    long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
                  'Intended Audience :: Science/Research',

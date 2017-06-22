@@ -27,7 +27,8 @@ from functools import reduce
 from io import StringIO
 from itertools import product
 from json import loads
-from os import close, remove
+from os import close
+from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkstemp
 from xml.etree import ElementTree
@@ -64,14 +65,15 @@ class PharmacophoreAtomMarker(object):
     def set_work_path(self, workpath):
         self.delete_work_path()
 
-        fd, self.__config = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
-        with open(self.__config, 'w') as f:
+        fd, fn = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
+        self.__config = Path(fn)
+        with self.__config.open('w') as f:
             f.write(self.__marker_rules)
         close(fd)
 
     def delete_work_path(self):
         if self.__config is not None:
-            remove(self.__config)
+            self.__config.unlink()
             self.__config = None
 
     def get_count(self):
@@ -83,7 +85,7 @@ class PharmacophoreAtomMarker(object):
         if molecule has atom mapping - will be used mapping.
         :type structure: nx.Graph or list(nx.Graph)
         """
-        p = Popen([PMAPPER, '-c', self.__config], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+        p = Popen([PMAPPER, '-c', str(self.__config)], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
         with StringIO() as f:
             tmp = SDFwrite(f)
             for x in (structure if isinstance(structure, list) else [structure]):

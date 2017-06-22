@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from json import dumps
 from requests import post
 from ..config import CHEMAXON
 
@@ -25,7 +26,7 @@ from ..config import CHEMAXON
 def chemax_post(url, data):
     for _ in range(2):
         try:
-            q = post("%s/rest-v0/util/%s" % (CHEMAXON, url), data=json.dumps(data),
+            q = post("%s/rest-v0/util/%s" % (CHEMAXON, url), data=dumps(data),
                      headers={'content-type': 'application/json'}, timeout=20)
         except:
             continue

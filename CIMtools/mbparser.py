@@ -71,7 +71,7 @@ class MBparser(object):
                 '-r': ('coef0', lambda x: self.__parse_svm_opts(x, float))}
         for file in files:
             svm = {}
-            with open(file) as f:
+            with file.open() as f:
                 for line in (x for x in f if x.strip()):
                     opts = line.split()
                     parsed = dict(kernel=['rbf'], C=[1.0], epsilon=[.1], tol=[.001], degree=[3], gamma=[1.0], coef0=[0])
@@ -127,7 +127,7 @@ class MBparser(object):
     @staticmethod
     def parse_model_description(file):
         tmp = {}
-        with open(file) as f:
+        with file.open() as f:
             for line in f:
                 k, v = (x.strip() for x in line.split(':='))
                 if k in ('nlim', 'tol', 'name', 'example', 'description', 'report_units', 'show_structures'):

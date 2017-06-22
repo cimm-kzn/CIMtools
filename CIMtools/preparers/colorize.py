@@ -19,8 +19,8 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools.files.SDFrw import SDFread, SDFwrite
-from os import close, remove
-from os.path import join, dirname
+from os import close
+from pathlib import Path
 from shutil import rmtree
 from subprocess import call
 from tempfile import mkdtemp, mkstemp
@@ -43,28 +43,28 @@ class Colorize(object):
 
     @staticmethod
     def __load_rules():
-        with open(join(dirname(__file__), "standardrules_dragos.xml")) as f:
+        with (Path(__file__).parent / 'standardrules_dragos.xml').open() as f:
             out = f.read().strip()
         return out
 
     def set_work_path(self, workpath):
         self.delete_work_path()
-
-        self.__workpath = workpath
-        fd, self.__std_file = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
-        with open(self.__std_file, 'w') as f:
+        self.__workpath = Path(workpath)
+        fd, fn = mkstemp(prefix='clr_', suffix='.xml', dir=workpath)
+        self.__std_file = Path(fn)
+        with self.__std_file.open('w') as f:
             f.write(self.__standardize)
         close(fd)
 
     def delete_work_path(self):
         if self.__std_file is not None:
-            remove(self.__std_file)
+            self.__std_file.unlink()
             self.__std_file = None
 
     def get(self, structure):
-        work_dir = mkdtemp(prefix='clr_', dir=self.__workpath)
-        input_file = join(work_dir, 'colorin.sdf')
-        out_file = join(work_dir, 'colorout.sdf')
+        work_dir = Path(mkdtemp(prefix='clr_', dir=str(self.__workpath)))
+        input_file = work_dir / 'colorin.sdf'
+        out_file = work_dir / 'colorout.sdf'
 
         with open(input_file, 'w') as f:
             out = SDFwrite(f)
@@ -72,11 +72,11 @@ class Colorize(object):
                 out.write(i)
 
         res = None
-        if call([COLOR, input_file, out_file, self.__std_file]) == 0:
-            with open(out_file) as f:
+        if call([COLOR, str(input_file), str(out_file), self.__std_file]) == 0:
+            with out_file.open() as f:
                 res = SDFread(f, remap=False).read()
 
-        rmtree(work_dir)
+        rmtree(str(work_dir))
         return res or False
 
     __std_file = None

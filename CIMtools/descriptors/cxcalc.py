@@ -25,7 +25,6 @@ from subprocess import Popen, PIPE, STDOUT
 from .basegenerator import BaseGenerator
 from ..config import CXCALC
 from ..preparers.markers import PharmacophoreAtomMarker, CGRatomMarker
-from ..preparers.standardizers import StandardizeDragos
 
 
 class Pkab(BaseGenerator):

@@ -23,7 +23,7 @@ from CGRtools.files.SDFrw import SDFread, SDFwrite
 from io import StringIO
 from json import loads
 from operator import itemgetter
-from os.path import join, dirname
+from pathlib import Path
 from subprocess import Popen, PIPE, STDOUT
 from . import chemax_post
 from ..config import STANDARDIZER
@@ -52,13 +52,13 @@ class StandardizeDragos(object):
 
     @staticmethod
     def __load_rules():
-        with open(join(dirname(__file__), "standardrules_dragos.xml")) as f:
+        with (Path(__file__).parent / 'standardrules_dragos.xml').open() as f:
             out = f.read().strip()
         return out
 
     @staticmethod
     def __load_unwanted():
-        with open(join(dirname(__file__), "unwanted.elem")) as f:
+        with (Path(__file__).parent / 'unwanted.elem').open() as f:
             out = set(f.read().split())
         return out
 

@@ -28,8 +28,8 @@ from io import StringIO
 from itertools import product
 from multiprocess import Queue, Process
 from os import W_OK, access
-from os.path import join, exists, isdir, dirname
 from pandas import concat
+from pathlib import Path
 from pickle import load, dump
 from sortedcontainers import SortedListWithKey
 from subprocess import call
@@ -81,11 +81,12 @@ class ModelBuilder(MBparser):
                  n_jobs=2, nfold=5, repetition=1, consensus=10, normalize=False, ga_maxconfigs=3000,
                  scorers=('rmse', 'r2')):
         clean_descgens = False
-        if not (exists(workpath) and access(workpath, W_OK)):
+        if not (Path(workpath).exists() and access(workpath, W_OK)):
             raise Exception('work path not writable')
 
         if not output:
-            if not exists(description) or isdir(description):
+            description = Path(description)
+            if not description.exists() or description.is_dir():
                 raise Exception('path to model description file invalid')
 
             description = self.parse_model_description(description)
@@ -99,18 +100,23 @@ class ModelBuilder(MBparser):
             if not model:
                 raise Exception('path to model save file invalid')
 
-            model_save = '%s.save' % model
-            if isdir(model) or not access(dirname(model) or '.', W_OK) or (exists(model) and not access(model, W_OK)) \
-                    or not reload and (isdir(model_save) or (exists(model_save) and not access(model_save, W_OK))):
+            model_save = Path('%s.save' % model)
+            model = Path(model)
+            if model.is_dir() or not access(str(model.parent), W_OK) or \
+                    (model.exists() and not access(str(model), W_OK)) or not reload and \
+                    (model_save.is_dir() or (model_save.exists() and not access(str(model_save), W_OK))):
                 raise Exception('path for model saving not writable or incorrect')
 
-            if reload and (not exists(reload) or isdir(reload)):
-                raise Exception('reload file path incorrect')
-
-            if not reload and resume and not isdir(join(resume, 'work')):
-                raise Exception('resume dir path incorrect')
+            if not reload and resume:
+                self.__resume = Path(resume) / 'work'
+                if not self.__resume.is_dir():
+                    raise Exception('resume dir path incorrect')
 
             if reload:
+                p_reload = Path(reload)
+                if not p_reload.exists() or p_reload.is_dir():
+                    raise Exception('reload file path incorrect')
+
                 tmp = load(bz2_open(reload, 'rb'))
                 clean_descgens = tmp.pop('descgens')
                 print('reloaded save')
@@ -118,12 +124,13 @@ class ModelBuilder(MBparser):
                     self.__svm = tmp['svm']
                     print('found SVM params in save')
 
-            self.__model = model
-            self.__model_save = model_save
+            self.__model = str(model)
+            self.__model_save = str(model_save)
         else:
-            if not access(dirname(output) or '.', W_OK) or \
-                    (exists('%s.1.svm' % output) and not access('%s.1.svm' % output, W_OK)) or \
-                    (exists('%s.1.csv' % output) and not access('%s.1.csv' % output, W_OK)):
+            output = Path(output)
+            if not access(str(output.parent), W_OK) or \
+                    (Path('%s.1.svm' % output).exists() and not access('%s.1.svm' % output, W_OK)) or \
+                    (Path('%s.1.csv' % output).exists() and not access('%s.1.csv' % output, W_OK)):
                 raise Exception('path for descriptors saving not writable or incorrect')
 
             self.__output = output
@@ -155,12 +162,13 @@ class ModelBuilder(MBparser):
         self.__ga_maxconfigs = ga_maxconfigs
         self.__scorers = scorers
         self.__estimators = []
-        self.__resume = join(resume, 'work') if resume else None
 
     __output = False
     __svm = None
+    __resume = None
 
     def run(self, input_file):
+        input_file = Path(input_file)
         if not self.__output:
             self.prepare_estimators(input_file)
             self.fit(input_file)
@@ -302,7 +310,7 @@ class ModelBuilder(MBparser):
         self.__generators = tmp
 
     def __gen_desc(self, input_file, output, fformat='svm', header=False):
-        with open(input_file) as f:
+        with input_file.open() as f:
             data = f.read()
 
         task_queue = Queue()
@@ -332,11 +340,11 @@ class ModelBuilder(MBparser):
     def __dragos_svm_fit(self, input_file, _type):
         """ files - basename for descriptors.
         """
-        workpath = mkdtemp(prefix='gac_', dir=self.__workpath)
-        files = join(workpath, 'drag')
-        dragos_work = join(workpath, 'work')
-        execparams = [GACONF, workpath, _type, str(self.__ga_maxconfigs), str(self.__repetition), str(self.__nfold),
-                      str(self.__n_jobs)]
+        workpath = Path(mkdtemp(prefix='gac_', dir=self.__workpath))
+        files = workpath / 'drag'
+        dragos_work = workpath / 'work'
+        execparams = [GACONF, str(workpath), _type, str(self.__ga_maxconfigs), str(self.__repetition),
+                      str(self.__nfold), str(self.__n_jobs)]
 
         print('descriptors generation for GAConf')
         if self.__gen_desc(input_file, files):
@@ -348,12 +356,12 @@ class ModelBuilder(MBparser):
 
     def __parse_dragos_results(self, dragos_work):
         cleared, svm = [], OrderedDict()
-        with open(join(dragos_work, 'best_pop')) as f:
+        with (dragos_work / 'best_pop').open() as f:
             for line in f:
                 if len(cleared) == self.__consensus:
                     break
                 dset, normal, *_, attempt, _, _ = line.split()
-                parsed = list(self.get_svm_param([join(dragos_work, attempt, 'svm.pars')])[0].values())[0]
+                parsed = list(self.get_svm_param([dragos_work / attempt / 'svm.pars'])[0].values())[0]
                 if (tuple(parsed['kernel']), dset) not in svm:
                     svm[(tuple(parsed['kernel']), dset)] = {'scale' if normal == 'scaled' else 'orig': parsed}
                     cleared.append(int(dset[5:]) - 1)
