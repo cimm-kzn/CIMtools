@@ -21,6 +21,7 @@
 from CGRtools.files.RDFrw import RDFread
 from copy import deepcopy
 from pandas import read_csv
+from .descriptors.eval import Eval
 from .estimators.kernels import tanimoto_kernel
 
 
@@ -169,6 +170,8 @@ class MBparser(object):
             if ext == 's_option':
                 if add:
                     s_option = add[0]
+            elif len(add) > 1 and add[0] == 'exp':
+                extdata[ext] = Eval(add[1])
             elif add:
                 tmp = read_csv(add[0])
                 k = tmp.pop('EXTKEY')

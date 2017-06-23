@@ -21,6 +21,7 @@
 from pandas import DataFrame, Series, concat, Index
 from sys import stderr
 from .basegenerator import DataContainer
+from .eval import Eval
 from .propertyextractor import PropertyExtractor
 
 
@@ -29,16 +30,19 @@ class DescriptorsDict(PropertyExtractor):
         PropertyExtractor.__init__(self, s_option)
         self.__extension = data
         self.__ext_header = self.__prepare_ext_header(data)
-        self.__config = dict(data=data, s_option=s_option)
+        self.__config = dict(s_option=s_option)
 
     def pickle(self):
-        return self.__config.copy()
+        config = self.__config.copy()
+        config['data'] = {k: v.pickle() if isinstance(v, Eval) else v for k, v in self.__extension.items()}
+        return config
 
     @classmethod
     def unpickle(cls, config):
         if {'data', 's_option'}.difference(config):
             raise Exception('Invalid config')
-        return cls(data=config['data'], s_option=config['s_option'])
+        data = {k: Eval.unpickle(v) if isinstance(v, list) else v for k, v in config['data'].items()}
+        return cls(data=data, s_option=config['s_option'])
 
     @staticmethod
     def __prepare_ext_header(data):
@@ -49,11 +53,22 @@ class DescriptorsDict(PropertyExtractor):
         tmp = []
         for i in sorted(data):
             j = data[i]
-            if j:
-                tmp.extend(sorted(list(j.values())[0]))
-            else:
+            if isinstance(j, Eval) or not j:
                 tmp.append(i)
+            else:
+                tmp.extend(sorted(list(j.values())[0]))
         return tmp
+
+    def __value2vec(self, key, value):
+        ek = self.__extension[key]
+        if isinstance(ek, Eval):
+            vec = {key: ek.calc(value)}
+        elif ek:
+            vec = ek[value]
+        else:
+            vec = {key: float(value)}
+
+        return vec
 
     def __parse_file(self, structures):
         """
@@ -67,8 +82,7 @@ class DescriptorsDict(PropertyExtractor):
             tmp = []
             for key, value in i.meta.items():
                 if key in self.__extension:
-                    data = DataFrame(self.__extension[key][value] if self.__extension[key] else {key: float(value)},
-                                     index=[0])
+                    data = DataFrame(self.__value2vec(key, value), index=[0])
                     if not data.empty:
                         tmp.append(data)
             extblock.append(concat(tmp, axis=1) if tmp else DataFrame([{}]))
@@ -85,7 +99,7 @@ class DescriptorsDict(PropertyExtractor):
         for i, j in kwargs.items():
             if i in self.__extension:
                 for n, k in enumerate(j) if isinstance(j, list) else j.items():
-                    data = DataFrame(self.__extension[i][k] if self.__extension[i] else {i: k}, index=[0])
+                    data = DataFrame(self.__value2vec(i, k), index=[0])
                     if not data.empty:
                         if len(extblock) > n:
                             extblock[n].append(data)
@@ -100,7 +114,7 @@ class DescriptorsDict(PropertyExtractor):
         tmp = []
         for i, j in kwargs.items():
             if i in self.__extension:
-                data = DataFrame(self.__extension[i][j] if self.__extension[i] else {i: j}, index=[0])
+                data = DataFrame(self.__value2vec(i, j), index=[0])
                 if not data.empty:
                     tmp.append(data)
         return DataFrame(concat(tmp, axis=1) if tmp else DataFrame([{}]), columns=self.__ext_header,

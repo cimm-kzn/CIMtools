@@ -49,7 +49,10 @@ def modelbuilder(subparsers):
     parser.add_argument("--isreaction", "-ir", dest='is_reaction', action='store_true', help="set as reaction model")
 
     parser.add_argument("--extension", "-e", action='append', type=str, default=None,
-                        help="extension data files. -e extname:filename [-e extname2:filename2]")
+                        help="extension. if -d extname - convert value to float "
+                             "if -e extname:filename - replace value with vector from data file. "
+                             "if -e extname:ext:1/x - evaluate expression [1/x for example. where x is value]. "
+                             "multiple -e is possible")
 
     parser.add_argument("--fragments", "-f", type=str, default=None, help="ISIDA Fragmentor keys file")
 
