@@ -38,15 +38,13 @@ class DescriptorsChain(object):
         self.__generators = args
 
     def pickle(self):
-        tmp = {}
-        for gen in self.__generators:
-            tmp[gen.__class__.__name__] = gen.pickle()
-
-        return tmp
+        return [dict(name=gen.__class__.__name__, config=gen.pickle()) for gen in self.__generators]
 
     @classmethod
     def unpickle(cls, config):
-        return DescriptorsChain(*(cls.generators[k].unpickle(gc) for k, gc in config.items()))
+        if not isinstance(config, list):
+            raise Exception('Invalid config')
+        return DescriptorsChain(*(cls._generators[x['name']].unpickle(x['config']) for x in config))
 
     def set_work_path(self, workpath):
         for gen in self.__generators:
@@ -83,8 +81,8 @@ class DescriptorsChain(object):
     def __merge_wrap(x, y):
         return merge(x, y, how='outer', left_index=True, right_index=True)
 
-    generators = {DescriptorsDict.__name__: DescriptorsDict, Fragmentor.__name__: Fragmentor,
-                  Pkab.__name__: Pkab, Eed.__name__: Eed}
+    _generators = {DescriptorsDict.__name__: DescriptorsDict, Fragmentor.__name__: Fragmentor,
+                   Pkab.__name__: Pkab, Eed.__name__: Eed}
 
 
-__all__ = [DescriptorsChain.__name__] + list(DescriptorsChain.generators)
+__all__ = [DescriptorsChain.__name__] + list(DescriptorsChain._generators)

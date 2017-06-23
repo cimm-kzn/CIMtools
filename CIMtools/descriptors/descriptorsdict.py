@@ -47,9 +47,10 @@ class DescriptorsDict(PropertyExtractor):
         :return: list of strings. descriptors header
         """
         tmp = []
-        for i, j in data.items():
+        for i in sorted(data):
+            j = data[i]
             if j:
-                tmp.extend(list(j.values())[0])
+                tmp.extend(sorted(list(j.values())[0]))
             else:
                 tmp.append(i)
         return tmp
@@ -69,7 +70,6 @@ class DescriptorsDict(PropertyExtractor):
                     data = DataFrame(self.__extension[key][value] if self.__extension[key] else {key: float(value)},
                                      index=[0])
                     if not data.empty:
-                        data.index = [0]
                         tmp.append(data)
             extblock.append(concat(tmp, axis=1) if tmp else DataFrame([{}]))
 
