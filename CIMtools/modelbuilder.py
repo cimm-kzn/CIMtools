@@ -25,7 +25,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from functools import partial
 from io import StringIO
-from itertools import product
+from itertools import product, count
 from multiprocess import Queue, Process
 from os import W_OK, access
 from pandas import concat
@@ -265,25 +265,41 @@ class ModelBuilder(MBparser):
         return s + v
 
     def fit(self, input_file):
-        models = SortedListWithKey(key=self.__order)
-        with open(input_file) as f:
+        models = SortedListWithKey(key=lambda mn: mn[0])
+        with input_file.open() as f:
             inp = (RDFread(f) if self.__is_reaction else SDFread(f)).read()
 
+        workpath = Path(mkdtemp(prefix='mod_', dir=self.__workpath))
+        mnums = count()
         for g, e in self.__estimators:
             for x, y in zip(self.__generators, e):
+                mnum = next(mnums)
                 model = g(x, inp, fit_params=list(y.values()), in_structures=True,
                           dispcoef=self.__disp_coef, fit=self.__fit, scorers=self.__scorers, n_jobs=self.__n_jobs,
                           nfold=self.__nfold, repetitions=self.__repetition, normalize='scale' in y or self.__normalize)
 
-                models.add(model)
+                if 'tol' not in self.__description:
+                    self.__description['tol'] = model.get_model_stats()['dragostolerance']
+
+                models.add((self.__order(model), mnum))
+                if len(models) <= self.__consensus or models[-1][1] != mnum:
+                    dump(model.pickle(), bz2_open(str(workpath / str(mnum)), 'wb', compresslevel=1))
+                    del model
+
                 if len(models) > self.__consensus:
-                    models.pop()
+                    m = models.pop()[1]
+                    if m != mnum:
+                        (workpath / str(m)).unlink()
 
-        if 'tol' not in self.__description:
-            self.__description['tol'] = models[0].get_model_stats()['dragostolerance']
+        for gen in self.__generators:
+            if hasattr(gen, 'delete_work_path'):
+                gen.delete_work_path()
 
-        dump(dict(models=[x.pickle() for x in models], config=self.__description),
-             bz2_open(self.__model, 'wb', compresslevel=1))
+        out = dict(models=[load(bz2_open(str(workpath / str(x)), 'rb')) for x in range(next(mnums))],
+                   config=self.__description)
+        print('Model CREATED\nstart saving')
+
+        dump(out, bz2_open(self.__model, 'wb', compresslevel=1))
 
     def __chk_est(self, est_params):
         if not est_params or 1 < len(est_params) < len(self.__generators) or len(est_params) > len(self.__generators):

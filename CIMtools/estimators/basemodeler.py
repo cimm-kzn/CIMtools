@@ -34,7 +34,7 @@ from ..domains import *
 from ..scorers import *
 
 
-FoldContainer = namedtuple('FoldContainer', ['estimator', 'scaler', 'pred', 'prob'])
+FoldContainer = namedtuple('FoldContainer', ['estimator', 'scaler', 'pred', 'prob', 'test'])
 FitContainer = namedtuple('FitContainer', ['models', 'scalers', 'params', 'pred', 'prob', 'scores'])
 ResultContainer = namedtuple('ResultContainer', ['prediction', 'probability', 'domain'])
 
@@ -55,22 +55,23 @@ class MinMaxScalerWrapper(MinMaxScaler):
         return obj
 
 
-def _kfold(est, est_params, x_train, y_train, x_test, normalize):
+def _kfold(est, est_params, x, y, train, test, normalize):
     if normalize:
         normal = MinMaxScalerWrapper()
-        x_train = DataFrame(normal.fit_transform(x_train), columns=x_train.columns, index=x_train.index)
-        x_test = DataFrame(normal.transform(x_test), columns=x_test.columns, index=x_test.index)
+        x_train = normal.fit_transform(x[train])
+        x_test = normal.transform(x[test])
     else:
+        x_train = x[train]
+        x_test = x[test]
         normal = None
 
     model = est(**est_params)
-    model.fit(x_train, y_train)
+    model.fit(x_train, y[train])
 
-    y_pred = Series(model.predict(x_test), index=x_test.index)
-    y_prob = DataFrame(model.predict_proba(x_test),
-                       index=x_test.index, columns=model.classes_) if hasattr(model, 'predict_proba') else None
+    y_pred = model.predict(x_test)
+    y_prob = model.predict_proba(x_test) if hasattr(model, 'predict_proba') else None
 
-    return FoldContainer(estimator=model, scaler=normal, pred=y_pred, prob=y_prob)
+    return FoldContainer(estimator=model, scaler=normal, pred=y_pred, prob=y_prob, test=test)
 
 
 class BaseModel(ABC):
@@ -239,16 +240,19 @@ class BaseModel(ABC):
         models, scalers, y_pred, y_prob = [], [], [], []
         fold_scorers = defaultdict(list)
         parallel = Parallel(n_jobs=self.__n_jobs)
-        folds = parallel(delayed(_kfold)(self._estimator, fitparams, self.__x.iloc[train], self.__y.iloc[train],
-                                         self.__x.iloc[test], self.__normalize) for train, test in self.__cv())
+        _x = self.__x.as_matrix()
+        _y = self.__y.as_matrix()
+        folds = parallel(delayed(_kfold)(self._estimator, fitparams, _x, _y, train, test, self.__normalize)
+                         for train, test in self.__cv())
 
         #  street magic. split folds to repetitions
         for kfold in zip(*[iter(folds)] * self.__nfold):
             ky_pred, ky_prob = [], []
             for fold in kfold:
-                ky_pred.append(fold.pred)
+                index = self.__y.iloc[fold.test].index
+                ky_pred.append(Series(fold.pred, index=index))
                 if fold.prob is not None:
-                    ky_prob.append(fold.prob)
+                    ky_prob.append(DataFrame(fold.prob, index=index, columns=fold.estimator.classes_))
 
                 models.append(fold.estimator)
                 scalers.append(fold.scaler)
@@ -289,15 +293,18 @@ class BaseModel(ABC):
     def __domain_fit(self):
         models, scalers, y_pred, y_prob = [], [], [], []
         parallel = Parallel(n_jobs=self.__n_jobs)
-        folds = parallel(delayed(_kfold)(self.__domain_class, {}, self.__x.iloc[train], self.__y.iloc[train],
-                                         self.__x.iloc[test], self.__domain_normalize) for train, test in self.__cv())
+        _x = self.__x.as_matrix()
+        _y = self.__y.as_matrix()
+        folds = parallel(delayed(_kfold)(self.__domain_class, {}, _x, _y, train, test, self.__domain_normalize)
+                         for train, test in self.__cv())
 
         for kfold in zip(*[iter(folds)] * self.__nfold):
             ky_pred, ky_prob = [], []
             for fold in kfold:
-                ky_pred.append(fold.pred)
+                index = self.__y.iloc[fold.test].index
+                ky_pred.append(Series(fold.pred, index=index))
                 if fold.prob is not None:
-                    ky_prob.append(fold.prob)
+                    ky_prob.append(DataFrame(fold.prob, index=index, columns=fold.estimator.classes_))
 
                 models.append(fold.estimator)
                 scalers.append(fold.scaler)
