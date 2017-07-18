@@ -130,10 +130,12 @@ class CGRatomMarker(object):
     def __init_common(self, patterns, preprocess, postprocess, reverse):
         self.__std_prerules = preprocess
         self.__std_postrules = postprocess
-        self.__markers = len(patterns[0]['products'][0])
         self.__reverse = reverse
         self.__templates = patterns
-        self.__patterns = self.__react.get_template_searcher(self.__react.get_templates(patterns))
+
+        templates = self.__react.get_templates(patterns)
+        self.__markers = len(templates[0].products)
+        self.__patterns = self.__react.get_template_searcher(templates)
 
     def pickle(self):
         config = self.__cgr.pickle()
@@ -192,7 +194,7 @@ class CGRatomMarker(object):
         gs = [self.__cgr.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
         for g in gs:
             # list of list of tuples(atom, mark) of matched centers
-            marks = [[[x, y['mark']] for x, y in match['products'].nodes(data=True)] for match in self.__patterns(g)]
+            marks = [[(x, y['mark']) for x, y in match['products'].nodes(data=True)] for match in self.__patterns(g)]
             markslist.append(marks)
 
         if self.__std_postrules:
