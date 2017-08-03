@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
@@ -20,6 +19,7 @@
 #  MA 02110-1301, USA.
 #
 from .basedomain import Domain
+from ..pandas import to_pickle, read_pickle
 
 
 class Box(Domain):
@@ -30,14 +30,14 @@ class Box(Domain):
         pass
 
     def pickle(self):
-        return dict(min=self.__x_min, max=self.__x_max)
+        return dict(min=to_pickle(self.__x_min), max=to_pickle(self.__x_max))
 
     @classmethod
     def unpickle(cls, config):
         if {'min', 'max'}.difference(config):
             raise Exception('Invalid config')
         obj = cls.__new__(cls)
-        obj._init_unpickle(config['min'], config['max'])
+        obj._init_unpickle(read_pickle(config['min']), read_pickle(config['max']))
         return obj
 
     def _init_unpickle(self, _min, _max):

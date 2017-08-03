@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
