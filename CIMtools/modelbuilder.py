@@ -143,7 +143,7 @@ class ModelBuilder(MBparser):
             self.__clean_desc_gens(clean_descgens)
         else:
             if svm:  # for svm. todo: for rf etc.
-                self.__svm = self.__chk_est(self.get_svm_param(svm))
+                self.__svm = self.__chk_est(self.get_svm_param([Path(x) for x in svm]))
                 print('SVM params loaded')
 
         self.__workpath = workpath

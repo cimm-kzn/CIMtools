@@ -36,7 +36,7 @@ setup(
     scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
     package_data={'CIMtools.preparers': ['unwanted.elem', 'standardrules_dragos.xml']},
     install_requires=['CGRtools>=2.7,<2.8', 'pandas>=0.20.3,<0.21', 'sortedcontainers>=1.5.7,<1.6',
-                      'sklearn>=0.18.1,<0.19', 'requests>=2.13.0', 'multiprocess>=0.70.5'],
+                      'scikit-learn>=0.18.1,<0.19', 'requests>=2.13.0', 'multiprocess>=0.70.5', 'scipy>=0.19.0,<0.20'],
     dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools-2.7'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",

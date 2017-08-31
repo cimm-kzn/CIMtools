@@ -164,7 +164,7 @@ class BaseModel(ABC):
                 prob.append(y_pa)
 
             x_t = DataFrame(domain_scaler.transform(d_x), columns=d_x.columns) if domain_scaler else d_x
-            dom.append(Series(domain.predict(x_t), index=d_x.index))
+            dom.append(Series(domain.predict(x_t), index=d_x.index) & d_ad)
 
         return ResultContainer(prediction=concat(pred, axis=1), domain=concat(dom, axis=1),
                                probability=concat(prob, axis=1, keys=range(len(prob))) if prob else None)
