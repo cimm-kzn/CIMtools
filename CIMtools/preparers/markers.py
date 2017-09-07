@@ -194,7 +194,7 @@ class CGRatomMarker(object):
         gs = [self.__cgr.getCGR(x) for x in (structure if isinstance(structure, list) else [structure])]
         for g in gs:
             # list of list of tuples(atom, mark) of matched centers
-            marks = [[(x, y['mark']) for x, y in match['products'].nodes(data=True)] for match in self.__patterns(g)]
+            marks = [[(x, y['mark']) for x, y in match.patch.nodes(data=True)] for match in self.__patterns(g)]
             markslist.append(marks)
 
         if self.__std_postrules:
