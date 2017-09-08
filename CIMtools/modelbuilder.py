@@ -295,7 +295,7 @@ class ModelBuilder(MBparser):
             if hasattr(gen, 'delete_work_path'):
                 gen.delete_work_path()
 
-        out = dict(models=[load(bz2_open(str(workpath / str(x)), 'rb')) for x in range(next(mnums))],
+        out = dict(models=[load(bz2_open(str(workpath / str(x)), 'rb')) for _, x in models],
                    config=self.__description)
         print('Model CREATED\nstart saving')
 
