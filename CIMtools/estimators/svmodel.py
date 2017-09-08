@@ -52,11 +52,11 @@ class SVModel(BaseModel):
     def __init_common(self, estimator, max_iter, probability):
         self.__max_iter = max_iter
         self.__estimator = estimator
-        self.__probability = [probability]
+        self.__probability = probability
 
     def pickle(self):
         config = super(SVModel, self).pickle()
-        config.update(estimator=self.__estimator, max_iter=self.__max_iter, probability=self.__probability[0],
+        config.update(estimator=self.__estimator, max_iter=self.__max_iter, probability=self.__probability,
                       models=[dict(shape_fit_=x.shape_fit_, support_=x.support_, support_vectors_=x.support_vectors_,
                                    n_support_=x.n_support_, _dual_coef_=x._dual_coef_, _intercept_=x._intercept_,
                                    probA_=x.probA_, probB_=x.probB_, _sparse=x._sparse, _gamma=x._gamma)
@@ -74,15 +74,18 @@ class SVModel(BaseModel):
 
     @property
     def _estimator(self):
+        if self.__estimator == 'svc':
+            return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter,
+                           probability=self.__probability)
         return partial(self.__estimators[self.__estimator], max_iter=self.__max_iter)
 
     def _prepare_params(self, param):
         base = dict(C=param['C'], tol=param['tol'])
-        base.update(dict(epsilon=param['epsilon'])
-                    if self.__estimator == 'svr' else dict(probability=self.__probability))
+        if self.__estimator == 'svr':
+            base['epsilon'] = param['epsilon']
 
         if param['kernel'][0] == 'linear':  # u'*v
-            base.update(kernel=['linear'])
+            base['kernel'] = ['linear']
         elif param['kernel'][0] == 'rbf':  # exp(-gamma*|u-v|^2)
             base.update(kernel=['rbf'], gamma=param['gamma'])
         elif param['kernel'][0] == 'sigmoid':  # tanh(gamma*u'*v + coef0)
@@ -91,9 +94,9 @@ class SVModel(BaseModel):
             base.update(kernel=['poly'], gamma=param['gamma'], coef0=param['coef0'], degree=param['degree'])
 
         elif isinstance(param['kernel'], list) and all(callable(x) for x in param['kernel']):
-            base.update(kernel=param['kernel'])
+            base['kernel'] = param['kernel']
         elif callable(param['kernel']):
-            base.update(kernel=[param['kernel']])
+            base['kernel'] = [param['kernel']]
         else:
             return []
 
