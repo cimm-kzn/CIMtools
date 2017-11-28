@@ -208,7 +208,8 @@ class ModelBuilder(MBparser):
 
         if extension:
             parsed = MBparser.parse_ext(extension)
-            descgenerator['E'] = [partial(DescriptorsDict, **parsed)]
+            if parsed['data']:
+                descgenerator['E'] = [partial(DescriptorsDict, **parsed)]
             s_option = parsed['s_option']
         else:
             s_option = None
@@ -266,7 +267,7 @@ class ModelBuilder(MBparser):
 
     def fit(self, input_file):
         models = SortedListWithKey(key=lambda mn: mn[0])
-        with input_file.open() as f:
+        with input_file.open(encoding='utf-8') as f:
             inp = (RDFread(f) if self.__is_reaction else SDFread(f)).read()
 
         workpath = Path(mkdtemp(prefix='mod_', dir=self.__workpath))
@@ -326,7 +327,7 @@ class ModelBuilder(MBparser):
         self.__generators = tmp
 
     def __gen_desc(self, input_file, output, fformat='svm', header=False):
-        with input_file.open() as f:
+        with input_file.open(encoding='utf-8') as f:
             data = f.read()
 
         task_queue = Queue()
