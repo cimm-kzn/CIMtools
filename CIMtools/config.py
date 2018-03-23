@@ -19,12 +19,11 @@
 #  MA 02110-1301, USA.
 #
 from pathlib import Path
-from os.path import expanduser  # python 3.4 ad-hoc
 from sys import stderr
 from traceback import format_exc
 
 
-UTILS_DIR = Path(expanduser('~'))
+UTILS_DIR = Path('~').expanduser()
 GACONF_PATH = UTILS_DIR / 'GAconfig'
 LIBSVM_PATH = GACONF_PATH / 'libsvm-3.20'
 
@@ -36,12 +35,10 @@ EED = 'eedstart.sh'
 COLOR = 'colorstart.sh'
 GACONF = 'dragosgfstarter.sh'
 
-config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR')
+config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR', 'MOLCONVERT', 'STANDARDIZER')
+config_save_list = ('UTILS_DIR', 'GACONF_PATH', 'LIBSVM_PATH') + config_list
 
-config_save_list = ['UTILS_DIR', 'GACONF_PATH', 'LIBSVM_PATH']
-config_save_list.extend(config_list)
-
-config_dirs = [x / '.CIMtools.ini' for x in (Path(__file__).parent, Path(expanduser('~')), Path('/etc'))]
+config_dirs = [x / '.CIMtools.ini' for x in (Path(__file__).parent, Path('~').expanduser(), Path('/etc'))]
 
 if not any(x.exists() for x in config_dirs):
     with config_dirs[1].open('w') as f:
@@ -63,11 +60,15 @@ with next(x for x in config_dirs if x.exists()).open() as f:
 
 JCHEMBIN = Path(JCHEM_DIR) / 'bin'
 
-MOLCONVERT = str(JCHEMBIN / 'molconvert')
-STANDARDIZER = str(JCHEMBIN / 'standardize')
+
 CXCALC = str(JCHEMBIN / 'cxcalc')
 REACTOR = str(JCHEMBIN / 'react')
 JCSEARCH = str(JCHEMBIN / 'jcsearch')
 PMAPPER = str(JCHEMBIN / 'pmapper')
+
+if 'MOLCONVERT' not in locals():
+    MOLCONVERT = str(JCHEMBIN / 'molconvert')
+if 'STANDARDIZER' not in locals():
+    STANDARDIZER = str(JCHEMBIN / 'standardize')
 
 FRAGMENTOR = str(FRAGMENTOR)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of MODtools.
 #
 #  MODtools is free software; you can redistribute it and/or modify
@@ -34,10 +34,10 @@ setup(
     description='Modeler tools',
     entry_points={'console_scripts': ['cimtools=CIMtools.CLI:launcher']},
     scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
-    package_data={'CIMtools.preparers': ['unwanted.elem', 'standardrules_dragos.xml']},
-    install_requires=['CGRtools>=2.7,<2.8', 'pandas>=0.20.3,<0.21', 'sortedcontainers>=1.5.7,<1.6',
-                      'scikit-learn>=0.18.1,<0.19', 'requests>=2.13.0', 'multiprocess>=0.70.5', 'scipy>=0.19.0,<0.20'],
-    dependency_links=['git+https://github.com/stsouko/CGRtools.git@master#egg=CGRtools-2.7'],
+    package_data={'CIMtools.preprocessing.standardize': ['horvat.unwanted', 'horvat.xml']},
+    install_requires=['CGRtools>=2.8,<2.9', 'pandas>=0.22.0,<0.23', 'scikit-learn>=0.19.0,<0.20',
+                      'requests>=2.18.4,<2.19', 'scipy>=1.0.0,<1.1',
+                      'multiprocess>=0.70.5', 'sortedcontainers>=1.5.7,<1.6'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
@@ -49,7 +49,6 @@ setup(
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
-                 'Programming Language :: Python :: 3.4',
-                 'Programming Language :: Python :: 3.5',
+                 'Programming Language :: Python :: 3.6',
                  ]
 )
