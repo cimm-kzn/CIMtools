@@ -23,6 +23,7 @@ from CGRtools.core import CGRcore
 from operator import itemgetter
 from pathlib import Path
 from .chemaxon import StandardizeChemAxon
+from ..common import iter2array
 
 
 class StandardizeHorvat(StandardizeChemAxon):
@@ -34,10 +35,8 @@ class StandardizeHorvat(StandardizeChemAxon):
         self.max_main_size = max_main_size
         super().__init__(rules or self.__load_rules())
 
-    def set_params(self, **params):
-        super().set_params(**params)
-        self.unwanted = set(self.unwanted)
-        return self
+    def set_params(self, unwanted, **params):
+        return super().set_params(unwanted=set(unwanted), **params)
 
     def transform(self, x, y=None):
         """
@@ -69,7 +68,7 @@ class StandardizeHorvat(StandardizeChemAxon):
                     res.append(species[-1][1])
                 else:
                     res.append(None)
-        return res
+        return iter2array(res)
 
     @staticmethod
     def __load_rules():

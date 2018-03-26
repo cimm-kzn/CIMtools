@@ -18,5 +18,6 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from .cgr import StandardizeCGR
 from .chemaxon import StandardizeChemAxon
 from .horvat import StandardizeHorvat

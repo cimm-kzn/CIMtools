@@ -29,13 +29,14 @@ def iter2array(data, dtype=BaseContainer):
         data = list(data)
 
     assert data, 'empty input array'
-    assert all(isinstance(x, dtype) for x in data), ''
+    assert all(isinstance(x, dtype) for x in data if x is not None), ''
 
     if isinstance(data, ndarray):
         return data
 
     out = empty(len(data), dtype=object)
     for n, x in enumerate(data):
-        out[n] = x
+        if x is not None:
+            out[n] = x
 
     return out
