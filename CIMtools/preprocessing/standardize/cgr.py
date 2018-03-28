@@ -19,9 +19,8 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools import CGRreactor
-from CGRtools.containers import ReactionContainer
-from sklearn.base import BaseEstimator, TransformerMixin
-from ..common import iter2array
+from sklearn.base import BaseEstimator
+from ..common import iter2array, TransformerMixin
 
 
 class StandardizeCGR(BaseEstimator, TransformerMixin):
@@ -57,22 +56,19 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
 
         assert templates or balance_groups, 'invalid params. need balance_groups or/and templates'
 
-    def get_params(self, *args, **kwargs):
-        params = super().get_params(*args, **kwargs)
-        params['templates'] = [x.pickle() for x in params['templates']]
-        return params
-
-    def set_params(self, templates, **params):
-        return super().set_params(templates=[ReactionContainer.unpickle(x) for x in templates], **params)
+    def __getstate__(self):
+        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeCGR__')}
 
     def transform(self, x, y=None):
+        x = super().transform(x, y)
+
         if self.__reactor is None:
             self.__reactor = CGRreactor(extralabels=self.extralabels, isotope=self.isotope, element=self.element,
                                         stereo=self.stereo)
             if self.__searcher is None and self.templates:
                 self.__searcher = self.__reactor.get_template_searcher(self.__reactor.prepare_templates(self.templates))
 
-        return iter2array(self.__prepare(g) if g is not None else None for g in iter2array(x))
+        return iter2array((self.__prepare(g) for g in x), allow_none=True)
 
     def __prepare(self, g):
         if self.balance_groups:

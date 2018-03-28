@@ -23,8 +23,8 @@ from io import StringIO, BytesIO
 from requests import post
 from requests.exceptions import RequestException
 from subprocess import run, PIPE
-from sklearn.base import BaseEstimator, TransformerMixin
-from ..common import iter2array
+from sklearn.base import BaseEstimator
+from ..common import iter2array, TransformerMixin
 from ...config import STANDARDIZER, CHEMAXON
 from ...exceptions import ConfigurationError
 
@@ -33,17 +33,9 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
     def __init__(self, rules):
         self.rules = rules
 
-    def fit(self, x, y=None):
-        """Do nothing and return the estimator unchanged
-
-        This method is just there to implement the usual API and hence work in pipelines.
-        """
-        iter2array(x)
-        return self
-
     def transform(self, x, y=None):
-        checked = iter2array(x)
-        return iter2array(self.__processor_m(checked) if checked.size > 1 else self.__processor_s(checked[0]))
+        x = super().transform(x, y)
+        return iter2array(self.__processor_m(x) if x.size > 1 else self.__processor_s(x[0]), allow_none=True)
 
     def __processor_m(self, structures):
         with StringIO() as f, MRVwrite(f) as w:

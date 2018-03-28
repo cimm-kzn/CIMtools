@@ -54,7 +54,7 @@ class StandardizeHorvat(StandardizeChemAxon):
         """
 
         res = []
-        for s in super().transform(x):
+        for s in super().transform(x, y):
             if s is None or not isinstance(s, MoleculeContainer):
                 res.append(None)
             else:
@@ -68,7 +68,7 @@ class StandardizeHorvat(StandardizeChemAxon):
                     res.append(species[-1][1])
                 else:
                     res.append(None)
-        return iter2array(res)
+        return iter2array(res, allow_none=True)
 
     @staticmethod
     def __load_rules():
