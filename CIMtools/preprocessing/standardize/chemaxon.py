@@ -33,8 +33,8 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
     def __init__(self, rules):
         self.rules = rules
 
-    def transform(self, x, y=None):
-        x = super().transform(x, y)
+    def transform(self, x):
+        x = super().transform(x)
         return iter2array(self.__processor_m(x) if x.size > 1 else self.__processor_s(x[0]), allow_none=True)
 
     def __processor_m(self, structures):

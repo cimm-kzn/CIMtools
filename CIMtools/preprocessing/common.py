@@ -18,12 +18,12 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.containers.common import BaseContainer
+from CGRtools.containers import ReactionContainer, MoleculeContainer
 from numpy import empty, ndarray
 from sklearn.base import TransformerMixin as _TransformerMixin
 
 
-def iter2array(data, dtype=BaseContainer, allow_none=False):
+def iter2array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
     if isinstance(data, ndarray):
         assert len(data.shape) == 1, 'invalid input array shape'
     elif not isinstance(data, (list, tuple)):  # try to unpack iterable
@@ -45,7 +45,7 @@ def iter2array(data, dtype=BaseContainer, allow_none=False):
     return out
 
 
-def nested_iter_to_2d_array(data, dtype=BaseContainer, allow_none=False):
+def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
     if isinstance(data, ndarray):
         assert len(data.shape) == 2, 'invalid input array shape'
         assert data.size, 'empty input array'
@@ -84,8 +84,15 @@ class TransformerMixin(_TransformerMixin):
 
         This method is just there to implement the usual API and hence work in pipelines.
         """
-        iter2array(x)
+        if self._dtype is not None:
+            iter2array(x, dtype=self._dtype)
+        else:
+            iter2array(x)
         return self
 
-    def transform(self, x, y=None):
+    def transform(self, x):
+        if self._dtype is not None:
+            return iter2array(x, dtype=self._dtype)
         return iter2array(x)
+
+    _dtype = None

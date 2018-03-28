@@ -19,6 +19,7 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools import CGRreactor
+from CGRtools.containers import MoleculeContainer
 from sklearn.base import BaseEstimator
 from ..common import iter2array, TransformerMixin
 
@@ -59,8 +60,8 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeCGR__')}
 
-    def transform(self, x, y=None):
-        x = super().transform(x, y)
+    def transform(self, x):
+        x = super().transform(x)
 
         if self.__reactor is None:
             self.__reactor = CGRreactor(extralabels=self.extralabels, isotope=self.isotope, element=self.element,
@@ -95,3 +96,4 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
         return g
 
     __searcher = __reactor = None
+    _dtype = MoleculeContainer

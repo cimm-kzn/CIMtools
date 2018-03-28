@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.containers import ReactionContainer
 from CGRtools.preparer import CGRpreparer
 from CGRtools.reactor import CGRreactor
 from sklearn.base import BaseEstimator
@@ -32,20 +33,28 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
         self.stereo = stereo
         self.extralabels = extralabels
         self.only_first = only_first
+        self.__load()
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_AtomMarkerCGR__')}
 
-    def transform(self, x, y=None):
-        x = super().transform(x, y)
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.__load()
 
-        if self.__cgr is None:
-            self.__cgr = CGRpreparer(extralabels=self.extralabels)
-            self.__react = CGRreactor(stereo=self.stereo, extralabels=self.extralabels, isotope=self.isotope,
-                                      element=self.element)
-            templates = self.__react.prepare_templates(self.templates)
-            self.__markers = len(templates[0].products)
-            self.__templates = self.__react.get_template_searcher(templates)
+    def __load(self):
+        self.__cgr = CGRpreparer(extralabels=self.extralabels)
+        self.__react = CGRreactor(stereo=self.stereo, extralabels=self.extralabels, isotope=self.isotope,
+                                  element=self.element)
+        templates = self.__react.prepare_templates(self.templates)
+        markers = len([x for _, x in templates[0].patch.nodes(data='mark') if x != '0'])
+        assert markers, 'marks not found in templates'
+
+        self.__markers = markers
+        self.__templates = self.__react.get_template_searcher(templates)
+
+    def transform(self, x):
+        x = super().transform(x)
 
         if self.only_first:
             return iter2array((self.__prepare(r) or None for r in x), allow_none=True)
@@ -74,3 +83,4 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
         return result
 
     __cgr = __react = __markers = __templates = None
+    _dtype = ReactionContainer

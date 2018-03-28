@@ -38,7 +38,7 @@ class StandardizeHorvat(StandardizeChemAxon):
     def set_params(self, unwanted, **params):
         return super().set_params(unwanted=set(unwanted), **params)
 
-    def transform(self, x, y=None):
+    def transform(self, x):
         """
         Standardize Molecules by Dragos Horvat workflow
 
@@ -54,8 +54,8 @@ class StandardizeHorvat(StandardizeChemAxon):
         """
 
         res = []
-        for s in super().transform(x, y):
-            if s is None or not isinstance(s, MoleculeContainer):
+        for s in super().transform(x):
+            if s is None:
                 res.append(None)
             else:
                 species = sorted(((len([None for _, e in x.nodes(data='element') if e != 'H']), x)
@@ -82,3 +82,4 @@ class StandardizeHorvat(StandardizeChemAxon):
             out = set(f.read().split())
         return out
 
+    _dtype = MoleculeContainer
