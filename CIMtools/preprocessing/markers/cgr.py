@@ -50,7 +50,6 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
         markers = len([x for _, x in templates[0].patch.nodes(data='mark') if x != '0'])
         assert markers, 'marks not found in templates'
 
-        self.__markers = markers
         self.__templates = self.__react.get_template_searcher(templates)
 
     def transform(self, x):
@@ -59,9 +58,6 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
         if self.only_first:
             return iter2array((self.__prepare(r) or None for r in x), allow_none=True)
         return nested_iter_to_2d_array((self.__prepare(r) for r in x), allow_none=True)
-
-    def get_count(self):
-        return self.__markers
 
     def __prepare(self, structure):
         cgr = self.__cgr.condense(structure)
@@ -82,5 +78,5 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
 
         return result
 
-    __cgr = __react = __markers = __templates = None
+    __cgr = __react = __templates = None
     _dtype = ReactionContainer
