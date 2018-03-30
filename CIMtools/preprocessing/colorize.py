@@ -18,8 +18,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.containers import MoleculeContainer
+from CGRtools.containers import MoleculeContainer, ReactionContainer
 from CGRtools.files import SDFread, SDFwrite
+from itertools import tee, chain
 from os import close
 from pathlib import Path
 from shutil import rmtree
@@ -50,9 +51,9 @@ class Colorize(BaseEstimator, TransformerMixin):
         return {k: v for k, v in super().get_params(*args, **kwargs).items() if k != 'workpath'}
 
     def set_params(self, **params):
-        super().set_params(**params)
         if params:
-            self.set_work_path(str(self.__config.parent))
+            super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
+            self.set_work_path(params.get('workpath') or str(self.__config.parent))
         return self
 
     @staticmethod
@@ -79,15 +80,15 @@ class Colorize(BaseEstimator, TransformerMixin):
         x = super().transform(x)
 
         work_dir = Path(mkdtemp(prefix='clr_', dir=str(self.__config.parent)))
-        input_file = work_dir / 'colorin.sdf'
+        inp_file = work_dir / 'colorin.sdf'
         out_file = work_dir / 'colorout.sdf'
 
-        with input_file.open('w') as f, SDFwrite(f) as w:
+        with inp_file.open('w') as f, SDFwrite(f) as w:
             for s in x:
                 w.write(s)
 
         try:
-            p = run([COLOR, str(input_file), str(out_file), str(self.__config)], stderr=PIPE, stdout=PIPE)
+            p = run([COLOR, str(inp_file), str(out_file), str(self.__config)], stderr=PIPE, stdout=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 
@@ -104,3 +105,33 @@ class Colorize(BaseEstimator, TransformerMixin):
 
     __config = None
     _dtype = MoleculeContainer
+
+
+class ColorizeReaction(Colorize):
+    def transform(self, x):
+        assert all(isinstance(s, ReactionContainer) for s in x), 'invalid dtype, olny ReactionContainers acceptable'
+
+        res = {}
+        for i in ('reagents', 'products'):
+            mols, shifts = [], [0]
+            for s in x:
+                shifts.append(len(s[i]) + shifts[-1])
+                mols.extend(s[i])
+
+            colored = super().transform(mols)
+            res[i] = [colored[y: z] for y, z in self.__pairwise(shifts)]
+
+        out = []
+        for s, (r, p) in zip(x, res['reagents'], res['products']):
+            if any(i is None for i in chain(r, p)):
+                out.append(None)
+            else:
+                out.append(ReactionContainer(r, p, meta=s.meta))
+        return iter2array(out, allow_none=True)
+
+    @staticmethod
+    def __pairwise(iterable):
+        """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+        a, b = tee(iterable)
+        next(b, None)
+        return zip(a, b)

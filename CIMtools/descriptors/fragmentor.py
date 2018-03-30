@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,65 +18,30 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.preparer import CGRcombo
-from CGRtools.files.SDFrw import SDFwrite
-from itertools import tee
+from CGRtools.containers import MoleculeContainer
+from CGRtools.files import SDFwrite
 from os import close
 from os.path import devnull
 from pandas import DataFrame, Series
 from pathlib import Path
 from shutil import rmtree
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.exceptions import NotFittedError
 from subprocess import call
 from sys import stderr
 from tempfile import mkdtemp, mkstemp
-from .basegenerator import BaseGenerator
 from ..config import FRAGMENTOR
-from ..preparers.colorize import Colorize
+from ..exceptions import ConfigurationError
+from ..preprocessing.common import iter2array
 
 
-class OpenFiles(object):
-    def __init__(self, files, flags):
-        if isinstance(files, Path):
-            files = [files]
-        if isinstance(flags, str):
-            flags = [flags]
-
-        if len(flags) == 1:
-            flags = flags * len(files)
-        elif len(flags) != len(files):
-            raise Exception('number of flags should be equal to number of files or equal to one')
-
-        self.files = files
-        self.flags = flags
-
-    def __enter__(self):
-        self.fhs = []
-        for f, fl in zip(self.files, self.flags):
-            self.fhs.append(f.open(fl))
-        return self.fhs
-
-    def __exit__(self, type_, value, traceback):
-        for f in self.fhs:
-            f.close()
-
-
-def pairwise(iterable):
-    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
-
-class Fragmentor(BaseGenerator):
-    def __init__(self, workpath='.', version=None,
-                 s_option=None, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0,
-                 cgr_dynbonds=0, xml=None, doallways=False, useformalcharge=False, atompairs=False, header=None,
-                 fragmentstrict=False, getatomfragment=False, overwrite=True, docolor=False, cgr_type=None,
-                 cgr_extralabels=False, cgr_b_templates=None, cgr_m_templates=None, cgr_isotope=False, cgr_element=True,
-                 cgr_stereo=False, is_reaction=False, marker_rules=None, standardize=False, cgr_marker=None,
-                 cgr_marker_preprocess=None, cgr_marker_postprocess=None, cgr_reverse=False):
+class Fragmentor(BaseEstimator, TransformerMixin):
+    def __init__(self, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0, cgr_dynbonds=0,
+                 xml=None, doallways=False, useformalcharge=False, atompairs=False, header=None, fragmentstrict=False,
+                 getatomfragment=False, overwrite=True, workpath='.', version=None, verbose=False):
         """
-        Fragmentor wrapper
+        ISIDA Fragmentor wrapper
+
         :param workpath: path for temp files.
         :param version: fragmentor version
         :param fragment_type: 
@@ -92,288 +57,150 @@ class Fragmentor(BaseGenerator):
         :param fragmentstrict: 
         :param getatomfragment: 
         :param overwrite: 
-        :param header: 
-        :param docolor: Automatic coloring utility. see colorname.
-          string with chemaxon standardizer rules (xml or ..- separated params)
-          if False - skipped. if None - use predefined rules.
-        :param cgr_type: type of generated CGR. see CGRtools help.
-          if None - skipped. usable with is_reaction=True only.
-        :param cgr_b_templates: list of reactioncontainers with termplates for autobalancing reactions
-        :param cgr_m_templates: list of reactioncontainers with termplates for reactions mapping correction
-        :param cgr_extralabels: match neighbors and hyb marks in substructure search. 
-          Need for CGRatomMarker or CGRcombo balanser/remapper
-        :param cgr_isotope: match isotope. see cgr_extralabels
-        :param cgr_element: match stereo. see cgr_extralabels
-        :param cgr_stereo: match stereo.
+        :param header:
         """
-        if is_reaction:
-            if not (cgr_type or cgr_marker):
-                raise Exception('only cgr_type or cgr_marker can work with reactions')
-        elif cgr_type:
-            raise Exception('for cgr_type is_reaction should be True')
+        self.fragment_type = fragment_type
+        self.min_length = min_length
+        self.max_length = max_length
+        self.colorname = colorname
+        self.marked_atom = marked_atom
+        self.cgr_dynbonds = cgr_dynbonds
+        self.xml = xml
+        self.doallways = doallways
+        self.useformalcharge = useformalcharge
+        self.atompairs = atompairs
+        self.header = header
+        self.fragmentstrict = fragmentstrict
+        self.getatomfragment = getatomfragment
+        self.overwrite = overwrite
+        self.version = version
+        self.verbose = verbose
 
-        BaseGenerator.__init__(self,  workpath=workpath, s_option=s_option, marker_rules=marker_rules,
-                               standardize=standardize, cgr_marker=cgr_marker, cgr_isotope=cgr_isotope,
-                               cgr_marker_preprocess=cgr_marker_preprocess, cgr_extralabels=cgr_extralabels,
-                               cgr_marker_postprocess=cgr_marker_postprocess, cgr_element=cgr_element,
-                               cgr_stereo=cgr_stereo, cgr_b_templates=cgr_b_templates, cgr_m_templates=cgr_m_templates,
-                               cgr_reverse=cgr_reverse, is_reaction=is_reaction)
+        self.__init_header(header)
+        self.set_work_path(workpath)
 
-        if cgr_type:
-            self.__cgr = CGRcombo(cgr_type=cgr_type, extralabels=cgr_extralabels, isotope=cgr_isotope,
-                                  element=cgr_element, stereo=cgr_stereo,
-                                  b_templates=cgr_b_templates, m_templates=cgr_m_templates)
+    def __getstate__(self):
+        return {k: v for k, v in super().__getstate__().items()
+                if k != 'header' and
+                (not k.startswith('_Fragmentor__') or
+                 k in ('_Fragmentor__head_dump', '_Fragmentor__head_less', '_Fragmentor__head_generate'))}
 
-        if docolor or docolor is None:
-            self.__do_color = Colorize(docolor, workpath)
+    def __setstate__(self, state):
+        super().__setstate__({k: v for k, v in state.items() if k != '_Fragmentor__head_dump'})
+        if state.get('_Fragmentor__head_dump'):
+            self.__load_header(state['_Fragmentor__head_dump'])
+        self.set_work_path('.')
 
-        self.__init_common(version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
-                           doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite,
-                           is_reaction, header, workpath=workpath)
+    def __del__(self):
+        self.delete_work_path()
 
-    def _init_unpickle(self, version, s_option, fragment_type, min_length, max_length, colorname, marked_atom,
-                       cgr_dynbonds, xml, doallways, useformalcharge, atompairs, header, fragmentstrict,
-                       getatomfragment, overwrite, docolor, cgr_type, cgr_extralabels, cgr_b_templates, cgr_m_templates,
-                       cgr_isotope, cgr_element, cgr_stereo, is_reaction, marker_rules, standardize, cgr_marker,
-                       cgr_marker_preprocess, cgr_marker_postprocess, cgr_reverse, **config):
+    def get_params(self, *args, **kwargs):
+        init = {k: v for k, v in super().get_params(*args, **kwargs).items() if k not in ('workpath', 'header')}
+        init.update(__head_generate=self.__head_generate, __head_less=self.__head_less, __head_dump=self.__head_dump)
+        return init
 
-        BaseGenerator._init_unpickle(self, s_option, cgr_isotope, cgr_element, cgr_stereo, cgr_marker_preprocess,
-                                     cgr_marker_postprocess, cgr_extralabels, cgr_reverse, is_reaction,
-                                     marker_rules, cgr_marker, cgr_b_templates, cgr_m_templates, standardize, **config)
+    def set_params(self, **params):
+        if params:
+            super().set_params(**{k: v for k, v in params.items() if not k.startswith('__head_')})
+            if 'header' in params:
+                self.__init_header(params['header'])
+            else:
+                try:
+                    dump = params['__head_dump']
+                    self.__head_generate = params['__head_generate']
+                    self.__head_less = params['__head_less']
+                except KeyError as e:
+                    raise ConfigurationError(e)
 
-        if cgr_type:
-            self.__cgr = CGRcombo.unpickle(dict(cgr_type=cgr_type, extralabels=cgr_extralabels, isotope=cgr_isotope,
-                                                element=cgr_element, stereo=cgr_stereo,
-                                                b_templates=cgr_b_templates, m_templates=cgr_m_templates))
+                if dump:
+                    self.__load_header(dump)
 
-        if docolor:
-            self.__do_color = Colorize.unpickle(dict(standardize=docolor))
-
-        self.__init_common(version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
-                           doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite,
-                           is_reaction, header, reload=True)
-
-    def __init_common(self, version, fragment_type, min_length, max_length, colorname, marked_atom, cgr_dynbonds, xml,
-                      doallways, useformalcharge, atompairs, fragmentstrict, getatomfragment, overwrite, is_reaction,
-                      header, workpath='.', reload=False):
-        self.__frag_version = ('-%s' % version) if version else ''
-        self.__work_files = self._markers_count or 1
-        self.__is_reaction = is_reaction
-        self.__workpath = Path(workpath)
-
-        self.__head_dump = {}
-        self.__head_size = {}
-        self.__head_dict = {}
-        self.__head_cols = {}
-        self.__head_exec = {}
-
-        if header:
-            self.__gen_header = False
-            self.__manual_header = True
-            headers = header if isinstance(header, list) else [header]
-            if len(headers) != self.__work_files:
-                raise Exception('number header files should be equal to number of markers or 1')
-
-            for n, h in enumerate(headers):
-                (self.__head_dump[n], self.__head_dict[n], self.__head_cols[n],
-                 self.__head_size[n]) = self.__parse_header(h if reload else Path(h), reload=reload)
-            self.__prepare_headers()
-
-        elif header is not None:
-            self.__gen_header = False
-            self.__headerless = True
-
-        tmp = ['-f', 'SVM', '-t', str(fragment_type), '-l', str(min_length), '-u', str(max_length)]
-
-        if colorname:
-            tmp.extend(['-c', colorname])
-        if marked_atom:
-            tmp.extend(['-m', str(marked_atom)])
-        if cgr_dynbonds:
-            tmp.extend(['-d', str(cgr_dynbonds)])
-        if xml:
-            tmp.extend(['-x', xml])
-        if doallways:
-            tmp.append('--DoAllWays')
-        if atompairs:
-            tmp.append('--AtomPairs')
-        if useformalcharge:
-            tmp.append('--UseFormalCharge')
-        if fragmentstrict:
-            tmp.append('--StrictFrg')
-        if getatomfragment:
-            tmp.append('--GetAtomFragment')
-        if not overwrite:
-            tmp.append('--Pipe')
-
-        self.__exec_params = tmp
-
-        self.__pickle = dict(version=version, fragment_type=fragment_type, min_length=min_length, max_length=max_length,
-                             colorname=colorname, marked_atom=marked_atom, cgr_dynbonds=cgr_dynbonds, xml=xml,
-                             doallways=doallways, useformalcharge=useformalcharge, atompairs=atompairs,
-                             fragmentstrict=fragmentstrict, getatomfragment=getatomfragment, overwrite=overwrite,
-                             header=None, docolor=False, cgr_type=None)
-
-    __gen_header = True
-    __manual_header = False
-    __headerless = False
-    __do_color = None
-    __cgr = None
-
-    def pickle(self):
-        config = super(Fragmentor, self).pickle()
-        config.update(self.__pickle)
-
-        if self.__cgr is not None:
-            tmp = self.__cgr.pickle()
-            config.update(cgr_type=tmp['cgr_type'], cgr_b_templates=tmp['b_templates'],
-                          cgr_m_templates=tmp['m_templates'])
-        if self.__do_color is not None:
-            config['docolor'] = self.__do_color.pickle()['standardize']
-        if self.__headerless:
-            config['header'] = False
-        elif not self.__gen_header:
-            config['header'] = [self.__head_dump[x] for x in sorted(self.__head_dump)]
-        return config
-
-    @classmethod
-    def unpickle(cls, config):
-        args = {'version', 'fragment_type', 'min_length', 'max_length', 'colorname', 'marked_atom', 'cgr_dynbonds',
-                'xml', 'doallways', 'useformalcharge', 'atompairs', 'fragmentstrict', 'getatomfragment', 'overwrite',
-                'header', 'docolor', 'cgr_type'}
-        if args.difference(config):
-            raise Exception('Invalid config')
-
-        BaseGenerator.unpickle(config)
-        obj = cls.__new__(cls)
-        obj._init_unpickle(**config)
-        return obj
-
-    @property
-    def __fragmentor(self):
-        return '%s%s' % (FRAGMENTOR, self.__frag_version)
-
-    @staticmethod
-    def __parse_header(header, reload=False):
-        if reload:
-            head_dump = header
-        else:
-            with header.open(encoding='utf-8') as f:
-                head_dump = f.read()
-        head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
-        head_columns = list(head_dict.values())
-        head_size = len(head_dict)
-        return head_dump, head_dict, head_columns, head_size
+            self.set_work_path(params.get('workpath') or str(self.__workpath))
+        return self
 
     def set_work_path(self, workpath):
         self.delete_work_path()
-        super(Fragmentor, self).set_work_path(workpath)
-        if self.__do_color:
-            self.__do_color.set_work_path(workpath)
 
         self.__workpath = Path(workpath)
-        if not (self.__headerless or self.__gen_header):
+        if not (self.__head_less or self.__head_generate):
             self.__prepare_headers()
 
     def delete_work_path(self):
-        super(Fragmentor, self).delete_work_path()
-        if self.__do_color:
-            self.__do_color.delete_work_path()
+        if self.__head_exec is not None:
+            self.__head_exec.unlink()
+            self.__head_exec = None
 
-        if not (self.__headerless or self.__gen_header) and self.__head_exec:
-            for n in range(self.__work_files):
-                self.__head_exec.pop(n).unlink()
-
-    def __prepare_headers(self):
-        for n in range(self.__work_files):
-            fd, fn = mkstemp(prefix='frg_', suffix='.hdr', dir=str(self.__workpath))
-            header = Path(fn)
-            with header.open('w', encoding='utf-8') as f:
-                f.write(self.__head_dump[n])
-            close(fd)
-            self.__head_exec[n] = header
-
-    def _prepare(self, structures, **_):
-        """ PMAPPER and Standardizer works only with molecules. NOT CGR!
-        :param structures: list of MoleculeContainers or ReactionContainers (work only in CGR or CGR-marked atoms mode)
+    def _reset(self):
+        """Reset internal data-dependent state.
+        __init__ parameters are not touched.
         """
-        if self._dragos_std:
-            structures = self._dragos_std.get(structures)
+        if not self.__head_less:
+            self.__head_generate = True
+            self.__head_dump = self.__head_dict = self.__head_cols = self.__head_size = self.__head_exec = None
 
-        if self.__do_color:
-            if self.__is_reaction:
-                for i in ('substrats', 'products'):
-                    mols, shifts = [], [0]
-                    for x in structures:
-                        shifts.append(len(x[i]) + shifts[-1])
-                        mols.extend(x[i])
+    def fit(self, x, y=None):
+        """Compute the header.
+        """
+        x = iter2array(x, dtype=MoleculeContainer)
 
-                    colored = self.__do_color.get(mols)
-                    if not colored:
-                        return False
+        if self.__head_less:
+            return self
 
-                    for (y, z), x in zip(pairwise(shifts), structures):
-                        x[i] = colored[y: z]
-            else:
-                structures = self.__do_color.get(structures)
+        self._reset()
+        self.__prepare(x)
+        return self
 
-        if not structures:
-            return False
+    def transform(self, x, return_domain=False):
+        if self.__head_generate and not self.__head_less:
+            raise NotFittedError('fragmentor instance is not fitted yet')
 
-        if self.__cgr:
-            structures = [self.__cgr.getCGR(x) for x in structures]
+        x = iter2array(x, dtype=MoleculeContainer)
+        x, d = self.__prepare(x)
+        if return_domain:
+            return x, d
+        return x
 
-        elif self._marker:
-            structures = self._marker.get(structures)
-
-        if not structures:
-            return False
-
+    def __prepare(self, x):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
-        work_sdf_files = [work_dir / ('frg_%d.sdf' % x) for x in range(self.__work_files)]
-        work_files = [(work_dir / ('frg_%d' % x), work_dir / ('frg_%d.svm' % x), work_dir / ('frg_%d.hdr' % x))
-                      for x in range(self.__work_files)]
+        inp_file = work_dir / 'input.sdf'
+        out_file = work_dir / 'output'
+        out_file_svm = work_dir / 'output.svm'
+        out_file_hdr = work_dir / 'output.hdr'
 
-        with OpenFiles(work_sdf_files, 'w') as f:
-            writers = [SDFwrite(x) for x in f]
-            prop, doubles = self._write_prepared(structures, writers)
+        with inp_file.open('w') as f, SDFwrite(f) as w:
+            for s in x:
+                w.write(s)
 
-        tx, td = [], []
-        for n, ((work_file, work_file_svm, work_file_hdr), work_sdf) in enumerate(zip(work_files, work_sdf_files)):
-            execparams = [self.__fragmentor, '-i', str(work_sdf), '-o', str(work_file)]
-            if not (self.__headerless or self.__gen_header):
-                execparams.extend(['-h', str(self.__head_exec[n])])
-            execparams.extend(self.__exec_params)
-
-            print(' '.join(execparams), file=stderr)
+        execparams = self.__exec_params(inp_file, out_file)
+        print(' '.join(execparams), file=stderr)
+        if self.verbose:
+            exitcode = call(execparams) == 0
+        else:
             with open(devnull, 'w') as silent:
                 exitcode = call(execparams, stdout=silent, stderr=silent) == 0
 
-            if exitcode and work_file_svm.exists() and work_file_hdr.exists():
-                if self.__headerless:
-                    head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)[1:]
-                elif self.__gen_header:  # dump header if don't set on first run
-                    self.__head_dump[n], self.__head_dict[n], self.__head_cols[n], self.__head_size[n] = \
-                        _, head_dict, head_cols, head_size = self.__parse_header(work_file_hdr)
-
-                    if n + 1 == self.__work_files:  # disable header generation
-                        self.__gen_header = False
-                        self.__prepare_headers()
-                else:
-                    head_dict, head_cols, head_size = self.__head_dict[n], self.__head_cols[n], self.__head_size[n]
-
-                x, d = self.__parse_fragmentor_output(work_file_svm, head_dict, head_cols, head_size)
-                tx.append(x)
-                td.append(d)
+        if exitcode and out_file_svm.exists() and out_file_hdr.exists():
+            if self.__head_less:
+                head_dict, head_cols, head_size = self.__parse_header(out_file_hdr)[1:]
             else:
-                rmtree(str(work_dir))
-                raise Exception('Fragmentor execution FAILED')
+                if self.__head_generate:  # dump header if don't set on first run
+                    self.__load_header(out_file_hdr)
+                    self.__head_generate = False
+                    self.__prepare_headers()
+
+                head_dict, head_cols, head_size = self.__head_dict, self.__head_cols, self.__head_size
+            try:
+                x, d = self.__parse_svm(out_file_svm, head_dict, head_cols, head_size)
+            except Exception as e:
+                raise ConfigurationError(e)
+        else:
+            raise ConfigurationError('Fragmentor execution FAILED')
 
         rmtree(str(work_dir))
-        return tx, prop, td, doubles
+        return x, d
 
     @staticmethod
-    def __parse_fragmentor_output(svm_file, head_dict, head_cols, head_size):
+    def __parse_svm(svm_file, head_dict, head_cols, head_size):
         vector, ad = [], []
         with svm_file.open() as sf:
             for frag in sf:
@@ -381,12 +208,80 @@ class Fragmentor(BaseGenerator):
                 ad.append(True)
                 tmp = {}  # X vector
                 for i in x:
-                    k, v = (int(x) for x in i.split(':'))
+                    k, v = i.split(':')
+                    k, v = int(k), int(v)
                     if k <= head_size:
                         tmp[head_dict[k]] = v
                     elif v != 0:
                         ad[-1] = False
                         break
-                vector.append(tmp)
+                vector.append(Series(tmp))
 
         return DataFrame(vector, columns=head_cols).fillna(0), Series(ad)
+
+    def __exec_params(self, inp, out):
+        tmp = ['%s-%s' % (FRAGMENTOR, self.version) if self.version else FRAGMENTOR, '-i', str(inp), '-o', str(out)]
+        if not (self.__head_less or self.__head_generate):
+            tmp.extend(('-h', str(self.__head_exec)))
+
+        tmp.extend(('-f', 'SVM', '-t', str(self.fragment_type), '-l', str(self.min_length), '-u', str(self.max_length)))
+
+        if self.colorname:
+            tmp.extend(['-c', self.colorname])
+        if self.marked_atom:
+            tmp.extend(['-m', str(self.marked_atom)])
+        if self.cgr_dynbonds:
+            tmp.extend(['-d', str(self.cgr_dynbonds)])
+        if self.xml:
+            tmp.extend(['-x', self.xml])
+        if self.doallways:
+            tmp.append('--DoAllWays')
+        if self.atompairs:
+            tmp.append('--AtomPairs')
+        if self.useformalcharge:
+            tmp.append('--UseFormalCharge')
+        if self.fragmentstrict:
+            tmp.append('--StrictFrg')
+        if self.getatomfragment:
+            tmp.append('--GetAtomFragment')
+        if not self.overwrite:
+            tmp.append('--Pipe')
+
+        return tuple(tmp)
+
+    @staticmethod
+    def __parse_header(header):
+        if isinstance(header, Path):
+            with header.open(encoding='utf-8') as f:
+                head_dump = f.read()
+        else:
+            head_dump = header
+
+        head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
+        return head_dump, head_dict, list(head_dict.values()), len(head_dict)
+
+    def __load_header(self, header):
+        self.__head_dump, self.__head_dict, self.__head_cols, self.__head_size = self.__parse_header(header)
+
+    def __init_header(self, header):
+        if header:
+            self.__head_generate = False
+            self.__head_less = False
+            self.__load_header(Path(header))
+        elif header is not None:
+            self.__head_generate = False
+            self.__head_less = True
+        else:
+            self.__head_generate = True
+            self.__head_less = False
+
+    def __prepare_headers(self):
+        fd, fn = mkstemp(prefix='frg_', suffix='.hdr', dir=str(self.__workpath))
+        self.__head_exec = header = Path(fn)
+        with header.open('w', encoding='utf-8') as f:
+            f.write(self.__head_dump)
+        close(fd)
+
+    __head_generate = True
+    __head_less = False
+    __head_dump = __head_size = __head_dict = __head_cols = __head_exec = __workpath = None

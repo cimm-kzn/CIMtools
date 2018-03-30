@@ -54,9 +54,9 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
         return {k: v for k, v in super().get_params(*args, **kwargs).items() if k != 'workpath'}
 
     def set_params(self, **params):
-        super().set_params(**params)
         if params:
-            self.set_work_path(str(self.__config.parent))
+            super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
+            self.set_work_path(params.get('workpath') or str(self.__config.parent))
         return self
 
     def set_work_path(self, workpath):
