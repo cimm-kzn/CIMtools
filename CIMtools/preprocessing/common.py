@@ -19,14 +19,16 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools.containers import ReactionContainer, MoleculeContainer
+from numbers import Number
 from numpy import empty, ndarray
+from pandas import DataFrame, Series
 from sklearn.base import TransformerMixin as _TransformerMixin
 
 
 def iter2array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
     if isinstance(data, ndarray):
         assert len(data.shape) == 1, 'invalid input array shape'
-    elif not isinstance(data, (list, tuple)):  # try to unpack iterable
+    elif not isinstance(data, (Series, list, tuple)):  # try to unpack iterable
         data = list(data)
 
     assert len(data), 'empty input array'
@@ -35,22 +37,30 @@ def iter2array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=Fa
     else:
         assert all(isinstance(x, dtype) for x in data), 'invalid dtype'
 
-    if isinstance(data, ndarray):
+    if isinstance(data, (ndarray, Series)):
         return data
 
-    out = empty(len(data), dtype=object)
-    for n, x in enumerate(data):
-        if x is not None:
-            out[n] = x
-    return out
+    if isinstance(dtype, tuple):
+        dtype = all(issubclass(x, Number) for x in dtype) and dtype[0] or object
+    if not issubclass(dtype, Number):
+        dtype = object
+
+    return Series(data, dtype=dtype)
 
 
 def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
-    if isinstance(data, ndarray):
-        assert len(data.shape) == 2, 'invalid input array shape'
+    if isinstance(data, (ndarray, DataFrame)):
         assert data.size, 'empty input array'
-        if not allow_none:
-            assert all(isinstance(x, dtype) for x in data.flat), 'invalid dtype'
+        if isinstance(data, DataFrame):
+            flat = data.values.flat
+        else:
+            assert len(data.shape) == 2, 'invalid input array shape'
+            flat = data.flat
+
+        if allow_none:
+            assert all(isinstance(x, dtype) for x in flat if x is not None), 'invalid dtype'
+        else:
+            assert all(isinstance(x, dtype) for x in flat), 'invalid dtype'
         return data
 
     if not isinstance(data, (list, tuple)):  # try to unpack iterable
@@ -70,12 +80,12 @@ def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer), 
         assert all(len(x) == shape for x in data[1:]), 'input data contains None'
         assert all(isinstance(y, dtype) for x in data for y in x), 'invalid dtype'
 
-    out = empty((len(data), shape), dtype=object)
-    for n, x in enumerate(data):
-        for m, y in enumerate(x):
-            if y is not None:
-                out[n, m] = y
-    return out
+    if isinstance(dtype, tuple):
+        dtype = all(issubclass(x, Number) for x in dtype) and dtype[0] or object
+    if not issubclass(dtype, Number):
+        dtype = object
+
+    return DataFrame(data, dtype=dtype)
 
 
 class TransformerMixin(_TransformerMixin):
