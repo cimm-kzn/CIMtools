@@ -60,6 +60,12 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeCGR__')}
 
+    def set_params(self, **params):
+        if params:
+            super().set_params(**params)
+            self.__reactor = self.__searcher = None
+        return self
+
     def transform(self, x):
         x = super().transform(x)
 

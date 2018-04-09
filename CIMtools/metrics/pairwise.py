@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,3 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+import numpy as np
+
+
+def tanimoto_kernel(x, y):
+    x_dot = np.dot(x, y.T)
+
+    x2 = (x**2).sum(axis=1)
+    y2 = (y**2).sum(axis=1)
+
+    len_x2 = len(x2)
+    len_y2 = len(y2)
+
+    result = x_dot / (np.array([x2] * len_y2).T + np.array([y2] * len_x2) - x_dot)
+    result[np.isnan(result)] = 0
+
+    return result

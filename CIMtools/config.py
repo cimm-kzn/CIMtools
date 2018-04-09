@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -24,8 +24,6 @@ from traceback import format_exc
 
 
 UTILS_DIR = Path('~').expanduser()
-GACONF_PATH = UTILS_DIR / 'GAconfig'
-LIBSVM_PATH = GACONF_PATH / 'libsvm-3.20'
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
 JCHEM_DIR = UTILS_DIR / 'ChemAxon/JChem'
@@ -36,7 +34,7 @@ COLOR = 'colorstart.sh'
 GACONF = 'dragosgfstarter.sh'
 
 config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR', 'MOLCONVERT', 'STANDARDIZER')
-config_save_list = ('UTILS_DIR', 'GACONF_PATH', 'LIBSVM_PATH') + config_list
+config_save_list = ('UTILS_DIR',) + config_list
 
 config_dirs = [x / '.CIMtools.ini' for x in (Path(__file__).parent, Path('~').expanduser(), Path('/etc'))]
 

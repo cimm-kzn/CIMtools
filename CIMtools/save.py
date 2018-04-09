@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,19 +18,17 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import numpy as np
+from pandas import concat
 
 
-def tanimoto_kernel(x, y):
-    x_dot = np.dot(x, y.T)
+def save_svm(outputfile, x, y, header=True):
+    with open(outputfile + '.svm', 'w', encoding='utf-8') as f:
+        if header:
+            f.write(' '.join(['Property'] + ['%s:%s' % i for i in enumerate(x.columns, start=1)]) + '\n')
 
-    x2 = (x**2).sum(axis=1)
-    y2 = (y**2).sum(axis=1)
+        for i, j in zip(x.values, y):
+            f.write(' '.join(['%s ' % j] + ['%s:%s' % x for x in enumerate(i, start=1) if x[1] != 0]) + '\n')
 
-    len_x2 = len(x2)
-    len_y2 = len(y2)
 
-    result = x_dot / (np.array([x2] * len_y2).T + np.array([y2] * len_x2) - x_dot)
-    result[np.isnan(result)] = 0
-
-    return result
+def save_csv(outputfile, x, y, header=True):
+    concat([y, x], axis=1).to_csv(outputfile + '.csv', index=False, header=header)
