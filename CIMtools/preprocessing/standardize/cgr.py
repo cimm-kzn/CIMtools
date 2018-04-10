@@ -22,6 +22,7 @@ from CGRtools import CGRreactor
 from CGRtools.containers import MoleculeContainer
 from sklearn.base import BaseEstimator
 from ..common import iter2array, TransformerMixin
+from ...exceptions import ConfigurationError
 
 
 class StandardizeCGR(BaseEstimator, TransformerMixin):
@@ -54,26 +55,34 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
         self.isotope = isotope
         self.element = element
         self.stereo = stereo
+        self.__init()
 
-        assert templates or balance_groups, 'invalid params. need balance_groups or/and templates'
+    def __init(self):
+        try:
+            assert self.templates or self.balance_groups, 'invalid params. need balance_groups or/and templates'
+            self.__reactor = CGRreactor(extralabels=self.extralabels, isotope=self.isotope, element=self.element,
+                                        stereo=self.stereo)
+            if self.templates:
+                self.__searcher = self.__reactor.get_template_searcher(self.__reactor.prepare_templates(self.templates))
+        except Exception as e:
+            raise ConfigurationError(e)
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeCGR__')}
 
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.__init()
+
     def set_params(self, **params):
         if params:
             super().set_params(**params)
-            self.__reactor = self.__searcher = None
+            self.__searcher = None
+            self.__init()
         return self
 
     def transform(self, x):
         x = super().transform(x)
-
-        if self.__reactor is None:
-            self.__reactor = CGRreactor(extralabels=self.extralabels, isotope=self.isotope, element=self.element,
-                                        stereo=self.stereo)
-            if self.__searcher is None and self.templates:
-                self.__searcher = self.__reactor.get_template_searcher(self.__reactor.prepare_templates(self.templates))
 
         return iter2array((self.__prepare(g) for g in x), allow_none=True)
 
@@ -101,5 +110,5 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
                     report.append(match.meta['CGR_TEMPLATE'])
         return g
 
-    __searcher = __reactor = None
+    __searcher = None
     _dtype = MoleculeContainer

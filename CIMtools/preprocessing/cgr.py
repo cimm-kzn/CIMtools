@@ -22,27 +22,36 @@ from CGRtools import CGRpreparer
 from CGRtools.containers import ReactionContainer
 from sklearn.base import BaseEstimator
 from .common import iter2array, TransformerMixin
+from ..exceptions import ConfigurationError
 
 
 class CGR(BaseEstimator, TransformerMixin):
     def __init__(self, cgr_type='0', extralabels=False):
         self.cgr_type = cgr_type
         self.extralabels = extralabels
+        self.__init()
+
+    def __init(self):
+        try:
+            self.__cgr = CGRpreparer(cgr_type=self.cgr_type, extralabels=self.extralabels)
+        except Exception as e:
+            raise ConfigurationError(e)
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_CGR__')}
 
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.__init()
+
     def set_params(self, **params):
         if params:
             super().set_params(**params)
-            self.__cgr = None
+            self.__init()
         return self
 
     def transform(self, x):
         x = super().transform(x)
-
-        if self.__cgr is None:
-            self.__cgr = CGRpreparer(cgr_type=self.cgr_type, extralabels=self.extralabels)
 
         res = []
         for n, s in enumerate(x):
@@ -56,5 +65,4 @@ class CGR(BaseEstimator, TransformerMixin):
 
         return iter2array(res, allow_none=True)
 
-    __cgr = None
     _dtype = ReactionContainer

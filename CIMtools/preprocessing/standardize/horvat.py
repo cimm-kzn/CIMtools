@@ -28,15 +28,25 @@ from ..common import iter2array
 
 class StandardizeHorvat(StandardizeChemAxon):
     def __init__(self, rules=None, unwanted=None, min_ratio=2, max_ion_size=5, min_main_size=6, max_main_size=101):
-        self.unwanted = self.__load_unwanted() if unwanted is None else set(unwanted)
+        super().__init__(rules)
+        self.unwanted = set(unwanted)
         self.min_ratio = min_ratio
         self.max_ion_size = max_ion_size
         self.min_main_size = min_main_size
         self.max_main_size = max_main_size
-        super().__init__(rules or self.__load_rules())
+        self.__init()
 
-    def set_params(self, unwanted, **params):
-        return super().set_params(unwanted=set(unwanted), **params)
+    def __init(self):
+        if self.rules is None:
+            self.rules = self.__load_rules()
+        if self.unwanted is None:
+            self.unwanted = self.__load_unwanted()
+
+    def set_params(self, **params):
+        if params:
+            super().set_params(**params)
+            self.__init()
+        return self
 
     def transform(self, x):
         """

@@ -23,6 +23,7 @@ from CGRtools.preparer import CGRpreparer
 from CGRtools.reactor import CGRreactor
 from sklearn.base import BaseEstimator
 from ..common import iter2array, nested_iter_to_2d_array, TransformerMixin
+from ...exceptions import ConfigurationError
 
 
 class AtomMarkerCGR(BaseEstimator, TransformerMixin):
@@ -33,24 +34,33 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
         self.stereo = stereo
         self.extralabels = extralabels
         self.only_first = only_first
-        self.__load()
+        self.__init()
+
+    def __init(self):
+        try:
+            self.__cgr = CGRpreparer(extralabels=self.extralabels)
+            self.__react = CGRreactor(stereo=self.stereo, extralabels=self.extralabels, isotope=self.isotope,
+                                      element=self.element)
+            templates = self.__react.prepare_templates(self.templates)
+            markers = len([x for _, x in templates[0].patch.nodes(data='mark') if x != '0'])
+            assert markers, 'marks not found in templates'
+
+            self.__templates = self.__react.get_template_searcher(templates)
+        except Exception as e:
+            raise ConfigurationError(e)
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_AtomMarkerCGR__')}
 
     def __setstate__(self, state):
         super().__setstate__(state)
-        self.__load()
+        self.__init()
 
-    def __load(self):
-        self.__cgr = CGRpreparer(extralabels=self.extralabels)
-        self.__react = CGRreactor(stereo=self.stereo, extralabels=self.extralabels, isotope=self.isotope,
-                                  element=self.element)
-        templates = self.__react.prepare_templates(self.templates)
-        markers = len([x for _, x in templates[0].patch.nodes(data='mark') if x != '0'])
-        assert markers, 'marks not found in templates'
-
-        self.__templates = self.__react.get_template_searcher(templates)
+    def set_params(self, **params):
+        if params:
+            super().set_params(**params)
+            self.__init()
+        return self
 
     def transform(self, x):
         x = super().transform(x)
@@ -78,5 +88,4 @@ class AtomMarkerCGR(BaseEstimator, TransformerMixin):
 
         return result
 
-    __cgr = __react = __templates = None
     _dtype = ReactionContainer

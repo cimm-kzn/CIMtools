@@ -35,9 +35,12 @@ from ...exceptions import ConfigurationError
 class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
     def __init__(self, marker_rules, workpath='.'):
         self.marker_rules = marker_rules
+        self.__init()
+        self.set_work_path(workpath)
+
+    def __init(self):
         self._marks = {}
         self.__marks_counter = count(1)
-        self.set_work_path(workpath)
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_AtomMarkerPharmacophore__')}
@@ -56,6 +59,7 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
     def set_params(self, **params):
         if params:
             super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
+            self.__init()
             self.set_work_path(params.get('workpath') or str(self.__config.parent))
         return self
 

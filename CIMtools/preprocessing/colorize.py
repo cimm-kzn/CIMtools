@@ -34,8 +34,13 @@ from ..exceptions import ConfigurationError
 
 class Colorize(BaseEstimator, TransformerMixin):
     def __init__(self, standardize=None, workpath='.'):
-        self.standardize = standardize or self.__load_rules()
+        self.standardize = standardize
         self.set_work_path(workpath)
+        self.__init()
+
+    def __init(self):
+        if self.standardize is None:
+            self.standardize = self.__load_rules()
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_Colorize__')}
@@ -54,6 +59,7 @@ class Colorize(BaseEstimator, TransformerMixin):
         if params:
             super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
             self.set_work_path(params.get('workpath') or str(self.__config.parent))
+            self.__init()
         return self
 
     @staticmethod

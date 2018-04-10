@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -20,32 +20,98 @@
 #
 from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
+from pandas import DataFrame, Index
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
+from CGRtools.containers import ReactionContainer, MoleculeContainer
+from sklearn.base import BaseEstimator
+from .common import TransformerMixin
+from ..exceptions import ConfigurationError
 
 
-class Eval(object):
+class MetaReference(BaseEstimator, TransformerMixin):
+    def __init__(self, data):
+        self.data = data
+        self.__init()
+
+    def __getstate__(self):
+        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_MetaReference__')}
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.__init()
+
+    def set_params(self, **params):
+        if params:
+            super().set_params(**params)
+            self.__init()
+        return self
+
+    def __init(self):
+        try:
+            self.__ext_header = self.__prepare_ext_header(self.data)
+            self.__extension = self.__prepare_ext(self.data)
+        except Exception as ex:
+            raise ConfigurationError(ex)
+
+    def transform(self, x, return_domain=False):
+        x = super().transform(x)
+
+        res = []
+        for s in x:
+            tmp = {}
+            res.append(tmp)
+            for key, value in s.meta.items():
+                if key in self.data:
+                    ek = self.data[key]
+                    if callable(ek):
+                        tmp[key] = ek(value)
+                    else:
+                        tmp.update(ek[value])
+
+        res = DataFrame(res, columns=self.__ext_header, index=Index(range(len(res)), name='structure'))
+        if return_domain:
+            return x, ~res.isnull().any(axis=1)
+        return res
+
+    @staticmethod
+    def __prepare_ext_header(data):
+        """
+        :param data: dict
+        :return: list of strings. descriptors header
+        """
+        tmp = []
+        for orig_key in sorted(data):
+            operation = data[orig_key]
+            if isinstance(operation, dict):
+                tmp.extend(sorted(list(operation.values())[0]))  # get columns for replacement
+            else:
+                tmp.append(orig_key)
+        return tmp
+
+    @staticmethod
+    def __prepare_ext(data):
+        tmp = {}
+        for k, v in data.items():
+            if isinstance(v, dict):
+                tmp[k] = v
+            elif v:
+                tmp[k] = Eval(v)
+            else:
+                tmp[k] = float
+        return tmp
+
+    _dtype = ReactionContainer, MoleculeContainer
+
+
+class Eval:
     def __init__(self, expression):
         self.__expr_stack = self.__parser(expression)
 
-    def _init_unpickle(self, config):
-        self.__expr_stack = config
+    def __call__(self, value):
+        return self.__evaluate_stack([str(value) if x == 'X' else x for x in self.__expr_stack])
 
-    def pickle(self):
-        return self.__expr_stack.copy()
-
-    @classmethod
-    def unpickle(cls, config):
-        if not isinstance(config, list):
-            raise Exception('Invalid config')
-        obj = cls.__new__(cls)
-        obj._init_unpickle(config.copy())
-        return obj
-
-    def calc(self, val):
-        return self.__evaluate_stack([str(val) if x == 'X' else x for x in self.__expr_stack])
-
-    @classmethod
-    def __parser(cls, expression):
+    @staticmethod
+    def __parser(expression):
         """ adopted from Paul McGuire example. http://pyparsing.wikispaces.com/file/view/fourFn.py
         """
         expr_stack = []
@@ -113,4 +179,3 @@ class Eval(object):
 
     __fn = dict(sin=sin, cos=cos, tan=tan, lg=log10, ln=log, abs=abs, trunc=lambda a: int(a), round=round,
                 sgn=lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0)
-
