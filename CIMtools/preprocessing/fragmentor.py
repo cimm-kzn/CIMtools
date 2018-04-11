@@ -30,9 +30,9 @@ from sklearn.exceptions import NotFittedError
 from subprocess import call
 from sys import stderr
 from tempfile import mkdtemp, mkstemp
+from .common import iter2array
 from ..config import FRAGMENTOR
 from ..exceptions import ConfigurationError
-from ..preprocessing.common import iter2array
 
 
 class Fragmentor(BaseEstimator, TransformerMixin):
