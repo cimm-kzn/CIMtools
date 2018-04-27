@@ -160,6 +160,17 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             return x, d
         return x
 
+    def fit_transform(self, x, y=None, return_domain=False):
+        x = iter2array(x, dtype=MoleculeContainer)
+
+        if not self.__head_less:
+            self._reset()
+
+        x, d = self.__prepare(x)
+        if return_domain:
+            return x, d
+        return x
+
     def __prepare(self, x):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
         inp_file = work_dir / 'input.sdf'
