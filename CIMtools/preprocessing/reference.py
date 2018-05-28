@@ -61,8 +61,8 @@ class MetaReference(BaseEstimator, TransformerMixin):
             tmp = {}
             res.append(tmp)
             for key, value in s.meta.items():
-                if key in self.data:
-                    ek = self.data[key]
+                if key in self.__extension:
+                    ek = self.__extension[key]
                     if callable(ek):
                         tmp[key] = ek(value)
                     else:

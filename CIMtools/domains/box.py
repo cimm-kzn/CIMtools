@@ -19,7 +19,6 @@
 #  MA 02110-1301, USA.
 #
 from .basedomain import Domain
-from ..pandas import to_pickle, read_pickle
 
 
 class Box(Domain):

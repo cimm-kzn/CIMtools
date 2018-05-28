@@ -178,7 +178,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         out_file_svm = work_dir / 'output.svm'
         out_file_hdr = work_dir / 'output.hdr'
 
-        with inp_file.open('w') as f, SDFwrite(f) as w:
+        with inp_file.open('w', encoding='utf-8') as f, SDFwrite(f) as w:
             for s in x:
                 w.write(s)
 

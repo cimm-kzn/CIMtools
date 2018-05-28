@@ -18,3 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from .cgr import CGR
+from .colorize import Colorize, ColorizeReaction
+from .eed import Eed
+from .fragmentor import Fragmentor
+from .reference import MetaReference
+
+from .markers import *
+from .standardize import *
