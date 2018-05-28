@@ -27,20 +27,14 @@ UTILS_DIR = Path('~').expanduser()
 
 CHEMAXON = "https://cimm.kpfu.ru/webservices"
 JCHEM_DIR = UTILS_DIR / 'ChemAxon/JChem'
-FRAGMENTOR = UTILS_DIR / 'fragmentor/fragmentor'
+FRAGMENTOR = str(UTILS_DIR / 'fragmentor/fragmentor')
 
-EED = 'eedstart.sh'
-COLOR = 'colorstart.sh'
-GACONF = 'dragosgfstarter.sh'
-
-config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR', 'MOLCONVERT', 'STANDARDIZER')
-config_save_list = ('UTILS_DIR',) + config_list
-
+config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR', 'MOLCONVERT', 'STANDARDIZER', 'UTILS_DIR')
 config_dirs = [x / '.CIMtools.ini' for x in (Path(__file__).parent, Path('~').expanduser(), Path('/etc'))]
 
 if not any(x.exists() for x in config_dirs):
     with config_dirs[1].open('w') as f:
-        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in globals().items() if x in config_save_list))
+        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in globals().items() if x in config_list))
 
 with next(x for x in config_dirs if x.exists()).open() as f:
     for n, line in enumerate(f, start=1):
@@ -58,7 +52,6 @@ with next(x for x in config_dirs if x.exists()).open() as f:
 
 JCHEMBIN = Path(JCHEM_DIR) / 'bin'
 
-
 CXCALC = str(JCHEMBIN / 'cxcalc')
 REACTOR = str(JCHEMBIN / 'react')
 JCSEARCH = str(JCHEMBIN / 'jcsearch')
@@ -68,5 +61,3 @@ if 'MOLCONVERT' not in locals():
     MOLCONVERT = str(JCHEMBIN / 'molconvert')
 if 'STANDARDIZER' not in locals():
     STANDARDIZER = str(JCHEMBIN / 'standardize')
-
-FRAGMENTOR = str(FRAGMENTOR)

@@ -32,12 +32,9 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='Modeler tools',
-    entry_points={'console_scripts': ['cimtools=CIMtools.CLI:launcher']},
-    scripts=['SETUP/colorstart.sh', 'SETUP/dragosgfstarter.sh', 'SETUP/eedstart.sh'],
     package_data={'CIMtools.preprocessing.standardize': ['horvat.unwanted', 'horvat.xml']},
-    install_requires=['CGRtools>=2.8,<2.9', 'pandas>=0.22.0,<0.23', 'scikit-learn>=0.19.0,<0.20',
-                      'requests>=2.18.4,<2.19', 'scipy>=1.0.0,<1.1',
-                      'multiprocess>=0.70.5', 'sortedcontainers>=1.5.7,<1.6'],
+    install_requires=['CGRtools>=2.8.13,<2.9', 'pandas>=0.22.0,<0.23', 'scikit-learn>=0.19.0,<0.20',
+                      'requests>=2.18.4,<2.19', 'scipy>=1.0.0,<1.1'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Console',
@@ -50,5 +47,11 @@ setup(
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.5',
-                 ]
+                 ],
+    command_options={'build_sphinx': {'project': ('setup.py', 'CIMtools'),
+                                      'version': ('setup.py', version()), 'source_dir': ('setup.py', 'doc'),
+                                      'build_dir':  ('setup.py', 'build/doc'),
+                                      'all_files': ('setup.py', True),
+                                      'copyright': ('setup.py', 'Dr. Ramil Nugmanov <stsouko@live.ru>')},
+                     'easy_install': {'allow_hosts': ('setup.py', 'github.com, pypi.python.org')}}
 )

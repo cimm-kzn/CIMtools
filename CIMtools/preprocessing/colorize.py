@@ -21,22 +21,22 @@
 from CGRtools.containers import MoleculeContainer, ReactionContainer
 from CGRtools.files import SDFread, SDFwrite
 from itertools import tee, chain
-from os import close
+from os import close, environ
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from tempfile import mkstemp, mkdtemp
 from .common import iter2array, TransformerMixin
-from ..config import COLOR
+from ..config import JCHEM_DIR, UTILS_DIR
 from ..exceptions import ConfigurationError
 
 
 class Colorize(BaseEstimator, TransformerMixin):
     def __init__(self, standardize=None, workpath='.'):
         self.standardize = standardize
-        self.set_work_path(workpath)
         self.__init()
+        self.set_work_path(workpath)
 
     def __init(self):
         if self.standardize is None:
@@ -94,7 +94,13 @@ class Colorize(BaseEstimator, TransformerMixin):
                 w.write(s)
 
         try:
-            p = run([COLOR, str(inp_file), str(out_file), str(self.__config)], stderr=PIPE, stdout=PIPE)
+            env = environ.copy()
+            env.update(SETUP_DIR='%s/Utils' % UTILS_DIR, FORCEFIELD='%s/Utils/cvffTemplates.xml' % UTILS_DIR,
+                       CLASSPATH='{}/lib/jchem.jar:{}'.format(JCHEM_DIR, UTILS_DIR))
+
+            p = run(['java', 'Utils.CA_Prop_Map2011',
+                     '-f', str(inp_file), '-o', str(out_file), '-stdoptions', str(self.__config)],
+                    stderr=PIPE, stdout=PIPE, env=env)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 

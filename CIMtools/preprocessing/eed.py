@@ -21,11 +21,12 @@
 from CGRtools.containers import MoleculeContainer
 from CGRtools.files import SDFwrite
 from io import StringIO
+from os import environ
 from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from .common import TransformerMixin
-from ..config import EED
+from ..config import UTILS_DIR, JCHEM_DIR
 from ..exceptions import ConfigurationError
 
 
@@ -39,7 +40,10 @@ class Eed(BaseEstimator, TransformerMixin):
 
             tmp = f.getvalue().encode()
         try:
-            p = run([EED], input=tmp, stdout=PIPE, stderr=PIPE)
+            env = environ.copy()
+            env.update(CLASSPATH='{}/lib/jchem.jar:{}'.format(JCHEM_DIR, UTILS_DIR))
+
+            p = run(['java', 'Utils.react_desc', '-svm'], input=tmp, stdout=PIPE, stderr=PIPE, env=env)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 
