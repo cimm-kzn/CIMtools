@@ -102,9 +102,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
     def set_params(self, **params):
         if params:
             super().set_params(**{k: v for k, v in params.items() if not k.startswith('__head_')})
-            if 'header' in params:
-                self.__init_header(params['header'])
-            else:
+            if '__head_dump' in params:
                 try:
                     dump = params['__head_dump']
                     self.__head_generate = params['__head_generate']
@@ -114,6 +112,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
                 if dump:
                     self.__load_header(dump)
+            else:
+                self.__init_header(params.get('header'))
 
             self.set_work_path(params.get('workpath') or str(self.__workpath))
         return self

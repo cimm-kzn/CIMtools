@@ -9,7 +9,7 @@ cimtools -h
 
 
 INSTALL
-=====
+=======
 
 *step 1:*
 
@@ -30,8 +30,6 @@ type
 edit `~/.CIMtools.ini` or add `/etc/.CIMtools.ini`
 or add file into package `CIMtools/.CIMtools.ini` [useful for manually downloaded CIMtools Lib]
 
-    GACONF_PATH=~/GAconfig # GAconfig dir
-    LIBSVM_PATH=~/GAconfig/libsvm-3.20 # LIBSVM binaries dir
     UTILS_DIR=~ # dir with Dragos's utilities (Utils dir should be in this dir)
     CHEMAXON=https://cimm.kpfu.ru/webservices # Chemaxon REST API
     JCHEM_DIR = ~/ChemAxon/JChem # dir with JChem distributive
@@ -39,9 +37,3 @@ or add file into package `CIMtools/.CIMtools.ini` [useful for manually downloade
 
 
 priority: `CIMtools/.CIMtools.ini` >> `~/.CIMtools.ini` >> `/etc/.CIMtools.ini`
-
-*NOTE:*
-
-`CIMtools/.CIMtools.ini` not visible for `colorstart.sh` `dragosgfstarter.sh` `eedstart.sh`
-
-Edit this *.sh scripts manually and move it to one of the $PATH dirs
