@@ -129,6 +129,15 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             self.__head_exec.unlink()
             self.__head_exec = None
 
+    def finalize(self):
+        """
+        finalize partial fitting procedure
+        """
+        if not self.__head_exec:
+            raise NotFittedError('fragmentor instance is not fitted yet')
+        if self.__head_generate:
+            self.__head_generate = False
+
     def _reset(self):
         """Reset internal data-dependent state.
         __init__ parameters are not touched.
