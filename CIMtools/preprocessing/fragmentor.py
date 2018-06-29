@@ -18,8 +18,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.containers import MoleculeContainer
+from CGRtools.containers import MoleculeContainer, QueryContainer
 from CGRtools.files import SDFwrite
+from logging import info
 from os import close
 from os.path import devnull
 from pandas import DataFrame, Series
@@ -28,8 +29,8 @@ from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 from subprocess import call
-from sys import stderr
 from tempfile import mkdtemp, mkstemp
+from warnings import warn
 from .common import iter2array
 from ..config import FRAGMENTOR
 from ..exceptions import ConfigurationError
@@ -115,15 +116,13 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             else:
                 self.__init_header(params.get('header'))
 
-            self.set_work_path(params.get('workpath') or str(self.__workpath))
+            self.set_work_path(params.get('workpath') or self.__workpath)
         return self
 
     def set_work_path(self, workpath):
-        self.delete_work_path()
-
         self.__workpath = Path(workpath)
-        if not (self.__head_less or self.__head_generate):
-            self.__prepare_headers()
+        if self.__head_dump is not None:
+            self.__prepare_header()
 
     def delete_work_path(self):
         if self.__head_exec is not None:
@@ -135,43 +134,58 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         __init__ parameters are not touched.
         """
         if not self.__head_less:
-            self.__head_generate = True
-            self.__head_dump = self.__head_dict = self.__head_cols = self.__head_size = self.__head_exec = None
+            if not self.__head_generate:
+                self.__head_generate = True
+            if self.__head_dump is not None:
+                self.__head_dump = self.__head_dict = self.__head_cols = self.__head_size = None
+
+            self.delete_work_path()
 
     def fit(self, x, y=None):
         """Compute the header.
         """
-        x = iter2array(x, dtype=MoleculeContainer)
+        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
 
         if self.__head_less:
+            warn('Fragmentor configured to head less mode. fit unusable')
             return self
 
         self._reset()
         self.__prepare(x)
         return self
 
+    def partial_fit(self, x, y=None):
+        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+
+        if self.__head_less:
+            warn('Fragmentor configured to head less mode. fit unusable')
+            return self
+        if not self.__head_generate:
+            raise AttributeError('partial fit impossible. transformer already fitted')
+
+        self.__prepare(x, True)
+        return self
+
     def transform(self, x, return_domain=False):
-        if self.__head_generate and not self.__head_less:
+        if not (self.__head_less or self.__head_exec):
             raise NotFittedError('fragmentor instance is not fitted yet')
 
-        x = iter2array(x, dtype=MoleculeContainer)
+        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
         x, d = self.__prepare(x)
         if return_domain:
             return x, d
         return x
 
     def fit_transform(self, x, y=None, return_domain=False):
-        x = iter2array(x, dtype=MoleculeContainer)
+        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
 
-        if not self.__head_less:
-            self._reset()
-
+        self._reset()
         x, d = self.__prepare(x)
         if return_domain:
             return x, d
         return x
 
-    def __prepare(self, x):
+    def __prepare(self, x, partial=False):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
         inp_file = work_dir / 'input.sdf'
         out_file = work_dir / 'output'
@@ -183,7 +197,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                 w.write(s)
 
         execparams = self.__exec_params(inp_file, out_file)
-        print(' '.join(execparams), file=stderr)
+        info(' '.join(execparams))
         if self.verbose:
             exitcode = call(execparams) == 0
         else:
@@ -196,10 +210,12 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             else:
                 if self.__head_generate:  # dump header if don't set on first run
                     self.__load_header(out_file_hdr)
-                    self.__head_generate = False
-                    self.__prepare_headers()
+                    if not partial:
+                        self.__head_generate = False
+                    self.__prepare_header()
 
                 head_dict, head_cols, head_size = self.__head_dict, self.__head_cols, self.__head_size
+
             try:
                 x, d = self.__parse_svm(out_file_svm, head_dict, head_cols, head_size)
             except Exception as e:
@@ -232,7 +248,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
     def __exec_params(self, inp, out):
         tmp = ['%s-%s' % (FRAGMENTOR, self.version) if self.version else FRAGMENTOR, '-i', str(inp), '-o', str(out)]
-        if not (self.__head_less or self.__head_generate):
+
+        if self.__head_exec:
             tmp.extend(('-h', str(self.__head_exec)))
 
         tmp.extend(('-f', 'SVM', '-t', str(self.fragment_type), '-l', str(self.min_length), '-u', str(self.max_length)))
@@ -276,18 +293,28 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
     def __init_header(self, header):
         if header:
-            self.__head_generate = False
-            self.__head_less = False
+            if self.__head_generate:
+                self.__head_generate = False
+            if self.__head_less:
+                self.__head_less = False
             self.__load_header(Path(header))
         elif header is not None:
-            self.__head_generate = False
-            self.__head_less = True
+            if self.__head_generate:
+                self.__head_generate = False
+            if not self.__head_less:
+                self.__head_less = True
         else:
-            self.__head_generate = True
-            self.__head_less = False
+            if not self.__head_generate:
+                self.__head_generate = True
+            if self.__head_less:
+                self.__head_less = False
 
-    def __prepare_headers(self):
+    def __prepare_header(self):
         fd, fn = mkstemp(prefix='frg_', suffix='.hdr', dir=str(self.__workpath))
+
+        if self.__head_exec is not None:  # remove old header
+            self.__head_exec.unlink()
+
         self.__head_exec = header = Path(fn)
         with header.open('w', encoding='utf-8') as f:
             f.write(self.__head_dump)
