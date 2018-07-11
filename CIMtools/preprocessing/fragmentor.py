@@ -106,8 +106,10 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             if '__head_dump' in params:
                 try:
                     dump = params['__head_dump']
-                    self.__head_generate = params['__head_generate']
-                    self.__head_less = params['__head_less']
+                    if self.__head_generate != params['__head_generate']:
+                        self.__head_generate = params['__head_generate']
+                    if self.__head_less != params['__head_less']:
+                        self.__head_less = params['__head_less']
                 except KeyError as e:
                     raise ConfigurationError(e)
 
@@ -172,7 +174,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         if not self.__head_generate:
             raise AttributeError('partial fit impossible. transformer already fitted')
 
-        self.__prepare(x, True)
+        self.__prepare(x, partial=True)
         return self
 
     def transform(self, x, return_domain=False):
@@ -180,7 +182,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             raise NotFittedError('fragmentor instance is not fitted yet')
 
         x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
-        x, d = self.__prepare(x)
+        x, d = self.__prepare(x, fit=False)
         if return_domain:
             return x, d
         return x
@@ -194,7 +196,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             return x, d
         return x
 
-    def __prepare(self, x, partial=False):
+    def __prepare(self, x, partial=False, fit=True):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
         inp_file = work_dir / 'input.sdf'
         out_file = work_dir / 'output'
@@ -217,7 +219,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             if self.__head_less:
                 head_dict, head_cols, head_size = self.__parse_header(out_file_hdr)[1:]
             else:
-                if self.__head_generate:  # dump header if don't set on first run
+                if fit and self.__head_generate:  # dump header if don't set on first run
                     self.__load_header(out_file_hdr)
                     if not partial:
                         self.__head_generate = False

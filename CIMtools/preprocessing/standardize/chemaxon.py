@@ -38,10 +38,10 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
         return iter2array(self.__processor_m(x) if x.size > 1 else self.__processor_s(x[0]), allow_none=True)
 
     def __processor_m(self, structures):
-        with StringIO() as f, MRVwrite(f) as w:
-            for s in structures:
-                w.write(s)
-            w.finalize()
+        with StringIO() as f:
+            with MRVwrite(f) as w:
+                for s in structures:
+                    w.write(s)
             tmp = f.getvalue().encode()
         try:
             p = run([STANDARDIZER, '-c', self.rules, '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
@@ -59,9 +59,9 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
             return res
 
     def __processor_s(self, structure):
-        with StringIO() as f, MRVwrite(f) as w:
-            w.write(structure)
-            w.finalize()
+        with StringIO() as f:
+            with MRVwrite(f) as w:
+                w.write(structure)
             data = dict(structure=f.getvalue(), parameters='mrv',
                         filterChain=[dict(filter='standardizer',
                                           parameters=dict(standardizerDefinition=self.rules))])
