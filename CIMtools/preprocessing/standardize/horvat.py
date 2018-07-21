@@ -20,32 +20,33 @@
 #
 from CGRtools.containers import MoleculeContainer
 from CGRtools.core import CGRcore
+from io import TextIOWrapper
 from operator import itemgetter
-from pathlib import Path
+from pkg_resources import resource_stream
 from .chemaxon import StandardizeChemAxon
 from ..common import iter2array
 
 
 class StandardizeHorvat(StandardizeChemAxon):
-    def __init__(self, rules=None, unwanted=None, min_ratio=2, max_ion_size=5, min_main_size=6, max_main_size=101):
-        super().__init__(rules)
-        self.unwanted = set(unwanted)
+    def __init__(self, rules=None, unwanted=None, min_ratio=2, max_ion_size=5, min_main_size=6, max_main_size=101,
+                 workpath='.'):
+        self.unwanted = set(unwanted) if unwanted is not None else self.__load_unwanted()
+        if rules is None:
+            rules = self.__load_rules()
         self.min_ratio = min_ratio
         self.max_ion_size = max_ion_size
         self.min_main_size = min_main_size
         self.max_main_size = max_main_size
-        self.__init()
-
-    def __init(self):
-        if self.rules is None:
-            self.rules = self.__load_rules()
-        if self.unwanted is None:
-            self.unwanted = self.__load_unwanted()
+        super().__init__(rules, workpath=workpath)
 
     def set_params(self, **params):
         if params:
+            if 'rules' in params and params['rules'] is None:
+                params['rules'] = self.__load_rules()
+            if 'unwanted' in params:
+                params['unwanted'] = self.__load_unwanted() if params['unwanted'] is None else set(params['unwanted'])
+
             super().set_params(**params)
-            self.__init()
         return self
 
     def transform(self, x):
@@ -82,14 +83,14 @@ class StandardizeHorvat(StandardizeChemAxon):
 
     @staticmethod
     def __load_rules():
-        with (Path(__file__).parent / 'horvat.xml').open() as f:
-            out = f.read().strip()
+        with resource_stream(__package__, 'horvat.xml') as f, TextIOWrapper(f) as s:
+            out = s.read().strip()
         return out
 
     @staticmethod
     def __load_unwanted():
-        with (Path(__file__).parent / 'horvat.unwanted').open() as f:
-            out = set(f.read().split())
+        with resource_stream(__package__, 'horvat.unwanted') as f, TextIOWrapper(f) as s:
+            out = set(s.read().split())
         return out
 
     _dtype = MoleculeContainer

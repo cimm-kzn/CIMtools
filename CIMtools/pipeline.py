@@ -26,12 +26,12 @@ from .preprocessing.common import iter2array, nested_iter_to_2d_array
 
 def make_filtered_transformer(transformer, x_is_2d=False):
     class Transformer:
-        def fit(self, x, y=None, **fit_params):
+        def fit(self, x, y, **fit_params):
             x, not_nones, _x = self.__check_x(x)
             y = column_or_1d(y, warn=True)
             return transformer.fit(_x, y[not_nones], **fit_params)
 
-        def fit_transform(self, x, y=None, **fit_params):
+        def fit_transform(self, x, y, **fit_params):
             x, not_nones, _x = self.__check_x(x)
             y = column_or_1d(y, warn=True)
             _x = transformer.fit(_x, y[not_nones], **fit_params).transform(_x)

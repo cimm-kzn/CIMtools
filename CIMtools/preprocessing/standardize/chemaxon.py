@@ -20,18 +20,55 @@
 #
 from CGRtools.files import MRVread, MRVwrite
 from io import StringIO, BytesIO
+from os import close
+from pathlib import Path
 from requests import post
 from requests.exceptions import RequestException
 from subprocess import run, PIPE
 from sklearn.base import BaseEstimator
+from tempfile import mkstemp
 from ..common import iter2array, TransformerMixin
 from ...config import STANDARDIZER, CHEMAXON
 from ...exceptions import ConfigurationError
 
 
 class StandardizeChemAxon(BaseEstimator, TransformerMixin):
-    def __init__(self, rules):
+    def __init__(self, rules, workpath='.'):
         self.rules = rules
+        self.set_work_path(workpath)
+
+    def __getstate__(self):
+        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeChemAxon__')}
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.set_work_path('.')
+
+    def __del__(self):
+        self.delete_work_path()
+
+    def get_params(self, *args, **kwargs):
+        return {k: v for k, v in super().get_params(*args, **kwargs).items() if k != 'workpath'}
+
+    def set_params(self, **params):
+        if params:
+            super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
+            self.set_work_path(params.get('workpath') or str(self.__config.parent))
+        return self
+
+    def set_work_path(self, workpath):
+        self.delete_work_path()
+
+        fd, fn = mkstemp(prefix='std_', suffix='.xml', dir=workpath)
+        self.__config = Path(fn)
+        with self.__config.open('w') as f:
+            f.write(self.rules)
+        close(fd)
+
+    def delete_work_path(self):
+        if self.__config is not None:
+            self.__config.unlink()
+            self.__config = None
 
     def transform(self, x):
         x = super().transform(x)
@@ -44,7 +81,7 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
                     w.write(s)
             tmp = f.getvalue().encode()
         try:
-            p = run([STANDARDIZER, '-c', self.rules, '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
+            p = run([STANDARDIZER, '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 
@@ -83,3 +120,4 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
             return q.json()
 
     __rest_url = '%s/rest-v0/util/calculate/molExport' % CHEMAXON
+    __config = None
