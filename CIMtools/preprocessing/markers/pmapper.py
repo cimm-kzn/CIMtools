@@ -43,7 +43,8 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
         self.__marks_counter = count(1)
 
     def __getstate__(self):
-        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_AtomMarkerPharmacophore__')}
+        return {k: v for k, v in super().__getstate__().items()
+                if not k.startswith('_AtomMarkerPharmacophore__') and k != 'workpath'}
 
     def __setstate__(self, state):
         super().__setstate__(state)
@@ -53,17 +54,15 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
     def __del__(self):
         self.delete_work_path()
 
-    def get_params(self, *args, **kwargs):
-        return {k: v for k, v in super().get_params(*args, **kwargs).items() if k != 'workpath'}
-
     def set_params(self, **params):
         if params:
-            super().set_params(**{k: v for k, v in params.items() if not k != 'workpath'})
+            super().set_params(**params)
             self.__init()
-            self.set_work_path(params.get('workpath') or str(self.__config.parent))
+            self.set_work_path(self.workpath)
         return self
 
     def set_work_path(self, workpath):
+        self.workpath = workpath
         self.delete_work_path()
 
         fd, fn = mkstemp(prefix='pmp_', suffix='.xml', dir=workpath)

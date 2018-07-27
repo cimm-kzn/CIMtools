@@ -77,12 +77,12 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         self.version = version
         self.verbose = verbose
 
-        self.__init_header(header)
+        self.__init_header()
         self.set_work_path(workpath)
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items()
-                if k != 'header' and
+                if k not in ('header', 'workpath') and
                 (not k.startswith('_Fragmentor__') or
                  k in ('_Fragmentor__head_dump', '_Fragmentor__head_less', '_Fragmentor__head_generate'))}
 
@@ -95,33 +95,15 @@ class Fragmentor(BaseEstimator, TransformerMixin):
     def __del__(self):
         self.delete_work_path()
 
-    def get_params(self, *args, **kwargs):
-        init = {k: v for k, v in super().get_params(*args, **kwargs).items() if k not in ('workpath', 'header')}
-        init.update(__head_generate=self.__head_generate, __head_less=self.__head_less, __head_dump=self.__head_dump)
-        return init
-
     def set_params(self, **params):
         if params:
-            super().set_params(**{k: v for k, v in params.items() if not k.startswith('__head_')})
-            if '__head_dump' in params:
-                try:
-                    dump = params['__head_dump']
-                    if self.__head_generate != params['__head_generate']:
-                        self.__head_generate = params['__head_generate']
-                    if self.__head_less != params['__head_less']:
-                        self.__head_less = params['__head_less']
-                except KeyError as e:
-                    raise ConfigurationError(e)
-
-                if dump:
-                    self.__load_header(dump)
-            else:
-                self.__init_header(params.get('header'))
-
-            self.set_work_path(params.get('workpath') or self.__workpath)
+            super().set_params(**params)
+            self.__init_header()
+            self.set_work_path(self.workpath)
         return self
 
     def set_work_path(self, workpath):
+        self.workpath = workpath
         self.__workpath = Path(workpath)
         if self.__head_dump is not None:
             self.__prepare_header()
@@ -302,7 +284,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
     def __load_header(self, header):
         self.__head_dump, self.__head_dict, self.__head_cols, self.__head_size = self.__parse_header(header)
 
-    def __init_header(self, header):
+    def __init_header(self):
+        header = self.header
         if header:
             if self.__head_generate:
                 self.__head_generate = False
