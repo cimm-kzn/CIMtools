@@ -18,16 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.containers import MoleculeContainer, ReactionContainer
+from CGRtools.containers import MoleculeContainer
 from CGRtools.files import SDFread, SDFwrite
-from itertools import tee, chain
 from os import close, environ
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from tempfile import mkstemp, mkdtemp
-from .common import iter2array, TransformerMixin
+from .common import iter2array, TransformerMixin, reaction_support
 from ..config import JCHEM_DIR, UTILS_DIR
 from ..exceptions import ConfigurationError
 
@@ -117,31 +116,4 @@ class Colorize(BaseEstimator, TransformerMixin):
     _dtype = MoleculeContainer
 
 
-class ColorizeReaction(Colorize):
-    def transform(self, x):
-        assert all(isinstance(s, ReactionContainer) for s in x), 'invalid dtype, olny ReactionContainers acceptable'
-
-        res = {}
-        for i in ('reagents', 'products'):
-            mols, shifts = [], [0]
-            for s in x:
-                shifts.append(len(s[i]) + shifts[-1])
-                mols.extend(s[i])
-
-            colored = super().transform(mols)
-            res[i] = [colored[y: z] for y, z in self.__pairwise(shifts)]
-
-        out = []
-        for s, (r, p) in zip(x, res['reagents'], res['products']):
-            if any(i is None for i in chain(r, p)):
-                out.append(None)
-            else:
-                out.append(ReactionContainer(r, p, meta=s.meta))
-        return iter2array(out, allow_none=True)
-
-    @staticmethod
-    def __pairwise(iterable):
-        """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-        a, b = tee(iterable)
-        next(b, None)
-        return zip(a, b)
+ColorizeReaction = reaction_support(Colorize)
