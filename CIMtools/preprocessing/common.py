@@ -111,7 +111,7 @@ class TransformerMixin(_TransformerMixin):
 
 def reaction_support(_class):
     class ReactionSupport(_class):
-        def transform(self, x, y=None):
+        def transform(self, x):
             assert all(isinstance(s, ReactionContainer) for s in x), 'invalid dtype, olny ReactionContainers acceptable'
 
             shifts = {}
@@ -123,12 +123,12 @@ def reaction_support(_class):
                     sh.append(len(si) + sh[-1])
                     mols.extend(si)
 
-            transformed = super().transform(mols, y=y)
+            transformed = super().transform(mols)
             assert len(transformed) == len(mols), 'unexpected transformed molecules amount'
 
             out = []
-            for s, (r, p) in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reagents'])),
-                                 (transformed[y: z] for y, z in self.__pairwise(shifts['products']))):
+            for s, r, p in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reagents'])),
+                                  (transformed[y: z] for y, z in self.__pairwise(shifts['products']))):
                 if any(i is None for i in chain(r, p)):
                     out.append(None)
                 else:
