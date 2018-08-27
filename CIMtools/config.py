@@ -51,10 +51,6 @@ with next(x for x in config_dirs if x.exists()).open() as f:
 
 
 JCHEMBIN = Path(JCHEM_DIR) / 'bin'
-
-CXCALC = str(JCHEMBIN / 'cxcalc')
-REACTOR = str(JCHEMBIN / 'react')
-JCSEARCH = str(JCHEMBIN / 'jcsearch')
 PMAPPER = str(JCHEMBIN / 'pmapper')
 
 if 'MOLCONVERT' not in locals():

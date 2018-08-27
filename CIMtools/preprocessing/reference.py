@@ -20,7 +20,7 @@
 #
 from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
-from pandas import DataFrame, Index
+from pandas import DataFrame, Index, read_csv
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
 from CGRtools.containers import ReactionContainer, MoleculeContainer
 from sklearn.base import BaseEstimator
@@ -179,3 +179,34 @@ class Eval:
 
     __fn = dict(sin=sin, cos=cos, tan=tan, lg=log10, ln=log, abs=abs, trunc=lambda a: int(a), round=round,
                 sgn=lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0)
+
+
+def prepare_metareference(params, csv='EXTKEY'):
+    """
+    :param params: list of key[:value] strings
+    key is metadata key for calculation.
+    if value skipped then metadata key will be converted to float
+    if value started with '=' then metadata will be evaluated by equation presented after =
+    else value is path to CSV file with header. one of the header's column should be named EXTKEY
+    or any other setted by csv kwarg.
+    this column wll be used as keys for metadata replacement by values from other columns
+    :param csv: header column used as keys
+
+    :return: MetaReference instance
+    """
+    extdata = {}
+    for p in params:
+        ext, val = p.split(':')
+        if val[0] == '=':
+            extdata[ext] = val[1:]
+        elif val:
+            tmp = read_csv(val)
+            k = tmp.pop(csv)
+            v = tmp.rename(columns=lambda x: '%s.%s' % (ext, x))
+            extdata[ext] = {x: y.to_dict() for x, (_, y) in zip(k, v.iterrows())}
+        else:
+            extdata[ext] = None
+    return MetaReference(extdata)
+
+
+__all__ = [MetaReference.__name__, prepare_metareference.__name__]
