@@ -196,16 +196,20 @@ def prepare_metareference(params, csv='EXTKEY'):
     """
     extdata = {}
     for p in params:
-        ext, val = p.split(':')
-        if val[0] == '=':
-            extdata[ext] = val[1:]
-        elif val:
-            tmp = read_csv(val)
-            k = tmp.pop(csv)
-            v = tmp.rename(columns=lambda x: '%s.%s' % (ext, x))
-            extdata[ext] = {x: y.to_dict() for x, (_, y) in zip(k, v.iterrows())}
+        if ':' in p:
+            ext, val = p.split(':', maxsplit=1)
+            if val:
+                if val[0] == '=':
+                    extdata[ext] = val[1:]
+                else:
+                    tmp = read_csv(val)
+                    k = tmp.pop(csv)
+                    v = tmp.rename(columns=lambda x: '%s.%s' % (ext, x))
+                    extdata[ext] = {x: y.to_dict() for x, (_, y) in zip(k, v.iterrows())}
+            else:
+                extdata[ext] = None
         else:
-            extdata[ext] = None
+            extdata[p] = None
     return MetaReference(extdata)
 
 
