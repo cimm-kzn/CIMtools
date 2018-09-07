@@ -23,18 +23,15 @@ from sys import stderr
 from traceback import format_exc
 
 
-UTILS_DIR = Path('~').expanduser()
+CHEMAXON_REST = None
 
-CHEMAXON = "https://cimm.kpfu.ru/webservices"
-JCHEM_DIR = UTILS_DIR / 'ChemAxon/JChem'
-FRAGMENTOR = str(UTILS_DIR / 'fragmentor/fragmentor')
-
-config_list = ('CHEMAXON', 'JCHEM_DIR', 'FRAGMENTOR', 'MOLCONVERT', 'STANDARDIZER', 'UTILS_DIR')
-config_dirs = [x / '.CIMtools.ini' for x in (Path(__file__).parent, Path('~').expanduser(), Path('/etc'))]
+config_list = 'CHEMAXON_REST',
+config_dirs = [Path('~/.CIMtools.ini').expanduser(), Path('/etc/CIMtools.ini')]
 
 if not any(x.exists() for x in config_dirs):
-    with config_dirs[1].open('w') as f:
-        f.write('\n'.join('%s=%s' % (x, y or '') for x, y in globals().items() if x in config_list))
+    with config_dirs[0].open('w') as f:
+        f.write('#CHEMAXON_REST=http://url/webservices')
+
 
 with next(x for x in config_dirs if x.exists()).open() as f:
     for n, line in enumerate(f, start=1):
@@ -48,12 +45,3 @@ with next(x for x in config_dirs if x.exists()).open() as f:
                     globals()[k] = int(v) if v.isdigit() else v == 'True' if v in ('True', 'False', '') else v
         except ValueError:
             print('line %d\n\n%s\n consist errors: %s' % (n, line, format_exc()), file=stderr)
-
-
-JCHEMBIN = Path(JCHEM_DIR) / 'bin'
-PMAPPER = str(JCHEMBIN / 'pmapper')
-
-if 'MOLCONVERT' not in locals():
-    MOLCONVERT = str(JCHEMBIN / 'molconvert')
-if 'STANDARDIZER' not in locals():
-    STANDARDIZER = str(JCHEMBIN / 'standardize')

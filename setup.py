@@ -27,6 +27,7 @@ setup(
     name='CIMtools',
     version=version(),
     packages=find_packages(),
+    zip_safe=True,
     url='https://github.com/stsouko/CIMtools',
     license='AGPLv3',
     author='Dr. Ramil Nugmanov',

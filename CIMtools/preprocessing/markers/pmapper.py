@@ -28,7 +28,6 @@ from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from tempfile import mkstemp
 from ..common import iter2array, TransformerMixin
-from ...config import PMAPPER
 from ...exceptions import ConfigurationError
 
 
@@ -88,7 +87,7 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
             tmp = f.getvalue().encode()
 
         try:
-            p = run([PMAPPER, '-g', '-c', str(self.__config)], input=tmp, stdout=PIPE, stderr=PIPE)
+            p = run(['pmapper', '-g', '-c', str(self.__config)], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 

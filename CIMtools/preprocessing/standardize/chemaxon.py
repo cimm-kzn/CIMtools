@@ -28,7 +28,7 @@ from subprocess import run, PIPE
 from sklearn.base import BaseEstimator
 from tempfile import mkstemp
 from ..common import iter2array, TransformerMixin
-from ...config import STANDARDIZER, CHEMAXON
+from ...config import CHEMAXON_REST
 from ...exceptions import ConfigurationError
 
 
@@ -71,7 +71,8 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
 
     def transform(self, x):
         x = super().transform(x)
-        return iter2array(self.__processor_m(x) if x.size > 1 else self.__processor_s(x[0]), allow_none=True)
+        return iter2array(self.__processor_m(x) if x.size > 1 or not CHEMAXON_REST else self.__processor_s(x[0]),
+                          allow_none=True)
 
     def __processor_m(self, structures):
         with StringIO() as f:
@@ -80,7 +81,7 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
                     w.write(s)
             tmp = f.getvalue().encode()
         try:
-            p = run([STANDARDIZER, '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
+            p = run(['standardize', '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 
@@ -102,21 +103,18 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
                         filterChain=[dict(filter='standardizer',
                                           parameters=dict(standardizerDefinition=self.rules))])
         try:
-            res = self.__chemaxon_rest(data)
+            q = post(f'{CHEMAXON_REST}/rest-v0/util/calculate/molExport', json=data, timeout=20)
         except RequestException as e:
             raise ConfigurationError(e)
 
+        if q.status_code not in (201, 200):
+            return [None]
+
+        res = q.json()
         if not res:
             return [None]
 
         with BytesIO(res['structure'].encode()) as f, MRVread(f) as r:
             return r.read()
 
-    @classmethod
-    def __chemaxon_rest(cls, data):
-        q = post(cls.__rest_url, json=data, headers={'content-type': 'application/json'}, timeout=20)
-        if q.status_code in (201, 200):
-            return q.json()
-
-    __rest_url = '%s/rest-v0/util/calculate/molExport' % CHEMAXON
     __config = None

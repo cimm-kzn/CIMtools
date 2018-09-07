@@ -20,18 +20,22 @@
 #
 from CGRtools.containers import MoleculeContainer
 from CGRtools.files import SDFread, SDFwrite
-from os import close, environ
+from os import close
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from tempfile import mkstemp, mkdtemp
 from .common import iter2array, TransformerMixin, reaction_support
-from ..config import JCHEM_DIR, UTILS_DIR
 from ..exceptions import ConfigurationError
 
 
 class Colorize(BaseEstimator, TransformerMixin):
+    """ be sure what set in environment:
+    CLASSPATH which contains paths to lib/jchem.jar and infochim.u-strasbg Utils containing dir
+    SETUP_DIR with path/to/infochim.u-strasbg/Utils dir
+    FORCEFIELD= with path/to/infochim.u-strasbg/Utils/cvffTemplates.xml or another
+    """
     def __init__(self, standardize=None, workpath='.'):
         self.standardize = standardize
         self.__init()
@@ -91,13 +95,9 @@ class Colorize(BaseEstimator, TransformerMixin):
                 w.write(s)
 
         try:
-            env = environ.copy()
-            env.update(SETUP_DIR='%s/Utils' % UTILS_DIR, FORCEFIELD='%s/Utils/cvffTemplates.xml' % UTILS_DIR,
-                       CLASSPATH='{}/lib/jchem.jar:{}'.format(JCHEM_DIR, UTILS_DIR))
-
             p = run(['java', 'Utils.CA_Prop_Map2011',
                      '-f', str(inp_file), '-o', str(out_file), '-stdoptions', str(self.__config)],
-                    stderr=PIPE, stdout=PIPE, env=env)
+                    stderr=PIPE, stdout=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 

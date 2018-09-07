@@ -22,7 +22,6 @@ from CGRtools.files import MRVread
 from io import StringIO, BytesIO
 from pathlib import Path
 from subprocess import run, PIPE
-from ..config import MOLCONVERT
 from ..exceptions import ConfigurationError
 from ..preprocessing.common import iter2array
 
@@ -50,7 +49,7 @@ def molconvert_chemaxon(data):
         raise ValueError('invalid input')
 
     try:
-        p = run([MOLCONVERT, '-g', 'mrv'], input=data, stdout=PIPE)
+        p = run(['molconvert', '-g', 'mrv'], input=data, stdout=PIPE)
     except FileNotFoundError as e:
         raise ConfigurationError(e)
 

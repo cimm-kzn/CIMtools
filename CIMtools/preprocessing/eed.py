@@ -21,16 +21,16 @@
 from CGRtools.containers import MoleculeContainer
 from CGRtools.files import SDFwrite
 from io import StringIO
-from os import environ
 from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator
 from subprocess import run, PIPE
 from .common import TransformerMixin
-from ..config import UTILS_DIR, JCHEM_DIR
 from ..exceptions import ConfigurationError
 
 
 class Eed(BaseEstimator, TransformerMixin):
+    """ be sure what CLASSPATH set in environment and contains paths to lib/jchem.jar and infochim.u-strasbg Utils
+    """
     def transform(self, x, return_domain=False):
         x = super().transform(x)
 
@@ -40,10 +40,7 @@ class Eed(BaseEstimator, TransformerMixin):
 
             tmp = f.getvalue().encode()
         try:
-            env = environ.copy()
-            env.update(CLASSPATH='{}/lib/jchem.jar:{}'.format(JCHEM_DIR, UTILS_DIR))
-
-            p = run(['java', 'Utils.react_desc', '-svm'], input=tmp, stdout=PIPE, stderr=PIPE, env=env)
+            p = run(['java', 'Utils.react_desc', '-svm'], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
             raise ConfigurationError(e)
 

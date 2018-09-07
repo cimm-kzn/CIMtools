@@ -32,7 +32,6 @@ from subprocess import call
 from tempfile import mkdtemp, mkstemp
 from warnings import warn
 from .common import iter2array
-from ..config import FRAGMENTOR
 from ..exceptions import ConfigurationError
 
 
@@ -240,7 +239,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         return DataFrame(vector, columns=head_cols).fillna(0), Series(ad)
 
     def __exec_params(self, inp, out):
-        tmp = ['%s-%s' % (FRAGMENTOR, self.version) if self.version else FRAGMENTOR, '-i', str(inp), '-o', str(out)]
+        tmp = [f'fragmentor-{self.version}' if self.version else 'fragmentor', '-i', str(inp), '-o', str(out)]
 
         if self.__head_exec:
             tmp.extend(('-h', str(self.__head_exec)))
