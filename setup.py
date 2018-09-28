@@ -47,7 +47,7 @@ setup(
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
-                 'Programming Language :: Python :: 3.5',
+                 'Programming Language :: Python :: 3.7',
                  ],
     command_options={'build_sphinx': {'project': ('setup.py', 'CIMtools'),
                                       'version': ('setup.py', version()), 'source_dir': ('setup.py', 'doc'),
