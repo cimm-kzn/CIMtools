@@ -23,7 +23,7 @@ from CGRtools.files import SDFwrite
 from logging import info
 from os import close
 from os.path import devnull
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, concat
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -38,13 +38,19 @@ from ..exceptions import ConfigurationError
 class Fragmentor(BaseEstimator, TransformerMixin):
     def __init__(self, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0, cgr_dynbonds=0,
                  doallways=False, useformalcharge=False, atompairs=False, header=None, fragmentstrict=False,
-                 getatomfragment=False, workpath='.', version=None, verbose=False):
+                 getatomfragment=False, workpath='.', version=None, verbose=False, remove_rare_ratio=0):
         """
         ISIDA Fragmentor wrapper
 
         :param workpath: path for temp files.
-        :param version: fragmentor version
-        :param header:
+        :param version: fragmentor version. need for selecting Fragmentor executables named as fragmentor-{version}
+        :param header: if None descriptors will be generated on train set
+                       if False Fragmentor will work in headless mode. in this mod fit unusable and Fragmentor return
+                           all found descriptors
+                       else path string to existing header file acceptable
+        :param remove_rare_ratio: if descriptors found on train less then given ratio it will be removed from header.
+                                  if partial fit used, be sure to use finalize method.
+                                  unusable if headless mode set
         """
         self.fragment_type = fragment_type
         self.min_length = min_length
@@ -60,6 +66,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         self.version = version
         self.verbose = verbose
         self.header = header
+        self.remove_rare_ratio = remove_rare_ratio
 
         self.__init_header()
         self.set_work_path(workpath)
@@ -67,6 +74,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if
                 k in ('_Fragmentor__head_dump', '_Fragmentor__head_less', '_Fragmentor__head_generate') or
+                k == '_Fragmentor__head_rare' and self.__head_generate or
                 k not in ('header', 'workpath') and not k.startswith('_Fragmentor__')}
 
     def __setstate__(self, state):
@@ -91,6 +99,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         return self
 
     def set_work_path(self, workpath):
+        self.delete_work_path()
         self.workpath = workpath
         self.__workpath = Path(workpath)
         if self.__head_dict:
@@ -112,6 +121,10 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         elif not self.__head_dict:
             raise NotFittedError(f'{self.__class__.__name__} instance is not fitted yet')
         else:
+            if self.remove_rare_ratio:
+                self.__clean_head(*self.__head_rare)
+                self.__prepare_header()
+                self.__head_rare = None
             self.__head_generate = False
 
     def _reset(self):
@@ -123,6 +136,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                 self.__head_generate = True
             if self.__head_dict:
                 self.__head_dump = self.__head_dict = None
+            if self.__head_rare is not None:
+                self.__head_rare = None
 
             self.delete_work_path()
 
@@ -163,14 +178,16 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
     def fit_transform(self, x, y=None, return_domain=False):
         x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+        if self.__head_less:
+            warn(f'{self.__class__.__name__} configured to head less mode')
 
         self._reset()
-        x, d = self.__prepare(x)
+        x, d = self.__prepare(x, transform=True)
         if return_domain:
             return x, d
         return x
 
-    def __prepare(self, x, partial=False, fit=True):
+    def __prepare(self, x, partial=False, fit=True, transform=False):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
         inp_file = work_dir / 'input.sdf'
         out_file = work_dir / 'output'
@@ -189,27 +206,54 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             with open(devnull, 'w') as silent:
                 exitcode = call(execparams, stdout=silent, stderr=silent) == 0
 
-        if exitcode and out_file_svm.exists() and out_file_hdr.exists():
-            if self.__head_less:
-                head_dict = self.__parse_header(out_file_hdr)
-            else:
-                if fit:  # dump header if don't set on first run
-                    self.__load_header(out_file_hdr)
-                    if not partial:
-                        self.__head_generate = False
-                    self.__prepare_header()
+        if not (exitcode and out_file_svm.exists() and out_file_hdr.exists()):
+            raise ConfigurationError(f'{self.__class__.__name__} execution FAILED')
 
-                head_dict = self.__head_dict
-
-            try:
-                x, d = self.__parse_svm(out_file_svm, head_dict)
-            except Exception as e:
-                raise ConfigurationError(e)
+        if self.__head_less:
+            head_dict = self.__parse_header(out_file_hdr)
         else:
-            raise ConfigurationError('Fragmentor execution FAILED')
+            if fit:  # dump header
+                self.__load_header(out_file_hdr)
+                if not partial:
+                    self.__head_generate = False
+            head_dict = self.__head_dict
+
+        try:
+            x, d = self.__parse_svm(out_file_svm, head_dict)
+        except Exception as e:
+            raise ConfigurationError(e)
 
         rmtree(str(work_dir))
+
+        if not self.__head_less and fit:
+            if self.remove_rare_ratio:
+                amount = x.astype(bool).sum()
+                if partial:
+                    if self.__head_rare is None:
+                        self.__head_rare = (amount, len(x))
+                    else:
+                        self.__head_rare = (concat([amount, self.__head_rare[0]], axis=1).sum(axis=1),
+                                            self.__head_rare[1] + len(x))
+                else:
+                    self.__clean_head(amount, len(x))
+
+                    if transform:
+                        x = x[list(self.__head_dict.values())]
+
+            self.__prepare_header()
         return x, d
+
+    def __clean_head(self, fragments, total):
+        c = 0
+        head_dict = {}
+        part = (fragments / total) >= self.remove_rare_ratio
+        for k, v in part.items():
+            if v:
+                c += 1
+                head_dict[c] = k
+
+        self.__head_dict = head_dict
+        self.__head_dump = self.__format_header(self.__head_dict)
 
     @staticmethod
     def __parse_svm(svm_file, head_dict):
@@ -305,4 +349,4 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             self.__head_generate = True
             self.__head_less = False
 
-    __head_dump = __head_dict = __head_exec = __workpath = None
+    __head_dump = __head_dict = __head_exec = __head_rare = __workpath = None
