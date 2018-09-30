@@ -1,11 +1,7 @@
 CIMtools
 =========
-ChemoInformatics Modeler tools distributive. include ISIDA Fragmentor and EED python wrappers
-
-usage
-=====
-
-cimtools -h
+ChemoInformatics Modeling tools distributive.  
+include ISIDA Fragmentor python wrapper
 
 
 INSTALL
@@ -17,23 +13,20 @@ INSTALL
 
 or latest repository version
 
-    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links --allow-all-external
+    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links
 
-*step 2:*
+*step 2:* config ENVIRONMENT
 
-type
+* add CHEMAXON_REST (optional)
 
-    cimtools -h
+        export CHEMAXON_REST="url/to/webservices"
 
-*step 3:*
+* add/edit for Colorize and EED using
 
-edit `~/.CIMtools.ini` or add `/etc/.CIMtools.ini`
-or add file into package `CIMtools/.CIMtools.ini` [useful for manually downloaded CIMtools Lib]
+        CLASSPATH should contains paths to lib/jchem.jar and infochim.u-strasbg Utils containing dir
+        SETUP_DIR with path/to/infochim.u-strasbg/Utils dir
+        FORCEFIELD= with path/to/infochim.u-strasbg/Utils/cvffTemplates.xml or another
 
-    UTILS_DIR=~ # dir with Dragos's utilities (Utils dir should be in this dir)
-    CHEMAXON=https://cimm.kpfu.ru/webservices # Chemaxon REST API
-    JCHEM_DIR = ~/ChemAxon/JChem # dir with JChem distributive
-    FRAGMENTOR = ~/fragmentor/fragmentor # path to fragmentor bin file (without -version_suffix [fragmentor-2015.22])
+* edit PATH for Fragmentor using. Add path to fragmentor bin files
 
-
-priority: `CIMtools/.CIMtools.ini` >> `~/.CIMtools.ini` >> `/etc/.CIMtools.ini`
+* edit PATH for AtomMarkerPharmacophore using. add path to jchem bin files

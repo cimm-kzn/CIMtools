@@ -20,7 +20,7 @@
 #
 from CGRtools.files import MRVread, MRVwrite
 from io import StringIO, BytesIO
-from os import close
+from os import close, getenv
 from pathlib import Path
 from requests import post
 from requests.exceptions import RequestException
@@ -28,8 +28,10 @@ from subprocess import run, PIPE
 from sklearn.base import BaseEstimator
 from tempfile import mkstemp
 from ..common import iter2array, TransformerMixin
-from ...config import CHEMAXON_REST
 from ...exceptions import ConfigurationError
+
+
+CHEMAXON_REST = getenv('CHEMAXON_REST')
 
 
 class StandardizeChemAxon(BaseEstimator, TransformerMixin):

@@ -23,6 +23,7 @@ from CIMtools.version import version
 from pathlib import Path
 from setuptools import setup, find_packages
 
+
 setup(
     name='CIMtools',
     version=version(),
@@ -34,7 +35,7 @@ setup(
     author_email='stsouko@live.ru',
     description='Modeler tools',
     package_data={'CIMtools.preprocessing.standardize': ['horvat.unwanted', 'horvat.xml']},
-    install_requires=['CGRtools>=2.8.23,<2.9', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.19.0,<0.20',
+    install_requires=['CGRtools>=2.8.23,<2.9', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.19.0,<0.21',
                       'requests>=2.18.4,<2.20', 'scipy>=1.0.0,<1.2', 'pyparsing>=2.2.0,<2.3'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
