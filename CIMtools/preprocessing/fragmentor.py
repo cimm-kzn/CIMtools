@@ -187,6 +187,14 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             return x, d
         return x
 
+    @property
+    def _number_of_fragments(self):
+        return len(self.__head_dict)
+
+    @property
+    def _fragments(self):
+        return list(self.__head_dict)
+
     def __prepare(self, x, partial=False, fit=True, transform=False):
         work_dir = Path(mkdtemp(prefix='frg_', dir=str(self.__workpath)))
         inp_file = work_dir / 'input.sdf'
@@ -252,6 +260,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                 c += 1
                 head_dict[c] = k
 
+        info('cleaned %d rare fragments' % (len(self.__head_dict) - c))
         self.__head_dict = head_dict
         self.__head_dump = self.__format_header(self.__head_dict)
 
