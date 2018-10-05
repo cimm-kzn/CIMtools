@@ -4,19 +4,17 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU Affero General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import MoleculeContainer, QueryContainer
 from CGRtools.files import SDFwrite
@@ -79,6 +77,12 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
     def __setstate__(self, state):
         super().__setstate__({k: v for k, v in state.items() if k != '_Fragmentor__head_dump'})
+        # backward compatibility with 1.4.0 - 1.4.6
+        if '_Fragmentor__head_less' not in state:
+            self.__head_less = False
+        if '_Fragmentor__head_generate' not in state:
+            self.__head_generate = True
+
         if state.get('_Fragmentor__head_dump'):
             self.__load_header(state['_Fragmentor__head_dump'])
         self.set_work_path('.')
