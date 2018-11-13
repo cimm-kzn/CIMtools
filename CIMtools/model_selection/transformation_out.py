@@ -70,8 +70,6 @@ class TransformationOut(BaseCrossValidator):
                         test.append(index)
 
             for i in range(self.n_splits):
-                train_index = []
-                test_index = []
-                train_index.extend(train_folds[:i]+train_folds[i+1:])
-                test_index.extend(test_folds[i])
+                train_index = train_folds[:i]+train_folds[i+1:]
+                test_index = test_folds[i]
                 yield array(train_index), array(test_index)
