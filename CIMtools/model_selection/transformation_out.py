@@ -13,6 +13,9 @@ class TransformationOut(BaseCrossValidator):
         self.shuffle = shuffle
         self.n_repeats = n_repeats
 
+    def get_n_splits(self, n_splits):
+        return n_splits
+
     def split(self, X, y=None, groups=None):
         X, y, groups = indexable(X, y, groups)
         cgr = CGRpreparer()
@@ -36,13 +39,11 @@ class TransformationOut(BaseCrossValidator):
                              " than the number of transformations: %d."
                              % (self.n_splits, len(train_data)))
 
-        structures_weight = sorted({x: len(y) for x, y in train_data.items()}, key=lambda z: z[1], reverse=True)
+        structures_weight = sorted({x: len(y) for x, y in train_data.items()}.items(), key=lambda z: z[1], reverse=True)
         fold_mean_size = len(cgrs) // self.n_splits
 
-        folds = [[] for _ in range(self.n_splits)]
-
-
         for idx in range(self.n_repeats):
+            folds = [[] for _ in range(self.n_splits)]
             for i in structures_weight:
                 if self.shuffle:
                     r_shuffle(folds)
@@ -59,7 +60,7 @@ class TransformationOut(BaseCrossValidator):
                             fold.extend(train_data[i[0]])
 
 
-            for i in folds:
+            for i in range(len(folds)):
                 train_index = []
                 test_index = []
                 for j in range(self.n_splits):
