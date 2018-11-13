@@ -13,8 +13,8 @@ class TransformationOut(BaseCrossValidator):
         self.shuffle = shuffle
         self.n_repeats = n_repeats
 
-    def get_n_splits(self, n_splits):
-        return n_splits
+    def get_n_splits(self, X=None, y=None, groups=None):
+        return self.n_splits
 
     def split(self, X, y=None, groups=None):
         X, y, groups = indexable(X, y, groups)
