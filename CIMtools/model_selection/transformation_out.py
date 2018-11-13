@@ -47,11 +47,11 @@ class TransformationOut(BaseCrossValidator):
             warning('You have transformation that greater fold size')
 
         for idx in range(self.n_repeats):
-            folds = [[] for _ in range(self.n_splits)]
+            train_folds = [[] for _ in range(self.n_splits)]
             for structure, structure_length in structures_weight:
                 if self.shuffle:
                     r_shuffle(folds)
-                for n, fold in enumerate(folds):
+                for fold in train_folds[:-1]:
                     if len(fold) + structure_length <= fold_mean_size:
                         fold.extend(train_data[structure])
                         break
@@ -60,20 +60,18 @@ class TransformationOut(BaseCrossValidator):
                         if random() > roulette_param:
                             fold.extend(train_data[structure])
                             break
-                        elif n == 4:
-                            fold.extend(train_data[structure])
+                else:
+                    train_folds[-1].extend(train_data[structure])
 
-            for i in range(len(folds)):
+            test_folds = [[] for _ in range(self.n_splits)]
+            for test, train in zip(test_folds, train_folds):
+                for index in train:
+                    if index in test_data:
+                        test.append(index)
+
+            for i in range(self.n_splits):
                 train_index = []
                 test_index = []
-                for j in range(self.n_splits):
-                    if not j == i:
-                        train_index.extend(folds[j])
-                    else:
-                        for c in folds[j]:
-                            if groups is not None:
-                                if c in test_data:
-                                    test_index.append(c)
-                            else:
-                                test_index.append(c)
+                train_index.extend(train_folds[:i]+train_folds[i+1:])
+                test_index.extend(test_folds[i])
                 yield array(train_index), array(test_index)
