@@ -1,11 +1,11 @@
-import collections.defaultdict as defaultdict
-import CGRtools.preparer.CGRpreparer as CGRpreparer
-import logging.warning as warning
-import numpy.array as array
-import random.random as random
-import random.shuffle as r_shuffle
-import sklearn.model_selection.BaseCrossValidator as BaseCrossValidator
-import sklearn.utils.validation.indexable as indexable
+from CGRtools.preparer import CGRpreparer
+from collections import defaultdict
+from logging import warning
+from numpy import array
+from random import shuffle as r_shuffle
+from random import random
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.validation import indexable
 
 
 class TransformationOut(BaseCrossValidator):
@@ -50,7 +50,7 @@ class TransformationOut(BaseCrossValidator):
             train_folds = [[] for _ in range(self.n_splits)]
             for structure, structure_length in structures_weight:
                 if self.shuffle:
-                    r_shuffle(folds)
+                    r_shuffle(train_folds)
                 for fold in train_folds[:-1]:
                     if len(fold) + structure_length <= fold_mean_size:
                         fold.extend(train_data[structure])
@@ -70,6 +70,8 @@ class TransformationOut(BaseCrossValidator):
                         test.append(index)
 
             for i in range(self.n_splits):
-                train_index = train_folds[:i]+train_folds[i+1:]
+                train_index = []
+                for fold in train_folds[:i] + train_folds[i+1:]:
+                    train_index.extend(fold)
                 test_index = test_folds[i]
                 yield array(train_index), array(test_index)
