@@ -1,10 +1,11 @@
-from sklearn.model_selection import BaseCrossValidator
-from CGRtools.preparer import CGRpreparer
-from collections import defaultdict
-from random import shuffle as r_shuffle
-from random import random
-import numpy as np
-from sklearn.utils.validation import indexable
+import collections.defaultdict as defaultdict
+import CGRtools.preparer.CGRpreparer as CGRpreparer
+import logging.warning as warning
+import numpy.array as array
+import random.random as random
+import random.shuffle as r_shuffle
+import sklearn.model_selection.BaseCrossValidator as BaseCrossValidator
+import sklearn.utils.validation.indexable as indexable
 
 
 class TransformationOut(BaseCrossValidator):
@@ -39,26 +40,28 @@ class TransformationOut(BaseCrossValidator):
                              " than the number of transformations: %d."
                              % (self.n_splits, len(train_data)))
 
-        structures_weight = sorted({x: len(y) for x, y in train_data.items()}.items(), key=lambda z: z[1], reverse=True)
+        structures_weight = sorted(((x, len(y)) for x, y in train_data.items()), key=lambda x: x[1], reverse=True)
         fold_mean_size = len(cgrs) // self.n_splits
+
+        if structures_weight[0][1] > fold_mean_size:
+            warning('You have transformation that greater fold size')
 
         for idx in range(self.n_repeats):
             folds = [[] for _ in range(self.n_splits)]
-            for i in structures_weight:
+            for structure, structure_length in structures_weight:
                 if self.shuffle:
                     r_shuffle(folds)
                 for n, fold in enumerate(folds):
-                    if len(fold) + i[1] <= fold_mean_size:
-                        fold.extend(train_data[i[0]])
+                    if len(fold) + structure_length <= fold_mean_size:
+                        fold.extend(train_data[structure])
                         break
                     else:
-                        roulette_param = (len(train_data[i[0]]) - fold_mean_size + len(fold)) / len(train_data[i[0]])
+                        roulette_param = (structure_length - fold_mean_size + len(fold)) / structure_length
                         if random() > roulette_param:
-                            fold.extend(train_data[i[0]])
+                            fold.extend(train_data[structure])
                             break
                         elif n == 4:
-                            fold.extend(train_data[i[0]])
-
+                            fold.extend(train_data[structure])
 
             for i in range(len(folds)):
                 train_index = []
@@ -73,4 +76,4 @@ class TransformationOut(BaseCrossValidator):
                                     test_index.append(c)
                             else:
                                 test_index.append(c)
-                yield np.array(train_index), np.array(test_index)
+                yield array(train_index), array(test_index)
