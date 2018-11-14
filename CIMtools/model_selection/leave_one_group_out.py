@@ -29,7 +29,7 @@ class LeaveOneGroupOut(BaseCrossValidator):
         y : object
             Always ignored, exists for compatibility.
             ``np.zeros(n_samples)`` may be used as a placeholder.
-        groups : array-like, with shape (n_samples,), optional
+        groups : array-like, with shape (n_samples,)
             Group labels for the samples used while splitting the dataset into
             train/test set.
         Returns
@@ -47,7 +47,7 @@ class LeaveOneGroupOut(BaseCrossValidator):
             Training data, includes reaction's containers
         y : array-like, of length n_samples
             The target variable for supervised learning problems.
-        groups : array-like, with shape (n_samples,), optional
+        groups : array-like, with shape (n_samples,)
             Group labels for the samples used while splitting the dataset into
             train/test set.
         Yields
