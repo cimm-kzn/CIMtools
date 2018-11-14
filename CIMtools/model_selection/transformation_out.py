@@ -19,7 +19,6 @@ class TransformationOut(BaseCrossValidator):
     that appeared in other reactions.
     This algorithm repeats n times with different randomization in each repetition.
 
-
     Parameters
     ----------
     n_splits : int, default=5
@@ -27,7 +26,8 @@ class TransformationOut(BaseCrossValidator):
     n_repeats : int, default=5
          Number of times cross-validator needs to be repeated.
     shuffle : boolean, optional
-        Whether to shuffle the data before splitting into batches."""
+        Whether to shuffle the data before splitting into batches.
+    """
 
     def __init__(self, n_splits=5, n_repeats=5, shuffle=False):
         self.n_splits = n_splits
