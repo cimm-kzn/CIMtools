@@ -5,6 +5,7 @@ from numpy import array
 from random import shuffle as r_shuffle
 from random import random
 from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils import check_random_state
 from sklearn.utils.validation import indexable
 
 
@@ -109,11 +110,8 @@ class TransformationOut(BaseCrossValidator):
         for idx in range(self.n_repeats):
             train_folds = [[] for _ in range(self.n_splits)]
             for structure, structure_length in structures_weight:
-
                 if self.shuffle:
-                    check_random_state(self.random_state).shuffle(indices)
-                if self.shuffle:
-                    r_shuffle(train_folds)
+                    check_random_state(self.random_state).shuffle(train_folds)
                 for fold in train_folds[:-1]:
                     if len(fold) + structure_length <= fold_mean_size:
                         fold.extend(train_data[structure])
