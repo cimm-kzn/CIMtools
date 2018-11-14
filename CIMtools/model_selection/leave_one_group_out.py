@@ -79,6 +79,6 @@ class LeaveOneGroupOut(BaseCrossValidator):
             test_index = [index for index in indexes if index in test_data]
             if len(test_index) == 0:
                 continue
-            train_index = [y for c in train_data.keys() for y in c if not c == condition]
+            train_index = [i for cond, ind in train_data.items() if cond != condition for i in ind]
 
             yield array(train_index), array(test_index)
