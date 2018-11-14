@@ -11,9 +11,7 @@ class LeaveOneGroupOut(BaseCrossValidator):
     Provides train/test indices to split data in train/test sets. Each
     reactions with the same condition is used once as a test set (singleton)
     while the remaining reactions form the training set. Test set includes
-    only reactions with transformations that appeared in other reactions.
-
-    """
+    only reactions with transformations that appeared in other reactions."""
 
     def __init__(self):
         # We need this for the build_repr to work properly in py2.7
