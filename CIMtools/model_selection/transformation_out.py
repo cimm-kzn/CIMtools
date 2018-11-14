@@ -23,16 +23,22 @@ class TransformationOut(BaseCrossValidator):
     ----------
     n_splits : int, default=5
         Number of folds. Must be at least 2.
-    n_repeats : int, default=5
+    n_repeats : int, default=1
          Number of times cross-validator needs to be repeated.
     shuffle : boolean, optional
         Whether to shuffle the data before splitting into batches.
+    random_state : int, RandomState instance or None, optional, default=None
+        If int, random_state is the seed used by the random number generator;
+        If RandomState instance, random_state is the random number generator;
+        If None, the random number generator is the RandomState instance used
+        by `np.random`. Used when ``shuffle`` == True.
     """
 
-    def __init__(self, n_splits=5, n_repeats=5, shuffle=False):
+    def __init__(self, n_splits=5, n_repeats=1, shuffle=False, random_state=None):
         self.n_splits = n_splits
         self.shuffle = shuffle
         self.n_repeats = n_repeats
+        self.random_state = random_state
 
     def get_n_splits(self, X=None, y=None, groups=None):
         """Returns the number of splitting iterations in the cross-validator
@@ -44,7 +50,7 @@ class TransformationOut(BaseCrossValidator):
         y : object
             Always ignored, exists for compatibility.
             ``np.zeros(n_samples)`` may be used as a placeholder.
-        groups : array-like, with shape (n_samples,), optional
+        groups : array-like, with shape (n_samples,)
             Group labels for the samples used while splitting the dataset into
             train/test set.
         Returns
@@ -62,7 +68,7 @@ class TransformationOut(BaseCrossValidator):
             Training data, includes reaction's containers
         y : array-like, of length n_samples
             The target variable for supervised learning problems.
-        groups : array-like, with shape (n_samples,), optional
+        groups : array-like, with shape (n_samples,)
             Group labels for the samples used while splitting the dataset into
             train/test set.
         Yields
@@ -103,6 +109,9 @@ class TransformationOut(BaseCrossValidator):
         for idx in range(self.n_repeats):
             train_folds = [[] for _ in range(self.n_splits)]
             for structure, structure_length in structures_weight:
+
+                if self.shuffle:
+                    check_random_state(self.random_state).shuffle(indices)
                 if self.shuffle:
                     r_shuffle(train_folds)
                 for fold in train_folds[:-1]:
