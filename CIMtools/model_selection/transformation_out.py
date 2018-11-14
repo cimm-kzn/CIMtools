@@ -11,23 +11,23 @@ from sklearn.utils.validation import indexable
 class TransformationOut(BaseCrossValidator):
     """Transformation-out cross-validator
 
-        Provides train/test indices to split data in train/test sets.
-        Split dataset into k consecutive folds (without shuffling by default).
-        Every fold includes all reactions of each transformation.
-        Each fold is then used once as a validation (test set) while the k - 1 remaining
-        folds form the training set. Test set includes only reactions with conditions
-        that appeared in other reactions.
-        Splits n times with different randomization in each repetition.
+    Provides train/test indices to split data in train/test sets.
+    Split dataset into k consecutive folds (without shuffling by default).
+    Every fold includes all reactions of each transformation.
+    Each fold is then used once as a validation (test set) while the k - 1 remaining
+    folds form the training set. Test set includes only reactions with conditions
+    that appeared in other reactions.
+    This algorithm repeats n times with different randomization in each repetition.
 
 
-        Parameters
-        ----------
-        n_splits : int, default=5
-            Number of folds. Must be at least 2.
-        n_repeats : int, default=5
-             Number of times cross-validator needs to be repeated.
-        shuffle : boolean, optional
-            Whether to shuffle the data before splitting into batches."""
+    Parameters
+    ----------
+    n_splits : int, default=5
+        Number of folds. Must be at least 2.
+    n_repeats : int, default=5
+         Number of times cross-validator needs to be repeated.
+    shuffle : boolean, optional
+        Whether to shuffle the data before splitting into batches."""
 
     def __init__(self, n_splits=5, n_repeats=5, shuffle=False):
         self.n_splits = n_splits
@@ -58,7 +58,8 @@ class TransformationOut(BaseCrossValidator):
         """Generate indices to split data into training and test set.
         Parameters
         ----------
-        X : list of reactions
+        X : array-like, of length n_samples
+            Training data, includes reaction's containers
         y : array-like, of length n_samples
             The target variable for supervised learning problems.
         groups : array-like, with shape (n_samples,), optional
