@@ -2,7 +2,6 @@ from CGRtools.preparer import CGRpreparer
 from collections import defaultdict
 from logging import warning
 from numpy import array
-from random import shuffle as r_shuffle
 from random import random
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils import check_random_state
