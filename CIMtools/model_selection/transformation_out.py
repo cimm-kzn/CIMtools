@@ -112,7 +112,7 @@ class TransformationOut(BaseCrossValidator):
                 if self.shuffle:
                     check_random_state(self.random_state).shuffle(train_folds)
                 for fold in train_folds[:-1]:
-                    if len(fold) + structure_length < fold_mean_size:
+                    if len(fold) + structure_length <= fold_mean_size:
                         fold.extend(train_data[structure])
                         break
                     else:
