@@ -24,11 +24,11 @@ from ...exceptions import ConfigurationError
 
 
 class StandardizeCGR(BaseEstimator, TransformerMixin):
-    def __init__(self, templates, balance_groups=False, extralabels=False, isotope=False, element=True, stereo=False):
+    def __init__(self, templates, balance_groups=False):
         """
         CGR standardization and reaction balancing
 
-        :param templates: CGRTemplates. rules for graph modifications. possible be False
+        :param templates: CGRTemplates. list of rules for graph modifications.
         :param balance_groups: if True: for unbalanced reactions contains multiple attached functional groups in
             products and one of them described in reagents - will be restored information about all equal groups.
             for example:
@@ -42,28 +42,17 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
 
                 R + B1-X1 + B2-X2 -> B'1-R'-B'2 + X'1 + X'2
 
-        :param extralabels: see CGRreactor init
-        :param isotope: see CGRreactor init
-        :param element: see CGRreactor init
-        :param stereo: see CGRreactor init
         """
         self.templates = templates
         self.balance_groups = balance_groups
-        self.extralabels = extralabels
-        self.isotope = isotope
-        self.element = element
-        self.stereo = stereo
         self.__init()
 
     def __init(self):
         try:
             assert self.templates or self.balance_groups, 'invalid params. need balance_groups or/and templates'
-            self.__reactor = CGRreactor(extralabels=self.extralabels, isotope=self.isotope, element=self.element,
-                                        stereo=self.stereo)
-            if self.templates:
-                self.__searcher = self.__reactor.get_template_searcher(self.__reactor.prepare_templates(self.templates))
+            self.__fixes = [CGRreactor(x) for x in self.templates]
         except Exception as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_StandardizeCGR__')}
@@ -75,38 +64,28 @@ class StandardizeCGR(BaseEstimator, TransformerMixin):
     def set_params(self, **params):
         if params:
             super().set_params(**params)
-            self.__searcher = None
             self.__init()
         return self
 
     def transform(self, x):
-        x = super().transform(x)
-
-        return iter2array((self.__prepare(g) for g in x), allow_none=True)
+        return iter2array((self.__prepare(g) for g in super().transform(x)), allow_none=True)
 
     def __prepare(self, g):
-        if self.balance_groups:
-            g = self.__reactor.clone_subgraphs(g)
+        if self.balance_groups:  # DO NOT WORKING
+            g = clone_subgraphs(g)
 
-        cond = self.__searcher is not None
-        report = []
-        while cond:
-            searcher = self.__searcher(g)
-            first_match = next(searcher, None)
-            if not first_match:
-                if report:
-                    g.graph.setdefault('CGR_REPORT', []).extend(report)
-                break
-
-            g = self.__reactor.patcher(g, first_match.patch)
-            if 'CGR_TEMPLATE' in first_match.meta:
-                report.append(first_match.meta['CGR_TEMPLATE'])
-
-            for match in searcher:
-                g = self.__reactor.patcher(g, match.patch)
-                if 'CGR_TEMPLATE' in match.meta:
-                    report.append(match.meta['CGR_TEMPLATE'])
+        for fix in self.__fixes:
+            while True:
+                p = fix(g)
+                if p:
+                    p.meta.update(g.meta)
+                    g = p
+                else:
+                    break
         return g
 
     __searcher = None
     _dtype = MoleculeContainer
+
+
+__all__ = ['StandardizeCGR']

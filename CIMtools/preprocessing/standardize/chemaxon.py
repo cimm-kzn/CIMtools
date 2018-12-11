@@ -118,3 +118,6 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
             return r.read()
 
     __config = None
+
+
+__all__ = ['StandardizeChemAxon']

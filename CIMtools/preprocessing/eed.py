@@ -68,3 +68,6 @@ class Eed(BaseEstimator, TransformerMixin):
 
     __columns = ['eed.%d' % x for x in range(1, 705)]
     _dtype = MoleculeContainer
+
+
+__all__ = ['Eed']

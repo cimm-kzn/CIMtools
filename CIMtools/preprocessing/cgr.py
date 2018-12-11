@@ -18,22 +18,23 @@
 #
 from CGRtools import CGRpreparer
 from CGRtools.containers import ReactionContainer
+from logging import warning
 from sklearn.base import BaseEstimator
+from traceback import format_exc
 from .common import iter2array, TransformerMixin
 from ..exceptions import ConfigurationError
 
 
 class CGR(BaseEstimator, TransformerMixin):
-    def __init__(self, cgr_type='0', extralabels=False):
+    def __init__(self, cgr_type='0'):
         self.cgr_type = cgr_type
-        self.extralabels = extralabels
         self.__init()
 
     def __init(self):
         try:
-            self.__cgr = CGRpreparer(cgr_type=self.cgr_type, extralabels=self.extralabels)
+            self.__cgr = CGRpreparer(self.cgr_type)
         except Exception as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
     def __getstate__(self):
         return {k: v for k, v in super().__getstate__().items() if not k.startswith('_CGR__')}
@@ -54,9 +55,9 @@ class CGR(BaseEstimator, TransformerMixin):
         res = []
         for n, s in enumerate(x):
             try:
-                c = self.__cgr.condense(s)
-            except Exception as e:
-                print('Skip reaction:', n, e)
+                c = self.__cgr.compose(s)
+            except (TypeError, ValueError):
+                warning(f'skip reaction {n}:\n{format_exc()}')
                 res.append(None)
             else:
                 res.append(c)
@@ -64,3 +65,6 @@ class CGR(BaseEstimator, TransformerMixin):
         return iter2array(res, allow_none=True)
 
     _dtype = ReactionContainer
+
+
+__all__ = ['CGR']

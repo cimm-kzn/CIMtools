@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+#  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
+#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of CIMtools.
+#
+#  CIMtools is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
 from CGRtools.preparer import CGRpreparer
 from collections import defaultdict
 from logging import warning
@@ -80,7 +99,7 @@ class TransformationOut(BaseCrossValidator):
         """
         X, y, groups = indexable(X, y, groups)
         cgr = CGRpreparer()
-        cgrs = [cgr.condense(r) for r in X]
+        cgrs = [cgr.compose(r) for r in X]
 
         condition_structure = defaultdict(set)
 
@@ -137,3 +156,6 @@ class TransformationOut(BaseCrossValidator):
                     train_index.extend(fold)
                 test_index = test_folds[i]
                 yield array(train_index), array(test_index)
+
+
+__all__ = ['TransformationOut']

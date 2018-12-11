@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.containers import MoleculeContainer, QueryContainer
+from CGRtools.containers import MoleculeContainer, CGRContainer
 from CGRtools.files import SDFwrite
 from logging import info
 from os import close
@@ -148,7 +148,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
     def fit(self, x, y=None):
         """Compute the header.
         """
-        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+        x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
 
         if self.__head_less:
             warn(f'{self.__class__.__name__} configured to head less mode. fit unusable')
@@ -159,7 +159,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         return self
 
     def partial_fit(self, x, y=None):
-        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+        x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
 
         if self.__head_less:
             warn(f'{self.__class__.__name__} configured to head less mode. fit unusable')
@@ -174,14 +174,14 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         if not (self.__head_less or self.__head_dict):
             raise NotFittedError(f'{self.__class__.__name__} instance is not fitted yet')
 
-        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+        x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         x, d = self.__prepare(x, fit=False)
         if return_domain:
             return x, d
         return x
 
     def fit_transform(self, x, y=None, return_domain=False):
-        x = iter2array(x, dtype=(MoleculeContainer, QueryContainer))
+        x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         if self.__head_less:
             warn(f'{self.__class__.__name__} configured to head less mode')
 
@@ -363,3 +363,6 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             self.__head_less = False
 
     __head_dump = __head_dict = __head_exec = __head_rare = __workpath = None
+
+
+__all__ = ['Fragmentor']

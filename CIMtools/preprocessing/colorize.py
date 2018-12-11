@@ -97,7 +97,7 @@ class Colorize(BaseEstimator, TransformerMixin):
                      '-f', str(inp_file), '-o', str(out_file), '-stdoptions', str(self.__config)],
                     stderr=PIPE, stdout=PIPE)
         except FileNotFoundError as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
         if p.returncode != 0:
             raise ConfigurationError(p.stderr.decode())
@@ -115,3 +115,6 @@ class Colorize(BaseEstimator, TransformerMixin):
 
 
 ColorizeReaction = reaction_support(Colorize)
+
+
+__all__ = ['Colorize', 'ColorizeReaction']

@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+#  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
+#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of CIMtools.
+#
+#  CIMtools is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
+#
 from CGRtools.preparer import CGRpreparer
 from collections import defaultdict
 from numpy import array
@@ -13,12 +32,6 @@ class LeaveOneGroupOut(BaseCrossValidator):
     while the remaining reactions form the training set. Test set includes
     only reactions with transformations that appeared in other reactions.
     """
-
-    def __init__(self):
-        # We need this for the build_repr to work properly in py2.7
-        # see #6304
-        pass
-
     def get_n_splits(self, X=None, y=None, groups=None):
         """Returns the number of splitting iterations in the cross-validator
         Parameters
@@ -59,7 +72,7 @@ class LeaveOneGroupOut(BaseCrossValidator):
         """
         X, y, groups = indexable(X, y, groups)
         cgr = CGRpreparer()
-        cgrs = [cgr.condense(r) for r in X]
+        cgrs = [cgr.compose(r) for r in X]
 
         structure_condition = defaultdict(set)
 
@@ -75,10 +88,10 @@ class LeaveOneGroupOut(BaseCrossValidator):
                 test_data.append(n)
 
         for condition, indexes in train_data.items():
-
             test_index = [index for index in indexes if index in test_data]
-            if len(test_index) == 0:
-                continue
-            train_index = [i for cond, ind in train_data.items() if cond != condition for i in ind]
+            if test_index:
+                train_index = [i for cond, ind in train_data.items() if cond != condition for i in ind]
+                yield array(train_index), array(test_index)
 
-            yield array(train_index), array(test_index)
+
+__all__ = ['LeaveOneGroupOut']

@@ -113,3 +113,6 @@ class AtomMarkerPharmacophore(BaseEstimator, TransformerMixin):
 
     __config = None
     _dtype = MoleculeContainer
+
+
+__all__ = ['AtomMarkerPharmacophore']

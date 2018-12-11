@@ -17,7 +17,6 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import MoleculeContainer
-from CGRtools.core import CGRcore
 from io import TextIOWrapper
 from operator import itemgetter
 from pkg_resources import resource_stream
@@ -67,8 +66,8 @@ class StandardizeHorvat(StandardizeChemAxon):
             if s is None:
                 res.append(None)
             else:
-                species = sorted(((len([None for _, e in x.nodes(data='element') if e != 'H']), x)
-                                  for x in CGRcore.split(s)), key=itemgetter(0))
+                species = sorted(((sum(1 for _, e in x.nodes(data='element') if e != 'H'), x)
+                                  for x in s.split()), key=itemgetter(0))
                 if species[-1][0] <= self.max_main_size and \
                         (len(species) == 1 or (species[-1][0] / species[-2][0] >= self.min_ratio and
                                                species[-2][0] <= self.max_ion_size and
@@ -92,3 +91,6 @@ class StandardizeHorvat(StandardizeChemAxon):
         return out
 
     _dtype = MoleculeContainer
+
+
+__all__ = ['StandardizeHorvat']

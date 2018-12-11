@@ -32,3 +32,6 @@ def tanimoto_kernel(x, y):
     result[np.isnan(result)] = 0
 
     return result
+
+
+__all__ = ['tanimoto_kernel']

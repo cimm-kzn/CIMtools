@@ -102,3 +102,6 @@ def make_filtered_transformer(transformer, x_is_2d=False):
             return repr(transformer)
 
     return Transformer()
+
+
+__all__ = ['make_filtered_transformer']

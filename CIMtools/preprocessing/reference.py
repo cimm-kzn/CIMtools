@@ -211,4 +211,4 @@ def prepare_metareference(params, csv='EXTKEY'):
     return MetaReference(extdata)
 
 
-__all__ = [MetaReference.__name__, prepare_metareference.__name__]
+__all__ = ['MetaReference', 'prepare_metareference']

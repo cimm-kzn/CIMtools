@@ -16,11 +16,11 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .cgr import CGR
-from .colorize import Colorize, ColorizeReaction
-from .eed import Eed
-from .fragmentor import Fragmentor
-from .reference import MetaReference
+from .cgr import *
+from .colorize import *
+from .eed import *
+from .fragmentor import *
+from .reference import *
 
 from .markers import *
 from .standardize import *

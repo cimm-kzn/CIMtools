@@ -56,3 +56,6 @@ def molconvert_chemaxon(data):
 
     with BytesIO(p.stdout) as f, MRVread(f) as r:
         return iter2array(r)
+
+
+__all__ = ['molconvert_chemaxon']

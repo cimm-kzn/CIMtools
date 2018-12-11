@@ -16,5 +16,5 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .cgr import AtomMarkerCGR
-from .pmapper import AtomMarkerPharmacophore
+from .cgr import *
+from .pmapper import *
