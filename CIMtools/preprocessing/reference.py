@@ -20,7 +20,7 @@ from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
 from pandas import DataFrame, Index, read_csv
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
-from CGRtools.containers import ReactionContainer, MoleculeContainer
+from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContainer
 from sklearn.base import BaseEstimator
 from .common import TransformerMixin
 from ..exceptions import ConfigurationError
@@ -98,7 +98,7 @@ class MetaReference(BaseEstimator, TransformerMixin):
                 tmp[k] = float
         return tmp
 
-    _dtype = ReactionContainer, MoleculeContainer
+    _dtype = ReactionContainer, MoleculeContainer, CGRContainer
 
 
 class Eval:

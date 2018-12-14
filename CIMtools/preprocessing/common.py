@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.containers import ReactionContainer, MoleculeContainer
+from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContainer
 from itertools import tee, chain
 from numbers import Number
 from numpy import ndarray
@@ -24,7 +24,7 @@ from pandas import DataFrame, Series
 from sklearn.base import TransformerMixin as _TransformerMixin
 
 
-def iter2array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
+def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer), allow_none=False):
     if isinstance(data, ndarray):
         assert len(data.shape) == 1, 'invalid input array shape'
     elif not isinstance(data, (Series, list, tuple)):  # try to unpack iterable
@@ -47,7 +47,7 @@ def iter2array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=Fa
     return Series(data, dtype=dtype)
 
 
-def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer), allow_none=False):
+def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer), allow_none=False):
     if isinstance(data, (ndarray, DataFrame)):
         assert data.size, 'empty input array'
         if isinstance(data, DataFrame):
