@@ -31,23 +31,28 @@ class EquationTransformer(BaseEstimator, CGRtoolsTransformerMixin):
         self.pressure = pressure
         self.solvent_amount = solvent_amount
 
-    def transform(self, x):
+    def get_feature_names(self):
+        """Get feature names.
+
+        Returns
+        -------
+        feature_names : list of strings
+            Names of the features produced by transform.
+        """
         header = []
         if self.temperature:
-            temperature = Eval(self.temperature)
             header.append(f'temperature = {self.temperature}')
-        else:
-            temperature = None
         if self.pressure:
-            pressure = Eval(self.pressure)
             header.append(f'pressure = {self.pressure}')
-        else:
-            pressure = None
         if self.solvent_amount:
-            solvent = [Eval(x) for x in self.solvent_amount]
             header.extend(f'solvent_amount.{n} = {x}' for n, x in enumerate(self.solvent_amount, start=1))
-        else:
-            solvent = None
+        return header
+
+    def transform(self, x):
+        header = self.get_feature_names()
+        temperature = Eval(self.temperature) if self.temperature else None
+        pressure = Eval(self.pressure) if self.pressure else None
+        solvent = [Eval(x) for x in self.solvent_amount] if self.solvent_amount else None
 
         res = []
         for c in super().transform(x):

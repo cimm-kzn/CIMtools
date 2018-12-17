@@ -140,7 +140,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             self.delete_work_path()
 
     def get_feature_names(self):
-        """Get feature names from all transformers.
+        """Get feature names.
 
         Returns
         -------

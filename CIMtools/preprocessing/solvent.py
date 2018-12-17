@@ -26,6 +26,17 @@ class DominantSolvent(BaseEstimator, CGRtoolsTransformerMixin):
     def __init__(self):
         pass  # need for sklearn
 
+    @staticmethod
+    def get_feature_names():
+        """Get feature names.
+
+        Returns
+        -------
+        feature_names : list of strings
+            Names of the features produced by transform.
+        """
+        return list(header)
+
     def transform(self, x):
         return DataFrame([described_solvents[x.solvents[0][0]] for x in super().transform(x)], columns=header)
 
