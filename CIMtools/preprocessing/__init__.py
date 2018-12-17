@@ -17,6 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .cgr import *
+from .equation import *
 from .fragmentor import *
-from .reference import *
+from .solvent import *
 from .standardize import *

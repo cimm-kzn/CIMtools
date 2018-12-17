@@ -18,87 +18,51 @@
 #
 from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
-from pandas import DataFrame, Index, read_csv
+from pandas import DataFrame
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
-from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContainer
 from sklearn.base import BaseEstimator
 from ..base import CGRtoolsTransformerMixin
-from ..exceptions import ConfigurationError
+from ..conditions_container import Conditions
 
 
-class MetaReference(BaseEstimator, CGRtoolsTransformerMixin):
-    def __init__(self, data):
-        self.data = data
-        self.__init()
+class EquationTransformer(BaseEstimator, CGRtoolsTransformerMixin):
+    def __init__(self, temperature=None, pressure=None, solvent_amount=None):
+        self.temperature = temperature
+        self.pressure = pressure
+        self.solvent_amount = solvent_amount
 
-    def __getstate__(self):
-        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_MetaReference__')}
-
-    def __setstate__(self, state):
-        super().__setstate__(state)
-        self.__init()
-
-    def set_params(self, **params):
-        if params:
-            super().set_params(**params)
-            self.__init()
-        return self
-
-    def __init(self):
-        try:
-            self.__ext_header = self.__prepare_ext_header(self.data)
-            self.__extension = self.__prepare_ext(self.data)
-        except Exception as ex:
-            raise ConfigurationError from ex
-
-    def transform(self, x, return_domain=False):
-        x = super().transform(x)
+    def transform(self, x):
+        header = []
+        if self.temperature:
+            temperature = Eval(self.temperature)
+            header.append(f'temperature = {self.temperature}')
+        else:
+            temperature = None
+        if self.pressure:
+            pressure = Eval(self.pressure)
+            header.append(f'pressure = {self.pressure}')
+        else:
+            pressure = None
+        if self.solvent_amount:
+            solvent = [Eval(x) for x in self.solvent_amount]
+            header.extend(f'solvent_amount.{n} = {x}' for n, x in enumerate(self.solvent_amount, start=1))
+        else:
+            solvent = None
 
         res = []
-        for s in x:
-            tmp = {}
+        for c in super().transform(x):
+            tmp = []
+            if temperature:
+                tmp.append(temperature(c.temperature))
+            if pressure:
+                tmp.append(pressure(c.pressure))
+            if solvent:
+                tmp.extend(x(c.solvent[n][1]) for n, x in enumerate(solvent))
             res.append(tmp)
-            for key, value in s.meta.items():
-                if key in self.__extension:
-                    ek = self.__extension[key]
-                    if callable(ek):
-                        tmp[key] = ek(value)
-                    else:
-                        tmp.update(ek[value])
 
-        res = DataFrame(res, columns=self.__ext_header, index=Index(range(len(res)), name='structure'))
-        if return_domain:
-            return x, ~res.isnull().any(axis=1)
-        return res
+        return DataFrame(res, columns=header)
 
-    @staticmethod
-    def __prepare_ext_header(data):
-        """
-        :param data: dict
-        :return: list of strings. descriptors header
-        """
-        tmp = []
-        for orig_key in sorted(data):
-            operation = data[orig_key]
-            if isinstance(operation, dict):
-                tmp.extend(sorted(list(operation.values())[0]))  # get columns for replacement
-            else:
-                tmp.append(orig_key)
-        return tmp
-
-    @staticmethod
-    def __prepare_ext(data):
-        tmp = {}
-        for k, v in data.items():
-            if isinstance(v, dict):
-                tmp[k] = v
-            elif v:
-                tmp[k] = Eval(v)
-            else:
-                tmp[k] = float
-        return tmp
-
-    _dtype = ReactionContainer, MoleculeContainer, CGRContainer
+    _dtype = Conditions
 
 
 class Eval:
@@ -179,36 +143,4 @@ class Eval:
                 sgn=lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0)
 
 
-def prepare_metareference(params, csv='EXTKEY'):
-    """
-    :param params: list of key[:value] strings
-    key is metadata key for calculation.
-    if value skipped then metadata key will be converted to float
-    if value started with '=' then metadata will be evaluated by equation presented after =
-    else value is path to CSV file with header. one of the header's column should be named EXTKEY
-    or any other setted by csv kwarg.
-    this column wll be used as keys for metadata replacement by values from other columns
-    :param csv: header column used as keys
-
-    :return: MetaReference instance
-    """
-    extdata = {}
-    for p in params:
-        if ':' in p:
-            ext, val = p.split(':', maxsplit=1)
-            if val:
-                if val[0] == '=':
-                    extdata[ext] = val[1:]
-                else:
-                    tmp = read_csv(val)
-                    k = tmp.pop(csv)
-                    v = tmp.rename(columns=lambda x: '%s.%s' % (ext, x))
-                    extdata[ext] = {x: y.to_dict() for x, (_, y) in zip(k, v.iterrows())}
-            else:
-                extdata[ext] = None
-        else:
-            extdata[p] = None
-    return MetaReference(extdata)
-
-
-__all__ = ['MetaReference', 'prepare_metareference']
+__all__ = ['EquationTransformer']
