@@ -19,7 +19,7 @@
 from numpy import array, empty
 from pandas import DataFrame, Series, concat
 from sklearn.utils import column_or_1d
-from .preprocessing.common import iter2array, nested_iter_to_2d_array
+from ..utils import iter2array, nested_iter_to_2d_array
 
 
 def make_filtered_transformer(transformer, x_is_2d=False):

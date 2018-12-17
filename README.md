@@ -21,12 +21,4 @@ or latest repository version
 
         export CHEMAXON_REST="url/to/webservices"
 
-* add/edit for Colorize and EED using
-
-        CLASSPATH should contains paths to lib/jchem.jar and infochim.u-strasbg Utils containing dir
-        SETUP_DIR with path/to/infochim.u-strasbg/Utils dir
-        FORCEFIELD= with path/to/infochim.u-strasbg/Utils/cvffTemplates.xml or another
-
 * edit PATH for Fragmentor using. Add path to fragmentor bin files
-
-* edit PATH for AtomMarkerPharmacophore using. add path to jchem bin files

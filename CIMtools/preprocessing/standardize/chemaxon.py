@@ -25,14 +25,15 @@ from requests.exceptions import RequestException
 from subprocess import run, PIPE
 from sklearn.base import BaseEstimator
 from tempfile import mkstemp
-from ..common import iter2array, TransformerMixin
+from ...base import CGRtoolsTransformerMixin
 from ...exceptions import ConfigurationError
+from ...utils import iter2array
 
 
 CHEMAXON_REST = getenv('CHEMAXON_REST')
 
 
-class StandardizeChemAxon(BaseEstimator, TransformerMixin):
+class StandardizeChemAxon(BaseEstimator, CGRtoolsTransformerMixin):
     def __init__(self, rules, workpath='.'):
         self.rules = rules
         self.set_work_path(workpath)
@@ -83,7 +84,7 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
         try:
             p = run(['standardize', '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
         if p.returncode != 0:
             raise ConfigurationError(p.stderr.decode())
@@ -105,7 +106,7 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
         try:
             q = post(f'{CHEMAXON_REST}/rest-v0/util/calculate/molExport', json=data, timeout=20)
         except RequestException as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
         if q.status_code not in (201, 200):
             return [None]

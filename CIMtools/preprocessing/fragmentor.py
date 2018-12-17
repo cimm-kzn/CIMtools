@@ -29,14 +29,13 @@ from sklearn.exceptions import NotFittedError
 from subprocess import call
 from tempfile import mkdtemp, mkstemp
 from warnings import warn
-from .common import iter2array
 from ..exceptions import ConfigurationError
+from ..utils import iter2array
 
 
 class Fragmentor(BaseEstimator, TransformerMixin):
-    def __init__(self, fragment_type=3, min_length=2, max_length=10, colorname=None, marked_atom=0, cgr_dynbonds=0,
-                 doallways=False, useformalcharge=False, atompairs=False, header=None, fragmentstrict=False,
-                 getatomfragment=False, workpath='.', version=None, verbose=False, remove_rare_ratio=0):
+    def __init__(self, fragment_type=3, min_length=2, max_length=10, cgr_dynbonds=0, doallways=False,
+                 useformalcharge=False, header=None, workpath='.', version=None, verbose=False, remove_rare_ratio=0):
         """
         ISIDA Fragmentor wrapper
 
@@ -53,14 +52,9 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         self.fragment_type = fragment_type
         self.min_length = min_length
         self.max_length = max_length
-        self.colorname = colorname
-        self.marked_atom = marked_atom
         self.cgr_dynbonds = cgr_dynbonds
         self.doallways = doallways
         self.useformalcharge = useformalcharge
-        self.atompairs = atompairs
-        self.fragmentstrict = fragmentstrict
-        self.getatomfragment = getatomfragment
         self.version = version
         self.verbose = verbose
         self.header = header
@@ -144,6 +138,20 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                 self.__head_rare = None
 
             self.delete_work_path()
+
+    def get_feature_names(self):
+        """Get feature names from all transformers.
+
+        Returns
+        -------
+        feature_names : list of strings
+            Names of the features produced by transform.
+        """
+        if self.__head_less:
+            raise AttributeError(f'{self.__class__.__name__} instance configured to head less mode')
+        elif not self.__head_dict:
+            raise NotFittedError(f'{self.__class__.__name__} instance is not fitted yet')
+        return list(self.__head_dict.values())
 
     def fit(self, x, y=None):
         """Compute the header.
@@ -297,22 +305,12 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
         tmp.extend(('-f', 'SVM', '-t', str(self.fragment_type), '-l', str(self.min_length), '-u', str(self.max_length)))
 
-        if self.colorname:
-            tmp.extend(['-c', self.colorname])
-        if self.marked_atom:
-            tmp.extend(['-m', str(self.marked_atom)])
         if self.cgr_dynbonds:
             tmp.extend(['-d', str(self.cgr_dynbonds)])
         if self.doallways:
             tmp.append('--DoAllWays')
-        if self.atompairs:
-            tmp.append('--AtomPairs')
         if self.useformalcharge:
             tmp.append('--UseFormalCharge')
-        if self.fragmentstrict:
-            tmp.append('--StrictFrg')
-        if self.getatomfragment:
-            tmp.append('--GetAtomFragment')
 
         return tuple(tmp)
 
@@ -330,7 +328,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         try:
             head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
         except ValueError as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
         if not head_dict:
             raise ConfigurationError('empty header')
 

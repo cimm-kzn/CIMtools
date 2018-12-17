@@ -17,11 +17,9 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContainer
-from itertools import tee, chain
 from numbers import Number
 from numpy import ndarray
 from pandas import DataFrame, Series
-from sklearn.base import TransformerMixin as _TransformerMixin
 
 
 def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer), allow_none=False):
@@ -85,59 +83,3 @@ def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, C
         dtype = object
 
     return DataFrame(data, dtype=dtype)
-
-
-class TransformerMixin(_TransformerMixin):
-    def fit(self, x, y=None):
-        """Do nothing and return the estimator unchanged
-
-        This method is just there to implement the usual API and hence work in pipelines.
-        """
-        if self._dtype is not None:
-            iter2array(x, dtype=self._dtype)
-        else:
-            iter2array(x)
-        return self
-
-    def transform(self, x):
-        if self._dtype is not None:
-            return iter2array(x, dtype=self._dtype)
-        return iter2array(x)
-
-    _dtype = None
-
-
-def reaction_support(_class):
-    class ReactionSupport(_class):
-        def transform(self, x):
-            assert all(isinstance(s, ReactionContainer) for s in x), 'invalid dtype, olny ReactionContainers acceptable'
-
-            shifts = {}
-            mols = []
-            for i in ('reagents', 'products'):
-                sh = shifts[i] = [len(mols)]
-                for s in x:
-                    si = s[i]
-                    sh.append(len(si) + sh[-1])
-                    mols.extend(si)
-
-            transformed = super().transform(mols)
-            assert len(transformed) == len(mols), 'unexpected transformed molecules amount'
-
-            out = []
-            for s, r, p in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reagents'])),
-                                  (transformed[y: z] for y, z in self.__pairwise(shifts['products']))):
-                if any(i is None for i in chain(r, p)):
-                    out.append(None)
-                else:
-                    out.append(ReactionContainer(r, p, meta=s.meta))
-            return iter2array(out, allow_none=True)
-
-        @staticmethod
-        def __pairwise(iterable):
-            """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-            a, b = tee(iterable)
-            next(b, None)
-            return zip(a, b)
-
-    return ReactionSupport

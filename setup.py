@@ -20,7 +20,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '3.0.2'
+version = '3.0.3'
 
 
 setup(
@@ -32,11 +32,10 @@ setup(
     license='GPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
-    package_data={'CIMtools.preprocessing.standardize': ['horvat.unwanted', 'horvat.xml']},
+    python_requires='>=3.6.7',
     install_requires=['CGRtools>=3.0.4,<3.1', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
                       'requests>=2.18.4,<2.20', 'scipy>=1.0.0,<1.2', 'pyparsing>=2.2.0,<2.3'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
-    keywords="chemoinformatics tools modeler cli ISIDA Framentor EED SVM IAP",
     classifiers=['Environment :: Plugins',
                  'Intended Audience :: Science/Research',
                  'Intended Audience :: Developers',

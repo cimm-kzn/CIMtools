@@ -22,11 +22,11 @@ from pandas import DataFrame, Index, read_csv
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
 from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContainer
 from sklearn.base import BaseEstimator
-from .common import TransformerMixin
+from ..base import CGRtoolsTransformerMixin
 from ..exceptions import ConfigurationError
 
 
-class MetaReference(BaseEstimator, TransformerMixin):
+class MetaReference(BaseEstimator, CGRtoolsTransformerMixin):
     def __init__(self, data):
         self.data = data
         self.__init()
@@ -49,7 +49,7 @@ class MetaReference(BaseEstimator, TransformerMixin):
             self.__ext_header = self.__prepare_ext_header(self.data)
             self.__extension = self.__prepare_ext(self.data)
         except Exception as ex:
-            raise ConfigurationError(ex)
+            raise ConfigurationError from ex
 
     def transform(self, x, return_domain=False):
         x = super().transform(x)

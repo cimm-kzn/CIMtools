@@ -21,7 +21,7 @@ from io import StringIO, BytesIO
 from pathlib import Path
 from subprocess import run, PIPE
 from ..exceptions import ConfigurationError
-from ..preprocessing.common import iter2array
+from ..utils import iter2array
 
 
 def molconvert_chemaxon(data):
@@ -49,7 +49,7 @@ def molconvert_chemaxon(data):
     try:
         p = run(['molconvert', '-g', 'mrv'], input=data, stdout=PIPE)
     except FileNotFoundError as e:
-        raise ConfigurationError(e)
+        raise ConfigurationError from e
 
     if p.returncode != 0:
         raise ConfigurationError(p.stderr.decode())

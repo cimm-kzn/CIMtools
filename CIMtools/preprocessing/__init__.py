@@ -17,10 +17,6 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .cgr import *
-from .colorize import *
-from .eed import *
 from .fragmentor import *
 from .reference import *
-
-from .markers import *
 from .standardize import *
