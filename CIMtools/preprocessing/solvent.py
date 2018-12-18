@@ -17,12 +17,11 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from pandas import DataFrame
-from sklearn.base import BaseEstimator
-from ..base import CGRtoolsTransformerMixin
-from ..conditions_container import Conditions
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils import column_or_1d
 
 
-class DominantSolvent(BaseEstimator, CGRtoolsTransformerMixin):
+class SolventVectorizer(BaseEstimator, TransformerMixin):
     def __init__(self):
         pass  # need for sklearn
 
@@ -37,10 +36,13 @@ class DominantSolvent(BaseEstimator, CGRtoolsTransformerMixin):
         """
         return list(header)
 
-    def transform(self, x):
-        return DataFrame([described_solvents[x.solvents[0][0]] for x in super().transform(x)], columns=header)
+    @staticmethod
+    def transform(x):
+        x = column_or_1d(x, warn=True)
+        return DataFrame([described_solvents[x] for x in x], columns=header)
 
-    _dtype = Conditions
+    def fit(self, x, y=None):
+        return self
 
 
 header = ('polarizability_form1', 'polarizability_form2', 'permettivity_form1', 'permettivity_form2',
@@ -106,4 +108,4 @@ described_solvents = dict((
     ('1,2-dimethoxyethane', (.23, .19, .67, .86, .40, .76, .08, .0, .41, .53, .79, .64, .0))))
 
 
-__all__ = ['DominantSolvent']
+__all__ = ['SolventVectorizer']

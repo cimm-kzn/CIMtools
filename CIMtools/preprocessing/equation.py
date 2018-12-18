@@ -20,16 +20,13 @@ from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
 from pandas import DataFrame
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
-from sklearn.base import BaseEstimator
-from ..base import CGRtoolsTransformerMixin
-from ..conditions_container import Conditions
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils import column_or_1d
 
 
-class EquationTransformer(BaseEstimator, CGRtoolsTransformerMixin):
-    def __init__(self, temperature=None, pressure=None, solvent_amount=None):
-        self.temperature = temperature
-        self.pressure = pressure
-        self.solvent_amount = solvent_amount
+class EquationTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, equation='x'):
+        self.equation = equation
 
     def get_feature_names(self):
         """Get feature names.
@@ -39,35 +36,15 @@ class EquationTransformer(BaseEstimator, CGRtoolsTransformerMixin):
         feature_names : list of strings
             Names of the features produced by transform.
         """
-        header = []
-        if self.temperature:
-            header.append(f'temperature = {self.temperature}')
-        if self.pressure:
-            header.append(f'pressure = {self.pressure}')
-        if self.solvent_amount:
-            header.extend(f'solvent_amount.{n} = {x}' for n, x in enumerate(self.solvent_amount, start=1))
-        return header
+        return [f'equation={self.equation}']
 
     def transform(self, x):
-        header = self.get_feature_names()
-        temperature = Eval(self.temperature) if self.temperature else None
-        pressure = Eval(self.pressure) if self.pressure else None
-        solvent = [Eval(x) for x in self.solvent_amount] if self.solvent_amount else None
+        x = column_or_1d(x, warn=True)
+        f = Eval(self.equation)
+        return DataFrame([[f(x)] for x in x], columns=self.get_feature_names())
 
-        res = []
-        for c in super().transform(x):
-            tmp = []
-            if temperature:
-                tmp.append(temperature(c.temperature))
-            if pressure:
-                tmp.append(pressure(c.pressure))
-            if solvent:
-                tmp.extend(x(c.solvent[n][1]) for n, x in enumerate(solvent))
-            res.append(tmp)
-
-        return DataFrame(res, columns=header)
-
-    _dtype = Conditions
+    def fit(self, x, y=None):
+        return self
 
 
 class Eval:
