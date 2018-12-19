@@ -21,12 +21,12 @@ from CGRtools.containers import ReactionContainer
 from logging import warning
 from sklearn.base import BaseEstimator
 from traceback import format_exc
-from ..base import CGRtoolsTransformerMixin
+from ..base import CIMtoolsTransformerMixin
 from ..exceptions import ConfigurationError
 from ..utils import iter2array
 
 
-class CGR(BaseEstimator, CGRtoolsTransformerMixin):
+class CGR(BaseEstimator, CIMtoolsTransformerMixin):
     def __init__(self, cgr_type='0'):
         self.cgr_type = cgr_type
         self.__init()

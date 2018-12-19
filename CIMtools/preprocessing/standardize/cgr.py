@@ -19,12 +19,12 @@
 from CGRtools import CGRreactor
 from CGRtools.containers import MoleculeContainer
 from sklearn.base import BaseEstimator
-from ...base import CGRtoolsTransformerMixin
+from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
 from ...utils import iter2array
 
 
-class StandardizeCGR(BaseEstimator, CGRtoolsTransformerMixin):
+class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
     def __init__(self, templates, balance_groups=False):
         """
         CGR standardization and reaction balancing

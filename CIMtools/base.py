@@ -22,7 +22,7 @@ from sklearn.base import TransformerMixin
 from .utils import iter2array
 
 
-class CGRtoolsTransformerMixin(TransformerMixin):
+class CIMtoolsTransformerMixin(TransformerMixin):
     def fit(self, x, y=None):
         """Do nothing and return the estimator unchanged
 

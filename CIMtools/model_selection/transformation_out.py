@@ -17,7 +17,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.preparer import CGRpreparer
 from collections import defaultdict
 from logging import warning
 from numpy import array
@@ -98,8 +97,7 @@ class TransformationOut(BaseCrossValidator):
             The testing set indices for that split.
         """
         X, y, groups = indexable(X, y, groups)
-        cgr = CGRpreparer()
-        cgrs = [cgr.compose(r) for r in X]
+        cgrs = [~r for r in X]
 
         condition_structure = defaultdict(set)
 
