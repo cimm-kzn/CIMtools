@@ -20,7 +20,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '3.0.3'
+version = '3.0.4'
 
 
 setup(
@@ -33,7 +33,7 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     python_requires='>=3.6.7',
-    install_requires=['CGRtools>=3.0.4,<3.1', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
+    install_requires=['CGRtools>=3.0.6,<3.1', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
                       'requests>=2.18.4,<2.20', 'scipy>=1.0.0,<1.2', 'pyparsing>=2.2.0,<2.3'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
