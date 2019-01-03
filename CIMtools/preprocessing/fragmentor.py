@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -35,7 +35,8 @@ from ..utils import iter2array
 
 class Fragmentor(BaseEstimator, TransformerMixin):
     def __init__(self, fragment_type=3, min_length=2, max_length=10, cgr_dynbonds=0, doallways=False,
-                 useformalcharge=False, header=None, workpath='.', version=None, verbose=False, remove_rare_ratio=0):
+                 useformalcharge=False, header=None, workpath='.', version=None, verbose=False, remove_rare_ratio=0,
+                 return_domain=False):
         """
         ISIDA Fragmentor wrapper
 
@@ -48,6 +49,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         :param remove_rare_ratio: if descriptors found on train less then given ratio it will be removed from header.
                                   if partial fit used, be sure to use finalize method.
                                   unusable if headless mode set
+        :param return_domain: add AD bool column. if False molecule has new features
         """
         self.fragment_type = fragment_type
         self.min_length = min_length
@@ -59,6 +61,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         self.verbose = verbose
         self.header = header
         self.remove_rare_ratio = remove_rare_ratio
+        self.return_domain = return_domain
 
         self.__init_header()
         self.set_work_path(workpath)
@@ -178,25 +181,25 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         self.__prepare(x, partial=True)
         return self
 
-    def transform(self, x, return_domain=False):
+    def transform(self, x):
         if not (self.__head_less or self.__head_dict):
             raise NotFittedError(f'{self.__class__.__name__} instance is not fitted yet')
 
         x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         x, d = self.__prepare(x, fit=False)
-        if return_domain:
-            return x, d
+        if self.return_domain:
+            x['AD'] = d
         return x
 
-    def fit_transform(self, x, y=None, return_domain=False):
+    def fit_transform(self, x, y=None):
         x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         if self.__head_less:
             warn(f'{self.__class__.__name__} configured to head less mode')
 
         self._reset()
         x, d = self.__prepare(x, transform=True)
-        if return_domain:
-            return x, d
+        if self.return_domain:
+            x['AD'] = d
         return x
 
     @property
@@ -293,7 +296,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                     elif v != 0:
                         ad[-1] = False
                         break
-                vector.append(Series(tmp))
+                vector.append(tmp)
 
         return DataFrame(vector, columns=list(head_dict.values())).fillna(0), Series(ad)
 
