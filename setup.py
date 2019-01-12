@@ -20,7 +20,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-version = '3.0.5'
+version = '3.0.6'
 
 
 setup(
@@ -32,8 +32,8 @@ setup(
     license='GPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
-    python_requires='>=3.6.7',
-    install_requires=['CGRtools>=3.0.7,<3.1', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
+    python_requires='>=3.7.0',
+    install_requires=['CGRtools>=3.0.10,<3.1', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
                       'requests>=2.21,<2.22', 'pyparsing>=2.2.0,<2.4'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
@@ -45,11 +45,5 @@ setup(
                  'Operating System :: OS Independent',
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
-                 'Programming Language :: Python :: 3.7',
-                 ],
-    command_options={'build_sphinx': {'project': ('setup.py', 'CIMtools'),
-                                      'version': ('setup.py', version), 'source_dir': ('setup.py', 'doc'),
-                                      'build_dir':  ('setup.py', 'build/doc'),
-                                      'all_files': ('setup.py', True),
-                                      'copyright': ('setup.py', 'Dr. Ramil Nugmanov <stsouko@live.ru>')}}
+                 'Programming Language :: Python :: 3.7']
 )

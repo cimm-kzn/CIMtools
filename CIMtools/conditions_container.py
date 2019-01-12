@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2019 Ravil Mukhametgaleev <sonic-mc@mail.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,11 +19,9 @@
 #
 from itertools import chain
 from operator import itemgetter
-
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import column_or_1d
-
 from .metric_constants import C, bar
 
 
@@ -62,8 +61,10 @@ class Conditions:
     def solvents(self, value):
         solvents = []
         for k, v in value:
-            if k not in known_solvents:
-                raise KeyError('unknown solvent')
+            try:
+                k = known_solvents[k.lower()]
+            except KeyError:
+                raise KeyError(f'unknown solvent: {k}')
             v = float(v)
             if v <= 0 or v > 1:
                 raise ValueError('impossible solvent amount')
@@ -163,19 +164,24 @@ class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
         return self
 
 
-known_solvents = dict((  # DON'T TOUCH ORDER. ONLY APPEND.
-    ('1-phenylethan-1-one', 'CC(=O)c1ccccc1', 'acetophenone', 'methyl phenyl ketone', 'phenylethanone' ),
+known_solvents = (
+    ('1-phenylethan-1-one', 'CC(=O)c1ccccc1', 'acetophenone', 'methyl phenyl ketone', 'phenylethanone'),
     ('1,2-dichloroethane', 'ClCCCl', 'ethylene dichloride', '1,2-dca', 'dce', 'ethane dichloride', 'dutch liquid',
-     'dutch oil', 'freon 150'),
-    ('1,2-dimethoxyethane', 'COCCOC', 'ethane-1,2-diyl dimethyl ether', 'dme', 'glyme', 'ethylene glycol dimethyl ether',
-     'monoglyme', 'dimethyl glycol', 'dimethyl cellosolve'),
-    ('propane-1,2,3-triol', 'OCC(O)CO', '1,2,3-propanetriol', 'glycerin', 'glycerine', 'propanetriol', '1,2,3-trihydroxypropane'),
+     'dutch oil', 'freon 150', 'freon-150'),
+    ('1,2-dimethoxyethane', 'COCCOC', 'ethane-1,2-diyl dimethyl ether', 'dme', 'glyme',
+     'ethylene glycol dimethyl ether', 'monoglyme', 'dimethyl glycol', 'dimethyl cellosolve'),
+    ('propane-1,2,3-triol', 'OCC(O)CO', '1,2,3-propanetriol', 'glycerin', 'glycerine', 'propanetriol',
+     '1,2,3-trihydroxypropane'),
     ('1,3-dimethylbenzene', 'CC1=CC(C)=CC=C1', '1,3-xylene', '3-xylene', 'isoxylene', 'm-xylene', 'm-xylol'),
     ('1,3,5‐trimethylbenzene', 'CC1=CC(C)=CC(C)=C1', 'mesitylene', 'sym-trimethylbenzene'),
-    ('1,4-dioxane', 'C1COCCO1', '1,4-dioxacyclohexane', '[1,4]dioxane', 'p-dioxane', '[6]-crown-2', 'diethylene dioxide',
-     'diethylene ether', 'dioxan'),
-    ('2-methylbutan-2-ol', 'CCC(C)(C)O', '2-methyl-2-butanol', 'tert-amyl alcohol', 't-amylol', 'taa', 'tert-pentyl alcohol',
-     '2-methyl-2-butyl alcohol', 't-pentylol', 'amylene hydrate', 'dimethylethylcarbinol'),
+    ('1,4-dimethylbenzene', 'Cc1ccc(C)cc1', 'p-xylene', '1,4-xylene', 'p-dimethylbenzene', 'p-xylol', 'p-methyltoluene',
+     'paraxylene', 'chromar', 'scintillar', '4-methyltoluene', 'nsc 72419'),
+    ('1,4-dioxane', 'C1COCCO1', '1,4-dioxacyclohexane', '[1,4]dioxane', 'p-dioxane', '[6]-crown-2',
+     'diethylene dioxide', 'diethylene ether', 'dioxan'),
+    ('1,4-epoxybutane', 'C1CCOC1', 'oxolane', 'oxacyclopentane', 'tetrahydrofuran', 'butylene oxide',
+     'cyclotetramethylene oxide', 'diethylene oxide', 'tetra-methylene oxide'),
+    ('2-methylbutan-2-ol', 'CCC(C)(C)O', '2-methyl-2-butanol', 'tert-amyl alcohol', 't-amylol', 'taa',
+     'tert-pentyl alcohol', '2-methyl-2-butyl alcohol', 't-pentylol', 'amylene hydrate', 'dimethylethylcarbinol'),
     ('2-methylpropan-1-ol', 'CC(C)CO', 'isobutyl alcohol', 'iba', '2-methyl-1-propanol', '2-methylpropyl alcohol',
      'isopropylcarbinol'),
     ('2-methylpropan-2-ol', 'CC(C)(C)O', 't-butyl alcohol', 'tert-butanol', 't-butanol', 'trimethylcarbinol',
@@ -183,53 +189,58 @@ known_solvents = dict((  # DON'T TOUCH ORDER. ONLY APPEND.
     ('2,2,4-trimethylpentane', 'CC(C)CC(C)(C)C', 'isobutyltrimethylmethane', 'isooctane'),
     ('3-methylbutan-1-ol', 'CC(C)CCO', '3-methyl-1-butanol', '3-methylbutanol', 'i-amyl alcohol', 'isoamyl alcohol',
      'isobutyl carbinol', 'isopentanol', 'isopentyl alcohol'),
-    ('ethanoic acid', 'CC(O)=O', 'acetic acid', 'ethanoic acid', 'glacial acetic acid'),
-    ('ethanenitrile', 'CC##N', 'acetonitrile', 'cyanomethane', 'ethyl nitrile', 'methanecarbonitrile', 'methyl cyanide'),
+    ('acetic acid', 'CC(O)=O', 'ethanoic acid', 'glacial acetic acid'),
+    ('acetonitrile', 'CC##N', 'ethanenitrile', 'cyanomethane', 'ethyl nitrile', 'methanecarbonitrile',
+     'methyl cyanide'),
     ('benzene', 'C1=CC=CC=C1', 'benzol', '[6]annulene'),
     ('benzenecarbonitrile', 'N#Cc1ccccc1', 'benzonitrile', 'cyanobenzene', 'phenyl cyanide'),
     ('bromobenzene', 'BrC1=CC=CC=C1', 'phenyl bromide', 'bromobenzol', 'monobromobenzene'),
-    ('butan-1-ol', 'CCCCO', '1-butanol', '1-butyl alcohol', 'butan-1-ol', 'butanol', 'butyl alcohol', 'n-butanol',
-     'n-butyl alcohol', 'butalcohol', 'butyl hydrate', 'butylic alcohol', 'butyralcohol', 'butyric alcohol', 'butyryl alcohol',
-     '1-hydroxybutane', 'n-propylcarbinol'),
+    ('butan-1-ol', 'CCCCO', '1-butanol', '1-butyl alcohol', 'butanol', 'butyl alcohol', 'n-butanol',
+     'n-butyl alcohol', 'butalcohol', 'butyl hydrate', 'butylic alcohol', 'butyralcohol', 'butyric alcohol',
+     'butyryl alcohol', '1-hydroxybutane', 'n-propylcarbinol'),
     ('butan-2-ol', 'CCC(C)O', '2-butanol', 's-butanol', 'sec-butanol', 'sec-butyl alcohol', '2-butyl alcohol'),
     ('butan-2-one', 'CCC(C)=O', '2-butanone', 'butanone', 'ethyl methyl ketone', 'mek', 'methyl ethyl ketone'),
-    ('chlorobenzene', 'ClC1=CC=CC=C1', 'benzene chloride', 'monochlorobenzene', 'phenyl chloride', 'chlorobenzol', 'mcb'),
-    ('cyclohexane', 'C1CCCCC1' , 'hexahydrobenzene', 'hexamethylene'),
+    ('chlorobenzene', 'ClC1=CC=CC=C1', 'benzene chloride', 'monochlorobenzene', 'phenyl chloride', 'chlorobenzol',
+     'mcb'),
+    ('cyclohexane', 'C1CCCCC1', 'hexahydrobenzene', 'hexamethylene'),
+    ('deuterium oxide', '[2H]O[2H]', 'heavy water', 'dideuterium monoxide', 'water-d2'),
     ('dichloromethane', 'ClCCl',  'methylene chloride', 'methylene dichloride', 'methylenechloride'),
     ('ethane-1,2-diol', 'OCCO', 'ethylene glycol', '1,2-ethanediol', 'ethylene alcohol', 'hypodicarbonous acid',
      'monoethylene glycol', '1,2-dihydroxyethane'),
     ('ethanol', 'CCO', 'absolute alcohol', 'alcohol', 'cologne spirit', 'drinking alcohol', 'ethylic alcohol', 'etoh',
-     'ethyl alcohol', 'ethyl hydrate', 'ethyl hydroxide', 'ethylol', 'grain alcohol', 'hydroxyethane', 'methylcarbinol'),
+     'ethyl alcohol', 'ethyl hydrate', 'ethyl hydroxide', 'ethylol', 'grain alcohol', 'hydroxyethane',
+     'methylcarbinol'),
     ('ethoxybenzene', 'CCOc1ccccc1', 'ethyl phenyl ether', 'phenetole', 'phenyl ethyl ether'),
     ('ethoxyethane', 'CCOCC', '1,1-oxybisethane', '3-oxapentane', 'diethyl ether', 'ether', 'diethyl ether', 'dether',
-     'ethyl ether', 'ethyl oxide', '3-oxapentane', 'ethoxyethane', 'diethyl oxide', 'solvent ether', 'sulfuric ether'),
-    ('ethyl ethanoate', 'CCOC(C)=O','ethyl acetate', 'acetic ester', 'acetic ether', 'ethyl acetate', 'ethyl ester of acetic acid'),
+     'ethyl ether', 'ethyl oxide', '3-oxapentane', 'diethyl oxide', 'solvent ether', 'sulfuric ether'),
+    ('ethyl acetate', 'CCOC(C)=O', 'ethyl ethanoate', 'acetic ester', 'acetic ether', 'ethyl ester of acetic acid'),
     ('ethyl benzoate', 'CCOC(=O)C1=CC=CC=C1', 'ethyl benzenecarboxylate', 'ethyl phenylformate'),
-    ('methanamide', 'NC=O', 'formamide', 'carbamaldehyde', 'formyl amide', 'methanamide'),
-    ('deuterium oxide', '[2H]O[2H]', 'heavy water', 'dideuterium monoxide', 'water-d2'),
+    ('formamide', 'NC=O', 'methanamide', 'carbamaldehyde', 'formyl amide', 'methanamide'),
     ('heptan-1-ol', 'CCCCCCCO', '1-heptanol', 'enenthic alcohol', 'heptanol', 'heptyl alcohol', 'n-heptyl alcohol'),
     ('heptane', 'CCCCCCC', 'n-heptane', 'septane'),
-    ('hexamethylphosphoramide', 'CN(C)P(=O)(N(C)C)N(C)C', 'hexamethylphosphoric acid triamide', 'hexamethylphosphoric triamide',
-     'hexamethylphosphorous triamide', 'hmpa', '''n,n,n',n',n",n"-hexamethylphosphoric triamide''', 'n-bis(dimethylamino)phosphoryl-n-methyl-methanamine',
-     'tris(dimethylamino)phosphine oxide'),
+    ('hexamethylphosphoramide', 'CN(C)P(=O)(N(C)C)N(C)C', 'hexamethylphosphoric acid triamide',
+     'hexamethylphosphoric triamide', 'hexamethylphosphorous triamide', 'hmpa',
+     '''N,N,N',N',N",N"-hexamethylphosphoric triamide''', "N,N,N',N',N'',N''-hexamethylphosphoric triamide",
+     'N-bis(dimethylamino)phosphoryl-N-methyl-methanamine', 'tris(dimethylamino)phosphine oxide'),
     ('hexan-1-ol', 'CCCCCCO', '1-hexanol', 'hexanol', 'hexanol-1', 'hexyl alcohol', 'n-hexanol', 'n-hexyl alcohol'),
     ('hexane', 'CCCCCC', 'n-hexane', 'sextane'),
     ('methanedithione', 'S=C=S', 'carbon disulfide', 'carbon disulphide'),
-    ('(methanesulfinyl)methane', 'CS(C)=O', 'dimethyl sulfoxide', 'dimethyl(oxido)sulfur', 'methylsulfinylmethane', 'methyl sulfoxide'),
+    ('methanesulfinylmethane', 'CS(C)=O', 'dimethyl sulfoxide', 'dimethyl(oxido)sulfur', 'methylsulfinylmethane',
+     'methyl sulfoxide', '(methanesulfinyl)methane'),
     ('methanol', 'CO', 'carbinol', 'columbian spirits', 'hydroxymethane', 'methyl alcohol', 'methyl hydrate',
-     'methyl hydroxide', 'methylic alcohol','methylol', 'pyroligneous spirit', 'wood alcohol', 'wood naphtha', 'wood spirit'),
+     'methyl hydroxide', 'methylic alcohol', 'methylol', 'pyroligneous spirit', 'wood alcohol', 'wood naphtha',
+     'wood spirit'),
     ('methoxybenzene', 'COc1ccccc1', 'anisol', 'anisole', 'methyl phenyl ether', 'phenoxymethane'),
-    ('n,n-dimethylacetamide', 'CN(C)C(C)=O', 'acetyl dimethylamine', 'dimethylacetamide', 'dma', 'n,n-dimethylethanamide'),
-    ('n,n-dimethylformamide', 'CN(C)C=O', 'dimethylaminoformaldehyde', 'dimethylformamide', 'dmf', 'n,n-dimethylmethanamide'),
+    ('N,N-dimethylacetamide', 'CN(C)C(C)=O', 'acetyl dimethylamine', 'dimethylacetamide', 'dma',
+     'N,N-dimethylethanamide'),
+    ('N,N-dimethylformamide', 'CN(C)C=O', 'dimethylaminoformaldehyde', 'dimethylformamide', 'dmf',
+     'N,N-dimethylmethanamide'),
     ('nitrobenzene', '[O-][N+](=O)C1=CC=CC=C1', 'nitrobenzol', 'oil of mirbane'),
     ('nitromethane', 'C[N+]([O-])=O', 'nitrocarbol'),
     ('octan-1-ol', 'CCCCCCCCO', '1-octanol', 'n-octanol', 'capryl alcohol', 'octyl alcohol'),
-    ('oxolan-2-one', 'O=C1CCCO1', '1,4-butanolide', '2(3h)-dihydrofuranone', '4-butyrolactone', '4-hydroxybutanoic acid lactone',
-     '4-hydroxybutyric acid g-lactone', 'butyrolactone', 'dihydro-2(3h)-furanone', 'γ-butyrolactone'),
-    ('1,4-epoxybutane', 'C1CCOC1', 'oxolane', 'oxacyclopentane', 'tetrahydrofuran', 'butylene oxide', 'cyclotetramethylene oxide',
-     'diethylene oxide', 'tetra-methylene oxide'),
-    ('1,4-dimethylbenzene', 'Cc1ccc(C)cc1', 'p-xylene', '1,4-xylene', 'p-dimethylbenzene', 'p-xylol', 'p-methyltoluene',
-     'paraxylene', 'chromar', 'scintillar', '4-methyltoluene', 'nsc 72419', '1,4-dimethylbenzene'),
+    ('oxolan-2-one', 'O=C1CCCO1', '1,4-butanolide', '2(3h)-dihydrofuranone', '4-butyrolactone',
+     '4-hydroxybutanoic acid lactone', '4-hydroxybutyric acid g-lactone', 'butyrolactone', 'dihydro-2(3h)-furanone',
+     'γ-butyrolactone', 'gamma-butyrolactone', 'g-butyrolactone', 'gamma butyrolactone'),
     ('pentan-1-ol', 'CCCCCO', '1-pentanol', 'amyl alcohol', 'butyl carbinol', 'n-amyl alcohol', 'n-pentanol',
      'n-pentyl alcohol', 'pentanol'),
     ('phenylmethanol', 'OCC1=CC=CC=C1', 'phenylcarbinol', 'benzenemethanol', 'benzyl alcohol'),
@@ -239,21 +250,31 @@ known_solvents = dict((  # DON'T TOUCH ORDER. ONLY APPEND.
      'propylic alcohol', 'propylol'),
     ('propan-2-ol', 'CC(C)O', '2-propanol', 'isopropanol', 'isopropyl alcohol', 'rubbing alcohol', 'sec-propyl alcohol',
      's-propanol', 'iproh', 'i-proh', 'dimethyl carbinol', 'ipa'),
-    ('propan-2-one', 'CC(C)=O', 'acetone', 'dimethyl ketone', 'dimethyl carbonyl', 'β-ketopropane', 'propanone', '2-propanone',
-     'dimethyl formaldehyde', 'pyroacetic spirit (archaic)', 'Ketone propane'),
+    ('propan-2-one', 'CC(C)=O', 'acetone', 'dimethyl ketone', 'dimethyl carbonyl', 'β-ketopropane', 'propanone',
+     '2-propanone', 'dimethyl formaldehyde', 'pyroacetic spirit (archaic)', 'Ketone propane'),
     ('propanenitrile', 'CCC##N', 'cyanoethane', 'ethyl cyanide', 'propionitrile', 'propylnitrile', 'propiononitrile'),
-    ('azinine', 'C1=CC=NC=C1', 'pyridine', 'azine', 'azabenzene'),
+    ('pyridine', 'C1=CC=NC=C1', 'azinine', 'azine', 'azabenzene'),
     ('tetrachloromethane', 'ClC(Cl)(Cl)Cl', 'carbon tetrachloride', 'benziform', 'benzinoform', 'carbon chloride',
-     'carbon tet', 'freon-10', 'refrigerant-10', 'halon-104', 'methane tetrachloride', 'methyl tetrachloride',
-     'perchloromethane', 'tetraform', 'tetrasol'),
-    ('tetrahydrothiophene 1,1-dioxide', 'O=S1(=O)CCCC1', 'sulfolane', 'tetrahydrothiophene dioxide', 'tetramethylene sulfone',
-     'tetramethylene sulphone', 'thiacyclopentane dioxide', 'thiolane 1,1-dioxide', 'thiolane-1,1-dioxide'),
-    ('methyl benzene', 'CC1=CC=CC=C1', 'methylbenzene', 'toluol', 'toluene', 'phenyl methane', 'anisen'),
+     'carbon tet', 'freon-10', 'freon 10', 'refrigerant-10', 'halon-104', 'methane tetrachloride',
+     'methyl tetrachloride', 'perchloromethane', 'tetraform', 'tetrasol'),
+    ('tetrahydrothiophene 1,1-dioxide', 'O=S1(=O)CCCC1', 'sulfolane', 'tetrahydrothiophene dioxide',
+     'tetramethylene sulfone', 'tetramethylene sulphone', 'thiacyclopentane dioxide', 'thiolane 1,1-dioxide',
+     'thiolane-1,1-dioxide'),
+    ('toluene', 'CC1=CC=CC=C1', 'methylbenzene', 'toluol', 'methyl benzene', 'phenyl methane', 'anisen'),
     ('trichloromethane', 'ClC(Cl)Cl', 'chloroform', 'methane trichloride', 'methyl trichloride', 'methenyl trichloride',
-     'tcm', 'freon 20', 'refrigerant-20', 'r-20', 'un 1888'),
-    ('water', 'O'),
-    # DON'T TOUCH ORDER. ONLY APPEND.
-    ))
+     'tcm', 'freon 20', 'freon-20', 'refrigerant-20', 'r-20', 'un 1888'),
+    ('water', 'O')
+)
+
+tmp = {}
+solvent_smiles = {}
+for n, s, *o in known_solvents:
+    solvent_smiles[n] = s
+    tmp[n.lower()] = n
+    for x in o:
+        tmp[x.lower()] = n
+
+known_solvents = tmp
 
 
-__all__ = ['Conditions', 'DictToConditions', 'ConditionsToDataFrame']
+__all__ = ['Conditions', 'DictToConditions', 'ConditionsToDataFrame', 'known_solvents', 'solvent_smiles']
