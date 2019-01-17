@@ -4,34 +4,32 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU Affero General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from numpy import array, empty
 from pandas import DataFrame, Series, concat
 from sklearn.utils import column_or_1d
-from .preprocessing.common import iter2array, nested_iter_to_2d_array
+from ..utils import iter2array, nested_iter_to_2d_array
 
 
 def make_filtered_transformer(transformer, x_is_2d=False):
     class Transformer:
-        def fit(self, x, y=None, **fit_params):
+        def fit(self, x, y, **fit_params):
             x, not_nones, _x = self.__check_x(x)
             y = column_or_1d(y, warn=True)
             return transformer.fit(_x, y[not_nones], **fit_params)
 
-        def fit_transform(self, x, y=None, **fit_params):
+        def fit_transform(self, x, y, **fit_params):
             x, not_nones, _x = self.__check_x(x)
             y = column_or_1d(y, warn=True)
             _x = transformer.fit(_x, y[not_nones], **fit_params).transform(_x)
@@ -104,3 +102,6 @@ def make_filtered_transformer(transformer, x_is_2d=False):
             return repr(transformer)
 
     return Transformer()
+
+
+__all__ = ['make_filtered_transformer']

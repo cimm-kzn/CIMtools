@@ -4,49 +4,87 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU Affero General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.files import MRVread, MRVwrite
 from io import StringIO, BytesIO
+from os import close, getenv
+from pathlib import Path
 from requests import post
 from requests.exceptions import RequestException
 from subprocess import run, PIPE
 from sklearn.base import BaseEstimator
-from ..common import iter2array, TransformerMixin
-from ...config import STANDARDIZER, CHEMAXON
+from tempfile import mkstemp
+from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
+from ...utils import iter2array
 
 
-class StandardizeChemAxon(BaseEstimator, TransformerMixin):
-    def __init__(self, rules):
+CHEMAXON_REST = getenv('CHEMAXON_REST')
+
+
+class StandardizeChemAxon(BaseEstimator, CIMtoolsTransformerMixin):
+    def __init__(self, rules, workpath='.'):
         self.rules = rules
+        self.set_work_path(workpath)
+
+    def __getstate__(self):
+        return {k: v for k, v in super().__getstate__().items()
+                if not k.startswith('_StandardizeChemAxon__') and k != 'workpath'}
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        self.set_work_path('.')
+
+    def __del__(self):
+        self.delete_work_path()
+
+    def set_params(self, **params):
+        if params:
+            super().set_params(**params)
+            self.set_work_path(self.workpath)
+        return self
+
+    def set_work_path(self, workpath):
+        self.workpath = workpath
+        self.delete_work_path()
+
+        fd, fn = mkstemp(prefix='std_', suffix='.xml', dir=workpath)
+        self.__config = Path(fn)
+        with self.__config.open('w') as f:
+            f.write(self.rules)
+        close(fd)
+
+    def delete_work_path(self):
+        if self.__config is not None:
+            self.__config.unlink()
+            self.__config = None
 
     def transform(self, x):
         x = super().transform(x)
-        return iter2array(self.__processor_m(x) if x.size > 1 else self.__processor_s(x[0]), allow_none=True)
+        return iter2array(self.__processor_m(x) if x.size > 1 or not CHEMAXON_REST else self.__processor_s(x[0]),
+                          allow_none=True)
 
     def __processor_m(self, structures):
-        with StringIO() as f, MRVwrite(f) as w:
-            for s in structures:
-                w.write(s)
-            w.finalize()
+        with StringIO() as f:
+            with MRVwrite(f) as w:
+                for s in structures:
+                    w.write(s)
             tmp = f.getvalue().encode()
         try:
-            p = run([STANDARDIZER, '-c', self.rules, '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
+            p = run(['standardize', '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
         except FileNotFoundError as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
         if p.returncode != 0:
             raise ConfigurationError(p.stderr.decode())
@@ -59,27 +97,28 @@ class StandardizeChemAxon(BaseEstimator, TransformerMixin):
             return res
 
     def __processor_s(self, structure):
-        with StringIO() as f, MRVwrite(f) as w:
-            w.write(structure)
-            w.finalize()
+        with StringIO() as f:
+            with MRVwrite(f) as w:
+                w.write(structure)
             data = dict(structure=f.getvalue(), parameters='mrv',
                         filterChain=[dict(filter='standardizer',
                                           parameters=dict(standardizerDefinition=self.rules))])
         try:
-            res = self.__chemaxon_rest(data)
+            q = post(f'{CHEMAXON_REST}/rest-v0/util/calculate/molExport', json=data, timeout=20)
         except RequestException as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
+        if q.status_code not in (201, 200):
+            return [None]
+
+        res = q.json()
         if not res:
             return [None]
 
         with BytesIO(res['structure'].encode()) as f, MRVread(f) as r:
             return r.read()
 
-    @classmethod
-    def __chemaxon_rest(cls, data):
-        q = post(cls.__rest_url, json=data, headers={'content-type': 'application/json'}, timeout=20)
-        if q.status_code in (201, 200):
-            return q.json()
+    __config = None
 
-    __rest_url = '%s/rest-v0/util/calculate/molExport' % CHEMAXON
+
+__all__ = ['StandardizeChemAxon']

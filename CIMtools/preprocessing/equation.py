@@ -4,103 +4,47 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU Affero General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
-from pandas import DataFrame, Index
+from pandas import DataFrame
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
-from CGRtools.containers import ReactionContainer, MoleculeContainer
-from sklearn.base import BaseEstimator
-from .common import TransformerMixin
-from ..exceptions import ConfigurationError
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils import column_or_1d
 
 
-class MetaReference(BaseEstimator, TransformerMixin):
-    def __init__(self, data):
-        self.data = data
-        self.__init()
+class EquationTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, equation='x'):
+        self.equation = equation
 
-    def __getstate__(self):
-        return {k: v for k, v in super().__getstate__().items() if not k.startswith('_MetaReference__')}
+    def get_feature_names(self):
+        """Get feature names.
 
-    def __setstate__(self, state):
-        super().__setstate__(state)
-        self.__init()
+        Returns
+        -------
+        feature_names : list of strings
+            Names of the features produced by transform.
+        """
+        return [f'equation={self.equation}']
 
-    def set_params(self, **params):
-        if params:
-            super().set_params(**params)
-            self.__init()
+    def transform(self, x):
+        x = column_or_1d(x, warn=True)
+        f = Eval(self.equation)
+        return DataFrame([[f(x)] for x in x], columns=self.get_feature_names())
+
+    def fit(self, x, y=None):
         return self
-
-    def __init(self):
-        try:
-            self.__ext_header = self.__prepare_ext_header(self.data)
-            self.__extension = self.__prepare_ext(self.data)
-        except Exception as ex:
-            raise ConfigurationError(ex)
-
-    def transform(self, x, return_domain=False):
-        x = super().transform(x)
-
-        res = []
-        for s in x:
-            tmp = {}
-            res.append(tmp)
-            for key, value in s.meta.items():
-                if key in self.data:
-                    ek = self.data[key]
-                    if callable(ek):
-                        tmp[key] = ek(value)
-                    else:
-                        tmp.update(ek[value])
-
-        res = DataFrame(res, columns=self.__ext_header, index=Index(range(len(res)), name='structure'))
-        if return_domain:
-            return x, ~res.isnull().any(axis=1)
-        return res
-
-    @staticmethod
-    def __prepare_ext_header(data):
-        """
-        :param data: dict
-        :return: list of strings. descriptors header
-        """
-        tmp = []
-        for orig_key in sorted(data):
-            operation = data[orig_key]
-            if isinstance(operation, dict):
-                tmp.extend(sorted(list(operation.values())[0]))  # get columns for replacement
-            else:
-                tmp.append(orig_key)
-        return tmp
-
-    @staticmethod
-    def __prepare_ext(data):
-        tmp = {}
-        for k, v in data.items():
-            if isinstance(v, dict):
-                tmp[k] = v
-            elif v:
-                tmp[k] = Eval(v)
-            else:
-                tmp[k] = float
-        return tmp
-
-    _dtype = ReactionContainer, MoleculeContainer
 
 
 class Eval:
@@ -179,3 +123,6 @@ class Eval:
 
     __fn = dict(sin=sin, cos=cos, tan=tan, lg=log10, ln=log, abs=abs, trunc=lambda a: int(a), round=round,
                 sgn=lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0)
+
+
+__all__ = ['EquationTransformer']
