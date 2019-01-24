@@ -74,3 +74,6 @@ class Box(BaseEstimator):
         # Input validation
         X = check_array(X)
         return ((X - self._x_min).min(axis=1) >= 0) & ((self._x_max - X).min(axis=1) >= 0)
+
+
+__all__ = ['Box']
