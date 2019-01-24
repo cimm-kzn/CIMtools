@@ -22,7 +22,7 @@ from sklearn.neighbors import BallTree
 from sklearn.utils.validation import check_array, check_is_fitted
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
-from CIMtools.model_ad.threshold_functions import threshold
+from CIMtools.applicability_domain.domain_selection.threshold_functions import threshold
 
 
 class SimilarityDistance(BaseEstimator):

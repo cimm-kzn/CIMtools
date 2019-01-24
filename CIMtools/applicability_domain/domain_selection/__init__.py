@@ -16,12 +16,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .bounding_box import *
-from .random_forest_variance import *
-from .similarity_distance import *
-from .reaction_type_control import *
-from .leverage import *
-from .consensus_pred_var import *
 from .original_data import *
 from .resulting_functions import *
-from .threshold_functions import *
+from .threshold_functions.py import *

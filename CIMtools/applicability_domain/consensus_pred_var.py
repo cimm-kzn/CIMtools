@@ -21,12 +21,12 @@ import numpy as np
 from sklearn.utils import safe_indexing
 from sklearn.model_selection import RepeatedKFold, KFold
 from pandas import Series, concat
-from CIMtools.model_ad.bounding_box import Box
-from CIMtools.model_ad.threshold_functions import UniqueZ
+from CIMtools.applicability_domain.bounding_box import Box
+from CIMtools.applicability_domain.domain_selection.threshold_functions import UniqueZ
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_array, check_is_fitted
 from sklearn.ensemble import RandomForestRegressor
-from CIMtools.model_ad.reaction_type_control import ReactionTypeControl
+from CIMtools.applicability_domain.reaction_type_control import ReactionTypeControl
 
 
 seed = 1

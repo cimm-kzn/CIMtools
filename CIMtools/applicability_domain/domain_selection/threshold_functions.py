@@ -19,10 +19,10 @@
 #
 import numpy as np
 from sklearn.utils import safe_indexing
-from CIMtools.model_ad.reaction_type_control import ReactionTypeControl
+from CIMtools.applicability_domain.reaction_type_control import ReactionTypeControl
 from sklearn.metrics import mean_squared_error, confusion_matrix
 from sklearn.model_selection import KFold, RepeatedKFold
-from CIMtools.model_ad.leverage import Leverage
+from CIMtools.applicability_domain.leverage import Leverage
 
 
 seed = 1
