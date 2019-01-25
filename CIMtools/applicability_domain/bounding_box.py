@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-#
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
