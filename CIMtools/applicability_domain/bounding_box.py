@@ -4,14 +4,14 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
@@ -34,16 +34,19 @@ class Box(BaseEstimator):
     def __init__(self):
         pass
 
-    def fit(self, X):
+    def fit(self, X, y=None):
         """Find min and max values of every feature.
+
         Parameters
         ----------
         X : {array-like, sparse matrix}, shape (n_samples, n_features)
             The training input samples.
+        y : Ignored
+            not used, present for API consistency by convention.
+
         Returns
         -------
         self : object
-            Returns self.
         """
         # Check that X have correct shape
         X = check_array(X)
@@ -61,11 +64,12 @@ class Box(BaseEstimator):
            The input samples. Internally, it will be converted to
            ``dtype=np.float32`` and if a sparse matrix is provided
            to a sparse ``csr_matrix``.
+
        Returns
        -------
        is_inlier : array, shape (n_samples,)
-        For each observations, tells whether or not (True or False) it should
-        be considered as an inlier according to the fitted model.
+                   For each observations, tells whether or not (True or False) it should
+                   be considered as an inlier according to the fitted model.
         """
         # Check is fit had been called
         check_is_fitted(self, ['_x_min', '_x_max'])
