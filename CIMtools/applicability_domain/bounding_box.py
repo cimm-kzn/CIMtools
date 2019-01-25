@@ -34,7 +34,7 @@ class Box(BaseEstimator):
     def __init__(self):
         pass
 
-    def fit(self, X, y=None):
+    def fit(self, X):
         """Find min and max values of every feature.
         Parameters
         ----------
