@@ -31,6 +31,7 @@ class ReactionTypeControl():
     In addition, by default, all atoms put a label on their hybridization.
     Reaction is considered belonging to model’s AD if its reaction signature coincides with ones used in training set.
     """
+
     def __init__(self, env=0):
         self.env = env
 

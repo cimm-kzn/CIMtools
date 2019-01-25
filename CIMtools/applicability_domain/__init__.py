@@ -16,5 +16,4 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .bounding_box import *
 from .reaction_type_control import *
