@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-#
 #  Copyright 2018 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
@@ -21,71 +20,56 @@
 
 class ReactionTypeControl():
     """
-    создаем класс, который создает список хэш-ключей реакций с задаваемым нами радиусом сферы
-    этот список и является областью применимости модели, то есть фитинг - это просто список ключей, а проверяет есть ли
-    такие фрагменты в домейне или нет, на выходе дает ответ True or False.
-
-    NB! по умолчанию у меня гибридизация True! Если ад будет перебирать его как гиперпараметр надо изменить код
+    Reaction Type Control (RTC) is performed using reaction signature.
+    The signature includes both the reaction centre itself and its 1, 2, and so on the environment
+    Since the reaction signature is not a very clear term, we considered the environment parameter as a hyper-parameter.
+    Therefore, the method has one internal parameter. If the environment is 0,
+    then the reaction signature is considered only the atoms at which the change occurs.
+    If environment = 1, the first environment was included in the reaction signature,
+    if environment = 2 - the second environment,
+    and so on up to the whole reaction (env='all').
+    In addition, by default, all atoms put a label on their hybridization.
+    Reaction is considered belonging to model’s AD if its reaction signature coincides with ones used in training set.
     """
     def __init__(self, env=0):
         self.env = env
 
-    def __readFile(self, X, index=None):
-        if index is not None:  # бывают случаю когда надо фитить по фолдам, тогда необходимо это
-            if self.env == 'all':
-                return [str(~r) for num, r in enumerate(X) if num in index]
-            else:
-                data = []
-                for num, r in enumerate(X):
-                    if num in index:
-                        cgr = ~r
-                        cgr.reset_query_marks()
-                        center_atoms = cgr.get_center_atoms()
-                        aug_center = cgr.augmented_substructure(center_atoms, dante=False, deep=self.env,
-                                                                as_view=True)
-                        data.append("{:h}".format(aug_center))
+    def __readFile(self, X):
+        if self.env == 'all':
+            return [str(~r) for r in X]
         else:
-            if self.env == 'all':
-                return [str(~r) for r in X]
-            else:
-                data = []
-                for r in X:
-                    cgr = ~r  # Condence Graph of Reaction
-                    cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
-                    center_atoms = cgr.get_center_atoms()  # Numbers atoms in reaction center in list
-                    aug_center = cgr.augmented_substructure(center_atoms, dante=False, deep=self.env,
-                                                            as_view=True)  # get ubgraph with atoms and their neighbors
-                    data.append("{:h}".format(aug_center))  # String for graph reaction center
-
+            data = []
+            for r in X:
+                cgr = ~r  # Condence Graph of Reaction
+                cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
+                center_atoms = cgr.get_center_atoms()  # Numbers atoms in reaction center in list
+                aug_center = cgr.augmented_substructure(center_atoms, dante=False, deep=self.env,
+                                                        as_view=True)  # get ubgraph with atoms and their neighbors
+                data.append(format(aug_center, 'h'))  # String for graph reaction center
         return data
 
-    def fit(self, X, index=None):
-        """Fit distance-based AD.
-
+    def fit(self, X):
+        """Fit structure-based AD.
+        The training model  memorizes the unique set of reaction signature.
         Parameters
         ----------
         X : after read rdf file
-        index : в случае если надо будет фитить по фолдам
         Returns
         -------
         self : object
             Returns self.
         """
-        dataHash = set(self.__readFile(X, index))
-        self.bytes = [bytes(list(dataHash)[i], encoding='utf-8') for i in range(len(dataHash))]
+        self.dataHash = set(self.__readFile(X))
         return self
 
-    def predict(self, X, index=None):
+    def predict(self, X):
         """
-
+        Reaction is considered belonging to model’s AD if its reaction signature coincides with ones used in training set.
         :param X: after read rdf file.
-        :param index: в случае если надо будет предсказывать по фолдам
-        :return: результат объекты принадлежат области применимости модели или нет. Если хеш объекта из тестовой выборки
-        совпадает со списком уникальных хэшей из обучающей выборки, то объект принадлежит области применимости модели, в
-        противном случае нет.
+        :return: list contains True (reaction in AD) and False (reaction residing outside AD).
         """
-        state = [bytes(newHash, encoding='utf-8') in self.bytes for newHash in self.__readFile(X, index)]
+        state = [newHash in self.dataHash for newHash in self.__readFile(X)]
         return state
 
 
-__all__ = [ReactionTypeControl]
+__all__ = ['ReactionTypeControl']
