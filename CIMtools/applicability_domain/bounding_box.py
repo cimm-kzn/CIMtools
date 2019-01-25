@@ -59,15 +59,15 @@ class Box(BaseEstimator):
         """ Predict if a particular sample is an outlier or not.
 
         Parameters
-       ----------
-       X : array-like or sparse matrix, shape (n_samples, n_features)
-           The input samples. Internally, it will be converted to
-           ``dtype=np.float32`` and if a sparse matrix is provided
-           to a sparse ``csr_matrix``.
+        ----------
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
 
-       Returns
-       -------
-       is_inlier : array, shape (n_samples,)
+        Returns
+        -------
+        is_inlier : array, shape (n_samples,)
                    For each observations, tells whether or not (True or False) it should
                    be considered as an inlier according to the fitted model.
         """
