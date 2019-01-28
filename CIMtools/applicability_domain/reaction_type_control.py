@@ -17,8 +17,8 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from numpy import array
-from sklearn.utils.validation import check_array
-
+from sklearn.utils.validation import check_is_fitted
+from ..utils import iter2array
 
 class ReactionTypeControl():
     """Reaction Type Control (RTC) is performed using reaction signature.
@@ -36,15 +36,14 @@ class ReactionTypeControl():
     def __init__(self, env=0):
         self.env = env
 
-    def __magic(self, X):
+    def __get_signature(self, structure):
         if self.env == 'all':
-            return str(~X)
+            return str(~structure)
         else:
-            cgr = ~X  # Condence Graph of Reaction
+            cgr = ~structure  # Condence Graph of Reaction
             cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
-            center_atoms = cgr.get_center_atoms()  # Numbers atoms in reaction center in list
-            aug_center = cgr.augmented_substructure(center_atoms, dante=False, deep=self.env,
-                                                    as_view=True)  # get ubgraph with atoms and their neighbors
+            center_atoms = cgr.center_atoms()  # Numbers atoms in reaction center in list
+            aug_center = cgr.augmented_substructure(center_atoms, deep=self.env)  # get ubgraph with atoms and their neighbors
             return format(aug_center, 'h')  # String for graph reaction center
 
     def fit(self, X):
@@ -58,7 +57,8 @@ class ReactionTypeControl():
         -------
         self : object
         """
-        self.train_signatures = {self.__magic(x) for x in X}
+        X = iter2array(X)
+        self._train_signatures = {self.__get_signature(x) for x in X}
         return self
 
     def predict(self, X):
@@ -73,8 +73,9 @@ class ReactionTypeControl():
         -------
         self : array contains True (reaction in AD) and False (reaction residing outside AD).
         """
-        X = check_array(X)
-        return array([self.__magic(x) in self.train_signatures for x in X])
+        X = iter2array(X)
+        check_is_fitted(self, ['_train_signatures'])
+        return array([self.__get_signature(x) in self._train_signatures for x in X])
 
 
 __all__ = ['ReactionTypeControl']
