@@ -19,6 +19,8 @@
 from numpy import array
 from sklearn.utils.validation import check_is_fitted
 from ..utils import iter2array
+from CGRtools.containers import ReactionContainer
+
 
 class ReactionTypeControl():
     """Reaction Type Control (RTC) is performed using reaction signature.
@@ -42,8 +44,7 @@ class ReactionTypeControl():
         else:
             cgr = ~structure  # Condence Graph of Reaction
             cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
-            center_atoms = cgr.center_atoms()  # Numbers atoms in reaction center in list
-            aug_center = cgr.augmented_substructure(center_atoms, deep=self.env)  # get ubgraph with atoms and their neighbors
+            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)  # get ubgraph with atoms and their neighbors
             return format(aug_center, 'h')  # String for graph reaction center
 
     def fit(self, X):
@@ -57,7 +58,7 @@ class ReactionTypeControl():
         -------
         self : object
         """
-        X = iter2array(X)
+        X = iter2array(X, dtype=ReactionContainer)
         self._train_signatures = {self.__get_signature(x) for x in X}
         return self
 
@@ -73,8 +74,8 @@ class ReactionTypeControl():
         -------
         self : array contains True (reaction in AD) and False (reaction residing outside AD).
         """
-        X = iter2array(X)
         check_is_fitted(self, ['_train_signatures'])
+        X = iter2array(X, dtype=ReactionContainer)
         return array([self.__get_signature(x) in self._train_signatures for x in X])
 
 

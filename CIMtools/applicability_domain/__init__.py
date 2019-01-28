@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
