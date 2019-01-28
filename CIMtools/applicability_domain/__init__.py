@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
-#  Copyright 2018 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,5 +17,5 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .reaction_type_control import *
 from .bounding_box import *
+from .reaction_type_control import *

@@ -16,10 +16,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools.containers import ReactionContainer
 from numpy import array
 from sklearn.utils.validation import check_is_fitted
 from ..utils import iter2array
-from CGRtools.containers import ReactionContainer
 
 
 class ReactionTypeControl():
@@ -44,7 +44,7 @@ class ReactionTypeControl():
         else:
             cgr = ~structure  # Condence Graph of Reaction
             cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
-            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)  # get ubgraph with atoms and their neighbors
+            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)  # get subgraph with atoms and their neighbors
             return format(aug_center, 'h')  # String for graph reaction center
 
     def fit(self, X):
