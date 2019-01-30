@@ -4,19 +4,19 @@
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU Affero General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-import numpy as np
+from numpy import array, column_stack, eye, linalg, ones
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_array, check_is_fitted
 
@@ -71,9 +71,9 @@ class Leverage(BaseEstimator):
         X = check_array(X)
         if y is not None:
             y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
-        X = np.column_stack(((np.ones(X.shape[0])), X))
-        influence_matrix = X.T.dot(X) + np.eye(X.shape[1]).dot(1e-8)
-        self.inverse_influence_matrix = np.linalg.inv(influence_matrix)
+        X = column_stack(((ones(X.shape[0])), X))
+        influence_matrix = X.T.dot(X) + eye(X.shape[1]).dot(1e-8)
+        self.inverse_influence_matrix = linalg.inv(influence_matrix)
         return self
 
     def predict_proba(self, X):
@@ -92,8 +92,8 @@ class Leverage(BaseEstimator):
         """
         check_is_fitted(self, ['inverse_influence_matrix'])
         X = check_array(X)
-        X = np.column_stack(((np.ones(X.shape[0])), X))
-        return np.array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
+        X = column_stack(((ones(X.shape[0])), X))
+        return array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
 
 
 __all__ = ['Leverage']
