@@ -17,7 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from itertools import chain
+from itertools import chain, product, zip_longest
 from operator import itemgetter
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -173,7 +173,7 @@ known_solvents = (
     ('propane-1,2,3-triol', 'OCC(O)CO', '1,2,3-propanetriol', 'glycerin', 'glycerine', 'propanetriol',
      '1,2,3-trihydroxypropane'),
     ('1,3-dimethylbenzene', 'CC1=CC(C)=CC=C1', '1,3-xylene', '3-xylene', 'isoxylene', 'm-xylene', 'm-xylol'),
-    ('1,3,5‐trimethylbenzene', 'CC1=CC(C)=CC(C)=C1', 'mesitylene', 'sym-trimethylbenzene'),
+    ('1,3,5-trimethylbenzene', 'CC1=CC(C)=CC(C)=C1', 'mesitylene', 'sym-trimethylbenzene'),
     ('1,4-dimethylbenzene', 'Cc1ccc(C)cc1', 'p-xylene', '1,4-xylene', 'p-dimethylbenzene', 'p-xylol', 'p-methyltoluene',
      'paraxylene', 'chromar', 'scintillar', '4-methyltoluene', 'nsc 72419'),
     ('1,4-dioxane', 'C1COCCO1', '1,4-dioxacyclohexane', '[1,4]dioxane', 'p-dioxane', '[6]-crown-2',
@@ -220,8 +220,8 @@ known_solvents = (
     ('heptane', 'CCCCCCC', 'n-heptane', 'septane'),
     ('hexamethylphosphoramide', 'CN(C)P(=O)(N(C)C)N(C)C', 'hexamethylphosphoric acid triamide',
      'hexamethylphosphoric triamide', 'hexamethylphosphorous triamide', 'hmpa',
-     '''N,N,N',N',N",N"-hexamethylphosphoric triamide''', "N,N,N',N',N'',N''-hexamethylphosphoric triamide",
-     'N-bis(dimethylamino)phosphoryl-N-methyl-methanamine', 'tris(dimethylamino)phosphine oxide'),
+     '''N,N,N',N',N",N"-hexamethylphosphoric triamide''', 'N-bis(dimethylamino)phosphoryl-N-methyl-methanamine',
+     'tris(dimethylamino)phosphine oxide'),
     ('hexan-1-ol', 'CCCCCCO', '1-hexanol', 'hexanol', 'hexanol-1', 'hexyl alcohol', 'n-hexanol', 'n-hexyl alcohol'),
     ('hexane', 'CCCCCC', 'n-hexane', 'sextane'),
     ('methanedithione', 'S=C=S', 'carbon disulfide', 'carbon disulphide'),
@@ -266,13 +266,49 @@ known_solvents = (
     ('water', 'O')
 )
 
+
+hyphens = ('-', '‐', '‑', '‒', '–', '—', '―', '₋', '−')
+single_quotes = ("'", '‘', '’')
+double_quotes = ('"', '“', '”') + tuple(''.join(x) for x in product(("'", '‘', '’'), repeat=2))
+triple_quotes = tuple(chain((''.join(x) for x in product(("'", '‘', '’'), repeat=3)),
+                            (''.join(x) for x in product(("'", '‘', '’'), ('"', '“', '”'))),
+                            (''.join(x) for x in product(('"', '“', '”'), ("'", '‘', '’')))))
+
+
+def enum_hide(word):
+    if '-' in word:
+        parts = word.split('-')
+        words = [''.join(chain.from_iterable(zip_longest(parts, hs, fillvalue='')))
+                 for hs in product(hyphens, repeat=len(parts) - 1)]
+    else:
+        words = [word]
+
+    if "'" in word:
+        tmp = []
+        for w in words:
+            parts = w.split("'")
+            tmp.extend(''.join(chain.from_iterable(zip_longest(parts, qs, fillvalue='')))
+                       for qs in product(single_quotes, repeat=len(parts) - 1))
+        words = tmp
+
+    if '"' in word:
+        tmp = []
+        for w in words:
+            parts = w.split('"')
+            tmp.extend(''.join(chain.from_iterable(zip_longest(parts, qs, fillvalue='')))
+                       for qs in product(double_quotes, repeat=len(parts) - 1))
+        words = tmp
+    return words
+
+
 tmp = {}
 solvent_smiles = {}
 for n, s, *o in known_solvents:
     solvent_smiles[n] = s
-    tmp[n.lower()] = n
+    low_n = n.lower()
+    tmp.update(dict.fromkeys(enum_hide(n.lower()), n))
     for x in o:
-        tmp[x.lower()] = n
+        tmp.update(dict.fromkeys(enum_hide(x.lower()), n))
 
 known_solvents = tmp
 
