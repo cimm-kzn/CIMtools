@@ -16,8 +16,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from .domain_selection.threshold_functions import threshold
 from numpy import array, column_stack, eye, linalg, ones
 from sklearn.base import BaseEstimator
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.utils.validation import check_array, check_is_fitted
 
 
@@ -50,8 +52,11 @@ class Leverage(BaseEstimator):
     be outside the AD. In contrast, if a chemical in the test set has a hat value greater than the warning leverage h*,
     this means that the prediction is the result of substantial extrapolation and therefore may not be reliable.
     """
-    def __init__(self):
-        pass
+    def __init__(self, ad='leverage', score='ba', reg_model=RandomForestRegressor(n_estimators=500, random_state=1)):
+        self.ad = ad
+        self.score = score # по умолчанию стоит метрика 'ba'
+        self.reg_model = reg_model # необходима для нахождения отсечки, если пользователь не задает регресионную модель,
+        # то по умолчанию будет RandomForestRegressor(n_estimators=500, random_state=1).
 
     def fit(self, X, y=None):
         """ Learning is to build an inverse matrix
@@ -63,15 +68,15 @@ class Leverage(BaseEstimator):
             efficiency.
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
             The target values (real numbers in regression).
+
         Returns
         -------
         self : object
-            Returns self.
         """
-        X = check_array(X)
+        self.X = check_array(X)
         if y is not None:
-            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
-        X = column_stack(((ones(X.shape[0])), X))
+            self.y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+        X = column_stack(((ones(self.X.shape[0])), self.X))
         influence_matrix = X.T.dot(X) + eye(X.shape[1]).dot(1e-8)
         self.inverse_influence_matrix = linalg.inv(influence_matrix)
         return self
@@ -82,9 +87,9 @@ class Leverage(BaseEstimator):
         Parameters
         ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)
-               The input samples. Internally, it will be converted to
-               ``dtype=np.float32`` and if a sparse matrix is provided
-               to a sparse ``csr_matrix``.
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
 
         Returns
         -------
@@ -93,7 +98,33 @@ class Leverage(BaseEstimator):
         check_is_fitted(self, ['inverse_influence_matrix'])
         X = check_array(X)
         X = column_stack(((ones(X.shape[0])), X))
-        return array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
+        self.leverages = array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
+        return self.leverages
+
+    def _threshold(self):
+        self._threshold_value = threshold(ad=self.ad, X=self.X, y=self.y, metric=self.score, reg_model=self.reg_model)
+        return self._threshold_value
+
+    def predict(self, X):
+        """
+
+        Parameters
+        ----------
+        X : array-like or sparse matrix, shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+            to a sparse ``csr_matrix``.
+
+        Returns
+        -------
+
+        """
+        check_is_fitted(self, ['inverse_influence_matrix', 'leverages', '_threshold_value'])
+        X = check_array(X)
+        leverages = array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
+        AD = leverages <= 3 * (1 + self.X.shape[1]) / self.X.shape[0]
+        AD_cv = leverages <= self._threshold_value['z']
+        return AD, AD_cv
 
 
 __all__ = ['Leverage']
