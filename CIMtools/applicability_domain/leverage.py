@@ -16,10 +16,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .domain_selection.threshold_functions import threshold
-from numpy import array, column_stack, eye, linalg, ones
+from .domain_selection.threshold_functions import function
+from numpy import array, column_stack, eye, linalg, ones, sqrt, unique
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import KFold
+from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
 
 
@@ -52,14 +55,22 @@ class Leverage(BaseEstimator):
     be outside the AD. In contrast, if a chemical in the test set has a hat value greater than the warning leverage h*,
     this means that the prediction is the result of substantial extrapolation and therefore may not be reliable.
     """
-    def __init__(self, ad='leverage', score='ba', reg_model=RandomForestRegressor(n_estimators=500, random_state=1)):
-        self.ad = ad
-        self.score = score # по умолчанию стоит метрика 'ba'
-        self.reg_model = reg_model # необходима для нахождения отсечки, если пользователь не задает регресионную модель,
-        # то по умолчанию будет RandomForestRegressor(n_estimators=500, random_state=1).
+    def __init__(self, warning_leverage='auto', score='ba', reg_model=RandomForestRegressor(n_estimators=500, random_state=1)):
+        self.warning_leverage = warning_leverage
+        self.score = score
+        self.reg_model = reg_model
+
+    def __make_inverse_matrix(self, X):
+        X = column_stack(((ones(X.shape[0])), X))
+        influence_matrix = X.T.dot(X) + eye(X.shape[1]).dot(1e-8)
+        return linalg.inv(influence_matrix)
+
+    def __find_leverages(self, X, inverse_influence_matrix):
+        X = column_stack(((ones(X.shape[0])), X))
+        return array([X[i, :].dot(inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
 
     def fit(self, X, y=None):
-        """ Learning is to build an inverse matrix
+        """Learning is to find the inverse matrix for X and calculate the threshold.
 
         Parameters
         ----------
@@ -73,16 +84,41 @@ class Leverage(BaseEstimator):
         -------
         self : object
         """
-        self.X = check_array(X)
+        # Check that X have correct shape
+        X = check_array(X)
         if y is not None:
-            self.y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
-        X = column_stack(((ones(self.X.shape[0])), self.X))
-        influence_matrix = X.T.dot(X) + eye(X.shape[1]).dot(1e-8)
-        self.inverse_influence_matrix = linalg.inv(influence_matrix)
+            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+        self.inverse_influence_matrix = self.__make_inverse_matrix(X)
+        if self.warning_leverage == 'auto':
+            self.threshold_value = 3 * (1 + X.shape[1]) / X.shape[0]
+        elif self.warning_leverage == 'cv':
+            self.threshold_value = {'z': 0, 'score': 0}
+            Y_pred, Y_true, AD = [], [], []
+            cv = KFold(n_splits=5, random_state=1, shuffle=True)
+            for train_index, test_index in cv.split(X):
+                x_train = safe_indexing(X, train_index)
+                x_test = safe_indexing(X, test_index)
+                y_train = safe_indexing(y, train_index)
+                y_test = safe_indexing(y, test_index)
+                self.reg_model.fit(x_train, y_train)
+                y_pred = self.reg_model.predict(x_test)
+                if self.score == 'ba':
+                    y_pred = abs(y_test - y_pred) <= 3 * sqrt(mean_squared_error(y_test, y_pred))
+                Y_pred.extend(y_pred)
+                Y_true.extend(y_test)
+                ad_model = self.__make_inverse_matrix(x_train)
+                AD.extend(self.__find_leverages(x_test, ad_model))
+            AD_ = unique(AD)
+            for z in AD_:
+                AD_new = AD <= z
+                val = function(metric=self.score, Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
+                if val >= self.threshold_value['score']:
+                    self.threshold_value['score'] = val
+                    self.threshold_value['z'] = z
         return self
 
     def predict_proba(self, X):
-        """
+        """Predict the distances for X to center of the training set.
 
         Parameters
         ----------
@@ -93,20 +129,18 @@ class Leverage(BaseEstimator):
 
         Returns
         -------
-
+        leverages: array of shape = [n_samples]
+                   The objects distances to center of the training set.
         """
+        # Check is fit had been called
         check_is_fitted(self, ['inverse_influence_matrix'])
+        # Check that X have correct shape
         X = check_array(X)
-        X = column_stack(((ones(X.shape[0])), X))
-        self.leverages = array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
-        return self.leverages
-
-    def _threshold(self):
-        self._threshold_value = threshold(ad=self.ad, X=self.X, y=self.y, metric=self.score, reg_model=self.reg_model)
-        return self._threshold_value
+        leverages = self.__find_leverages(X, self.inverse_influence_matrix)
+        return leverages
 
     def predict(self, X):
-        """
+        """Predict inside or outside AD for X.
 
         Parameters
         ----------
@@ -117,14 +151,19 @@ class Leverage(BaseEstimator):
 
         Returns
         -------
-
+        ad : array of shape = [n_samples]
+            Array contains True (reaction in AD) and False (reaction residing outside AD).
         """
-        check_is_fitted(self, ['inverse_influence_matrix', 'leverages', '_threshold_value'])
+        # Check is fit had been called
+        check_is_fitted(self, ['inverse_influence_matrix'])
+        # Check that X have correct shape
         X = check_array(X)
-        leverages = array([X[i, :].dot(self.inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
-        AD = leverages <= 3 * (1 + self.X.shape[1]) / self.X.shape[0]
-        AD_cv = leverages <= self._threshold_value['z']
-        return AD, AD_cv
+        if self.warning_leverage == 'auto':
+            ad = self.__find_leverages(X, self.inverse_influence_matrix) <=  self.threshold_value
+            return ad
+        elif self.warning_leverage == 'cv':
+            ad = self.__find_leverages(X, self.inverse_influence_matrix) <= self.threshold_value['z']
+            return ad
 
 
 __all__ = ['Leverage']
