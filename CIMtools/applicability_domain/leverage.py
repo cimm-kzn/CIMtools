@@ -54,9 +54,9 @@ class Leverage(BaseEstimator):
     be outside the AD. In contrast, if a chemical in the test set has a hat value greater than the warning leverage h*,
     this means that the prediction is the result of substantial extrapolation and therefore may not be reliable.
     """
-    def __init__(self, warning_leverage='auto', metric='ba_ad', reg_model=None):
-        self.warning_leverage = warning_leverage
-        self.metric = metric
+    def __init__(self, threshold='auto', score='ba_ad', reg_model=None):
+        self.threshold = threshold
+        self.score = score
         self.reg_model = reg_model
 
     def __make_inverse_matrix(self, X):
@@ -85,16 +85,16 @@ class Leverage(BaseEstimator):
         """
         # Check that X have correct shape
         X = check_array(X)
-        if self.warning_leverage is not 'auto':
+        if self.threshold is not 'auto':
             if y is None:
                 raise ValueError("Y must be specified to find the optimal threshold.")
             else:
                 y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         self.inverse_influence_matrix = self.__make_inverse_matrix(X)
-        if self.warning_leverage == 'auto':
-            self.threshold = 3 * (1 + X.shape[1]) / X.shape[0]
-        elif self.warning_leverage == 'cv':
-            self.threshold = 0
+        if self.threshold == 'auto':
+            self.threshold_value = 3 * (1 + X.shape[1]) / X.shape[0]
+        elif self.threshold == 'cv':
+            self.threshold_value = 0
             score = 0
             Y_pred, Y_true, AD = [], [], []
             cv = KFold(n_splits=5, random_state=1, shuffle=True)
@@ -114,13 +114,13 @@ class Leverage(BaseEstimator):
             AD_ = unique(AD)
             for z in AD_:
                 AD_new = AD <= z
-                if self.metric == 'ba_ad':
+                if self.score == 'ba_ad':
                     val = balanced_accuracy_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
-                elif self.metric == 'rmse_ad':
+                elif self.score == 'rmse_ad':
                     val = rmse_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
                 if val >= score:
                     score = val
-                    self.threshold = z
+                    self.threshold_value = z
         return self
 
     def predict_proba(self, X):
