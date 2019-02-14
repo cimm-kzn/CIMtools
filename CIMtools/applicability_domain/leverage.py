@@ -105,7 +105,7 @@ class Leverage(BaseEstimator):
                 y_test = safe_indexing(y, test_index)
                 if self.reg_model is None:
                     reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
-                elif self.reg_model is not None:
+                else:
                     reg_model = clone(self.reg_model).fit(x_train, y_train)
                 Y_pred.extend(reg_model.predict(x_test))
                 Y_true.extend(y_test)
