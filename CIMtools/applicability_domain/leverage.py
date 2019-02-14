@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from numpy import array, column_stack, eye, linalg, ones, unique
+from numpy import array, column_stack, eye, hstack, linalg, ones, unique
 from sklearn.base import BaseEstimator, clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
@@ -107,17 +107,17 @@ class Leverage(BaseEstimator):
                     reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
                 else:
                     reg_model = clone(self.reg_model).fit(x_train, y_train)
-                Y_pred.extend(reg_model.predict(x_test))
-                Y_true.extend(y_test)
+                Y_pred.append(reg_model.predict(x_test))
+                Y_true.append(y_test)
                 ad_model = self.__make_inverse_matrix(x_train)
-                AD.extend(self.__find_leverages(x_test, ad_model))
-            AD_ = unique(AD)
+                AD.append(self.__find_leverages(x_test, ad_model))
+            AD_ = unique(hstack(AD))
             for z in AD_:
                 AD_new = AD <= z
                 if self.score == 'ba_ad':
-                    val = balanced_accuracy_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
+                    val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
-                    val = rmse_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
+                    val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 if val >= score:
                     score = val
                     self.threshold_value = z
