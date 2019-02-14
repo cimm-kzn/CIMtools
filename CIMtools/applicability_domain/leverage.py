@@ -17,7 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from numpy import array, column_stack, eye, linalg, ones, unique
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.utils import safe_indexing
@@ -104,8 +104,10 @@ class Leverage(BaseEstimator):
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
                 if self.reg_model is None:
-                    self.reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
-                Y_pred.extend(self.reg_model.predict(x_test))
+                    reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
+                elif self.reg_model is not None:
+                    reg_model = clone(self.reg_model).fit(x_train, y_train)
+                Y_pred.extend(reg_model.predict(x_test))
                 Y_true.extend(y_test)
                 ad_model = self.__make_inverse_matrix(x_train)
                 AD.extend(self.__find_leverages(x_test, ad_model))
