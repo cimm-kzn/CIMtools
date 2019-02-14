@@ -16,14 +16,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .domain_selection.threshold_functions import function
-from numpy import array, column_stack, eye, linalg, ones, sqrt, unique
+from numpy import array, column_stack, eye, linalg, ones, unique
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
+from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
 
 class Leverage(BaseEstimator):
@@ -55,9 +54,9 @@ class Leverage(BaseEstimator):
     be outside the AD. In contrast, if a chemical in the test set has a hat value greater than the warning leverage h*,
     this means that the prediction is the result of substantial extrapolation and therefore may not be reliable.
     """
-    def __init__(self, warning_leverage='auto', score='ba', reg_model=RandomForestRegressor(n_estimators=500, random_state=1)):
+    def __init__(self, warning_leverage='auto', metric='ba_ad', reg_model=None):
         self.warning_leverage = warning_leverage
-        self.score = score
+        self.metric = metric
         self.reg_model = reg_model
 
     def __make_inverse_matrix(self, X):
@@ -86,13 +85,17 @@ class Leverage(BaseEstimator):
         """
         # Check that X have correct shape
         X = check_array(X)
-        if y is not None:
-            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+        if self.warning_leverage is not 'auto':
+            if y is None:
+                raise ValueError("Y must be specified to find the optimal threshold.")
+            else:
+                y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         self.inverse_influence_matrix = self.__make_inverse_matrix(X)
         if self.warning_leverage == 'auto':
-            self.threshold_value = 3 * (1 + X.shape[1]) / X.shape[0]
+            self.threshold = 3 * (1 + X.shape[1]) / X.shape[0]
         elif self.warning_leverage == 'cv':
-            self.threshold_value = {'z': 0, 'score': 0}
+            self.threshold = 0
+            score = 0
             Y_pred, Y_true, AD = [], [], []
             cv = KFold(n_splits=5, random_state=1, shuffle=True)
             for train_index, test_index in cv.split(X):
@@ -100,21 +103,22 @@ class Leverage(BaseEstimator):
                 x_test = safe_indexing(X, test_index)
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
-                self.reg_model.fit(x_train, y_train)
-                y_pred = self.reg_model.predict(x_test)
-                if self.score == 'ba':
-                    y_pred = abs(y_test - y_pred) <= 3 * sqrt(mean_squared_error(y_test, y_pred))
-                Y_pred.extend(y_pred)
+                if self.reg_model is None:
+                    self.reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
+                Y_pred.extend(self.reg_model.predict(x_test))
                 Y_true.extend(y_test)
                 ad_model = self.__make_inverse_matrix(x_train)
                 AD.extend(self.__find_leverages(x_test, ad_model))
             AD_ = unique(AD)
             for z in AD_:
                 AD_new = AD <= z
-                val = function(metric=self.score, Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
-                if val >= self.threshold_value['score']:
-                    self.threshold_value['score'] = val
-                    self.threshold_value['z'] = z
+                if self.metric == 'ba_ad':
+                    val = balanced_accuracy_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
+                elif self.metric == 'rmse_ad':
+                    val = rmse_score_with_ad(Y_true=array(Y_true), Y_pred=array(Y_pred), AD=AD_new)
+                if val >= score:
+                    score = val
+                    self.threshold = z
         return self
 
     def predict_proba(self, X):
@@ -136,8 +140,7 @@ class Leverage(BaseEstimator):
         check_is_fitted(self, ['inverse_influence_matrix'])
         # Check that X have correct shape
         X = check_array(X)
-        leverages = self.__find_leverages(X, self.inverse_influence_matrix)
-        return leverages
+        return self.__find_leverages(X, self.inverse_influence_matrix)
 
     def predict(self, X):
         """Predict inside or outside AD for X.
@@ -158,12 +161,7 @@ class Leverage(BaseEstimator):
         check_is_fitted(self, ['inverse_influence_matrix'])
         # Check that X have correct shape
         X = check_array(X)
-        if self.warning_leverage == 'auto':
-            ad = self.__find_leverages(X, self.inverse_influence_matrix) <=  self.threshold_value
-            return ad
-        elif self.warning_leverage == 'cv':
-            ad = self.__find_leverages(X, self.inverse_influence_matrix) <= self.threshold_value['z']
-            return ad
+        return self.__find_leverages(X, self.inverse_influence_matrix) <= self.threshold
 
 
 __all__ = ['Leverage']
