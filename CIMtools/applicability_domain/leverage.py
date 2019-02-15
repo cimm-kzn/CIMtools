@@ -58,6 +58,10 @@ class Leverage(BaseEstimator):
         self.threshold = threshold
         self.score = score
         self.reg_model = reg_model
+        if threshold not in ('auto','cv') and not isinstance(threshold, float):
+            raise ValueError('Invalid value for threshold. Allowed string values are "auto", "cv".')
+        if score not in ('ba_ad', 'rmse_ad'):
+            raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
 
     def __make_inverse_matrix(self, X):
         X = column_stack(((ones(X.shape[0])), X))
@@ -85,11 +89,10 @@ class Leverage(BaseEstimator):
         """
         # Check that X have correct shape
         X = check_array(X)
-        if self.threshold is not 'auto':
-            if y is None:
-                raise ValueError("Y must be specified to find the optimal threshold.")
-            else:
-                y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+        if self.threshold is 'cv' and y is None:
+            raise ValueError("Y must be specified to find the optimal threshold.")
+        elif self.threshold is 'cv':
+            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         self.inverse_influence_matrix = self.__make_inverse_matrix(X)
         if self.threshold == 'auto':
             self.threshold_value = 3 * (1 + X.shape[1]) / X.shape[0]
@@ -113,7 +116,7 @@ class Leverage(BaseEstimator):
                 AD.append(self.__find_leverages(x_test, ad_model))
             AD_ = unique(hstack(AD))
             for z in AD_:
-                AD_new = AD <= z
+                AD_new = hstack(AD) <= z
                 if self.score == 'ba_ad':
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
@@ -121,6 +124,8 @@ class Leverage(BaseEstimator):
                 if val >= score:
                     score = val
                     self.threshold_value = z
+        else:
+            self.threshold_value = self.threshold
         return self
 
     def predict_proba(self, X):
@@ -163,7 +168,7 @@ class Leverage(BaseEstimator):
         check_is_fitted(self, ['inverse_influence_matrix'])
         # Check that X have correct shape
         X = check_array(X)
-        return self.__find_leverages(X, self.inverse_influence_matrix) <= self.threshold
+        return self.__find_leverages(X, self.inverse_influence_matrix) <= self.threshold_value
 
 
 __all__ = ['Leverage']
