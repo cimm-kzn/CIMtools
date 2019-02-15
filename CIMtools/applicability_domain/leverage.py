@@ -89,14 +89,13 @@ class Leverage(BaseEstimator):
         """
         # Check that X have correct shape
         X = check_array(X)
-        if self.threshold is 'cv' and y is None:
-            raise ValueError("Y must be specified to find the optimal threshold.")
-        elif self.threshold is 'cv':
-            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         self.inverse_influence_matrix = self.__make_inverse_matrix(X)
         if self.threshold == 'auto':
             self.threshold_value = 3 * (1 + X.shape[1]) / X.shape[0]
         elif self.threshold == 'cv':
+            if y is None:
+                raise ValueError("Y must be specified to find the optimal threshold.")
+            y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
             self.threshold_value = 0
             score = 0
             Y_pred, Y_true, AD = [], [], []
