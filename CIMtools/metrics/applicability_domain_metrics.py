@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
@@ -17,6 +16,24 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .bounding_box import *
-from .leverage import *
-from .reaction_type_control import *
+from numpy import sqrt
+from sklearn.metrics import balanced_accuracy_score, mean_squared_error
+
+
+def balanced_accuracy_score_with_ad(Y_true, Y_pred, AD):
+    AD_true = abs(Y_true - Y_pred) <= 3 * sqrt(mean_squared_error(Y_true, Y_pred))
+    return balanced_accuracy_score(AD_true, AD)
+
+def rmse_score_with_ad(Y_true, Y_pred, AD):
+    AD_out_n = ~AD
+    s_n = AD.sum()
+    s_out_n = AD_out_n.sum()
+    if s_n:
+        RMSE_AD = sqrt((sum((x - y) ** 2 for x, y, z in zip(Y_pred, Y_true, AD) if z)) / s_n)
+    else:
+        RMSE_AD = 0
+    if s_out_n:
+        RMSE_AD_out_n = sqrt((sum((x - y) ** 2 for x, y, z in zip(Y_pred, Y_true, AD_out_n) if z)) / s_out_n)
+    else:
+        RMSE_AD_out_n = 0
+    return RMSE_AD_out_n - RMSE_AD

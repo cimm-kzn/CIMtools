@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -49,7 +49,7 @@ def reaction_support(_class):
 
             shifts = {}
             mols = []
-            for i in ('reagents', 'products'):
+            for i in ('reactants', 'products'):
                 sh = shifts[i] = [len(mols)]
                 for s in x:
                     si = s[i]
@@ -60,7 +60,7 @@ def reaction_support(_class):
             assert len(transformed) == len(mols), 'unexpected transformed molecules amount'
 
             out = []
-            for s, r, p in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reagents'])),
+            for s, r, p in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reactants'])),
                                   (transformed[y: z] for y, z in self.__pairwise(shifts['products']))):
                 if any(i is None for i in chain(r, p)):
                     out.append(None)

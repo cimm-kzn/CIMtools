@@ -22,7 +22,7 @@ from sklearn.utils.validation import check_is_fitted
 from ..utils import iter2array
 
 
-class ReactionTypeControl():
+class ReactionTypeControl:
     """Reaction Type Control (RTC) is performed using reaction signature.
 
     The signature includes both the reaction centre itself and its 1, 2, and so on the environment
@@ -44,7 +44,8 @@ class ReactionTypeControl():
         else:
             cgr = ~structure  # Condence Graph of Reaction
             cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
-            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)  # get subgraph with atoms and their neighbors
+            # get subgraph with atoms and their neighbors
+            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)
             return format(aug_center, 'h')  # String for graph reaction center
 
     def fit(self, X):
