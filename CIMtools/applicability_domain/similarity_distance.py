@@ -66,8 +66,8 @@ class SimilarityDistance(BaseEstimator):
         compounds are considered to be unreliable.
 
         - If auto, threshold calculated like Dc = Zσ + <y>, where <y> is the average and σ is the standard deviation of
-            the Euclidean distances of the k nearest neighbors of each compound in the training set and Z is an empirical
-            parameter to control the significance level, with the default value of 0.5.
+            the Euclidean distances of the k nearest neighbors of each compound in the training set and
+            Z is an empirical parameter to control the significance level, with the default value of 0.5.
         - If 'cv', threshold in the approach is optimized in course internal cross-validation procedure
             by maximize our metric.
         - IF float, threshold will be this value
@@ -119,11 +119,11 @@ class SimilarityDistance(BaseEstimator):
         # Check data
         X = check_array(X)
         self.tree = BallTree(X, leaf_size=self.leaf_size, metric=self.metric)
-        dist_train = self.tree.query(X, k=2)
+        dist_train = self.tree.query(X, k=2)[0]
         if self.threshold == 'auto':
-            self.threshold_value = 0.5 * sqrt(var(dist_train[0][:, 1])) + mean(dist_train[0][:, 1])
+            self.threshold_value = 0.5 * sqrt(var(dist_train[:, 1])) + mean(dist_train[:, 1])
         elif self.threshold == 'cv':
-            if y == None:
+            if y is None:
                 raise ValueError("Y must be specified to find the optimal threshold.")
             y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
             self.threshold_value = 0
@@ -135,8 +135,8 @@ class SimilarityDistance(BaseEstimator):
                 x_test = safe_indexing(X, test_index)
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
-                data_test = safe_indexing(dist_train[0][:, 1], test_index)
-                if self.reg_model == None:
+                data_test = safe_indexing(dist_train[:, 1], test_index)
+                if self.reg_model is None:
                     reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
                 else:
                     reg_model = clone(self.reg_model).fit(x_train, y_train)
@@ -169,14 +169,13 @@ class SimilarityDistance(BaseEstimator):
 
         Returns
         -------
-        dist_test[0][:, 0] : array, shape (n_samples,)
+        y : array, shape (n_samples,)
         """
-        # Check data
-        X = check_array(X)
         # Check is fit had been called
         check_is_fitted(self, ['tree'])
-        dist_test = self.tree.query(X)
-        return dist_test[0][:, 0]
+        # Check data
+        X = check_array(X)
+        return self.tree.query(X)[0].flatten()
 
     def predict(self, X):
         """Predict if a particular sample is an outlier or not.
@@ -190,16 +189,15 @@ class SimilarityDistance(BaseEstimator):
 
         Returns
         -------
-        dist_test[0][:, 0] <= self.threshold_value : array, shape (n_samples,)
-                                                    For each observations, tells whether or not (True or False) it should
-                                                    be considered as an inlier according to the fitted model.
+        y : array, shape (n_samples,)
+            For each observations, tells whether or not (True or False) it should
+            be considered as an inlier according to the fitted model.
         """
-        # Check data
-        X = check_array(X)
         # Check is fit had been called
         check_is_fitted(self, ['tree'])
-        dist_test, ind_test = self.tree.query(X)
-        return dist_test[0][:, 0] <= self.threshold_value
+        # Check data
+        X = check_array(X)
+        return self.tree.query(X)[0].flatten() <= self.threshold_value
 
 
 __all__ = ['SimilarityDistance']
