@@ -20,3 +20,4 @@
 from .bounding_box import *
 from .leverage import *
 from .reaction_type_control import *
+from .similarity_distance import *
