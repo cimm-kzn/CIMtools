@@ -79,6 +79,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             self.__head_less = False
         if '_Fragmentor__head_generate' not in state:
             self.__head_generate = True
+        if 'return_domain' not in state:
+            self.return_domain = False
 
         if state.get('_Fragmentor__head_dump'):
             self.__load_header(state['_Fragmentor__head_dump'])
