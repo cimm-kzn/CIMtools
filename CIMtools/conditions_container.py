@@ -17,7 +17,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from itertools import chain, product, zip_longest
+from functools import partial
+from itertools import chain
 from operator import itemgetter
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -61,6 +62,9 @@ class Conditions:
     def solvents(self, value):
         solvents = []
         for k, v in value:
+            k = hyphens_replace(k)
+            k = single_quotes_replace(k)
+            k = k.replace("''", '"')  # double quotes from single
             try:
                 k = known_solvents[k.lower()]
             except KeyError:
@@ -267,38 +271,14 @@ known_solvents = (
 )
 
 
-hyphens = ('-', '‐', '‑', '‒', '–', '—', '―', '₋', '−')
-single_quotes = ("'", '‘', '’')
-double_quotes = ('"', '“', '”') + tuple(''.join(x) for x in product(("'", '‘', '’'), repeat=2))
-triple_quotes = tuple(chain((''.join(x) for x in product(("'", '‘', '’'), repeat=3)),
-                            (''.join(x) for x in product(("'", '‘', '’'), ('"', '“', '”'))),
-                            (''.join(x) for x in product(('"', '“', '”'), ("'", '‘', '’')))))
+def multi_replace(string: str, patterns, replacement: str):
+    for p in patterns:
+        string = string.replace(p, replacement)
+    return string
 
 
-def enum_hide(word):
-    if '-' in word:
-        parts = word.split('-')
-        words = [''.join(chain.from_iterable(zip_longest(parts, hs, fillvalue='')))
-                 for hs in product(hyphens, repeat=len(parts) - 1)]
-    else:
-        words = [word]
-
-    if "'" in word:
-        tmp = []
-        for w in words:
-            parts = w.split("'")
-            tmp.extend(''.join(chain.from_iterable(zip_longest(parts, qs, fillvalue='')))
-                       for qs in product(single_quotes, repeat=len(parts) - 1))
-        words = tmp
-
-    if '"' in word:
-        tmp = []
-        for w in words:
-            parts = w.split('"')
-            tmp.extend(''.join(chain.from_iterable(zip_longest(parts, qs, fillvalue='')))
-                       for qs in product(double_quotes, repeat=len(parts) - 1))
-        words = tmp
-    return words
+single_quotes_replace = partial(multi_replace, patterns=('‘', '’'), replacement="'")
+hyphens_replace = partial(multi_replace, patterns=('‐', '‑', '‒', '–', '—', '―', '₋', '−'), replacement='-')
 
 
 tmp = {}
@@ -306,9 +286,10 @@ solvent_smiles = {}
 for n, s, *o in known_solvents:
     solvent_smiles[n] = s
     low_n = n.lower()
-    tmp.update(dict.fromkeys(enum_hide(n.lower()), n))
+    tmp[low_n] = n
+
     for x in o:
-        tmp.update(dict.fromkeys(enum_hide(x.lower()), n))
+        tmp[x.lower()] = n
 
 known_solvents = tmp
 
