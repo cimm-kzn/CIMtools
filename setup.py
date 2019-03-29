@@ -32,7 +32,7 @@ setup(
     license='GPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
-    python_requires='>=3.7.0',
+    python_requires='>=3.6.1',
     install_requires=['CGRtools>=3.1.1,<3.2', 'pandas>=0.22.0,<0.24', 'scikit-learn>=0.20.1,<0.21',
                       'requests>=2.21,<2.22', 'pyparsing>=2.2.0,<2.4'],
     long_description=(Path(__file__).parent / 'README.md').open().read(),
