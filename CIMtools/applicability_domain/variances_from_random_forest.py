@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-#
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
@@ -24,7 +23,6 @@ from sklearn.ensemble.base import _partition_estimators
 from sklearn.ensemble.forest import _accumulate_prediction
 from sklearn.externals.joblib import *
 from sklearn.model_selection import KFold
-from sklearn.tree.tree import DecisionTreeRegressor
 import threading
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
@@ -32,64 +30,22 @@ from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_
 
 
 class VariancesFromRandomForest(RandomForestRegressor):
-
-    def __init__(self, score='ba_ad', threshold='cv', reg_model=None, n_estimators=100,
-                 criterion="mse",
-                 max_depth=None,
-                 min_samples_split=2,
-                 min_samples_leaf=1,
-                 min_weight_fraction_leaf=0.,
-                 max_features="auto",
-                 max_leaf_nodes=None,
-                 min_impurity_decrease=0.,
-                 min_impurity_split=None,
-                 bootstrap=True,
-                 oob_score=False,
-                 n_jobs=None,
-                 random_state=None,
-                 verbose=0,
-                 warm_start=False):
-        super(RandomForestRegressor, self).__init__(
-            base_estimator=DecisionTreeRegressor(),
-            n_estimators=n_estimators,
-            estimator_params=("criterion", "max_depth", "min_samples_split",
-                              "min_samples_leaf", "min_weight_fraction_leaf",
-                              "max_features", "max_leaf_nodes",
-                              "min_impurity_decrease", "min_impurity_split",
-                              "random_state"),
-            bootstrap=bootstrap,
-            oob_score=oob_score,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            verbose=verbose,
-            warm_start=warm_start)
-        self.criterion = criterion
-        self.max_depth = max_depth
-        self.min_samples_split = min_samples_split
-        self.min_samples_leaf = min_samples_leaf
-        self.min_weight_fraction_leaf = min_weight_fraction_leaf
-        self.max_features = max_features
-        self.max_leaf_nodes = max_leaf_nodes
-        self.min_impurity_decrease = min_impurity_decrease
-        self.min_impurity_split = min_impurity_split
-        self.criterion = criterion
-        self.max_depth = max_depth
-        self.min_samples_split = min_samples_split
-        self.min_samples_leaf = min_samples_leaf
-        self.min_weight_fraction_leaf = min_weight_fraction_leaf
-        self.max_features = max_features
-        self.max_leaf_nodes = max_leaf_nodes
-        self.min_impurity_decrease = min_impurity_decrease
-        self.min_impurity_split = min_impurity_split
-        self.score = score
-        self.threshold = threshold
-        self.reg_model = reg_model
+    def __init__(self, score='ba_ad', threshold='cv', reg_model=None, n_estimators=100, criterion="mse", max_depth=None,
+                 min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0., max_features="auto",
+                 max_leaf_nodes=None, min_impurity_decrease=0., min_impurity_split=None, bootstrap=True, oob_score=False,
+                 n_jobs=None, random_state=None, verbose=0, warm_start=False):
         if threshold is not'cv' and not isinstance(threshold, float):
             raise ValueError('Invalid value for threshold. Allowed string value is "cv".')
         if score not in ('ba_ad', 'rmse_ad'):
             raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
+        super().__init__(n_estimators, criterion, max_depth, min_samples_split, min_samples_leaf,
+                         min_weight_fraction_leaf, max_features, max_leaf_nodes, min_impurity_decrease,
+                         min_impurity_split, bootstrap, oob_score, n_jobs, random_state, verbose, warm_start)
+        self.score = score
+        self.threshold = threshold
+        self.reg_model = reg_model
 
-    def _accumulate_prediction2(self, predict, X, out, lock):
+    def _squared_accumulate_prediction(self, predict, X, out, lock):
         prediction = predict(X, check_input=False)
         with lock:
             if len(out) == 1:
@@ -98,7 +54,7 @@ class VariancesFromRandomForest(RandomForestRegressor):
                 for i in range(len(out)):
                     out[i] += (prediction[i] ** 2)
 
-    def _variance_of_values(self, X, estimators_):
+    def _variance_of_prediction(self, X, estimators_):
         """Predict regression target for X.
 
         The predicted regression target of an input sample is computed as the
@@ -140,7 +96,7 @@ class VariancesFromRandomForest(RandomForestRegressor):
         # Parallel loop 2
         lock2 = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose, backend="threading")(
-            delayed(self._accumulate_prediction2)(e.predict, X, [y_hat_new], lock2)
+            delayed(self._squared_accumulate_prediction)(e.predict, X, [y_hat_new], lock2)
             for e in estimators_)
 
         y_hat /= len(estimators_)
@@ -169,7 +125,7 @@ class VariancesFromRandomForest(RandomForestRegressor):
                 Y_pred.append(reg_model.predict(x_test))
                 Y_true.append(y_test)
                 ad_model = super(RandomForestRegressor, self).fit(x_train, y_train)
-                AD.append(self._variance_of_values(x_test, ad_model))
+                AD.append(self._variance_of_prediction(x_test, ad_model))
             AD_ = unique(hstack(AD))
             for z in AD_:
                 AD_new = hstack(AD) <= z
@@ -187,9 +143,8 @@ class VariancesFromRandomForest(RandomForestRegressor):
     def predict(self, X):
         check_is_fitted(self, 'estimators_')
         # Check data
-        X = self._validate_X_predict(X)
-        y = self._variance_of_values(X, self.estimators_)
-        return y <= self.threshold_value
+        X = check_array(X)
+        return self._variance_of_prediction(X, self.estimators_) <= self.threshold_value
 
 
 __all__ = ['VariancesFromRandomForest']
