@@ -20,4 +20,5 @@
 from .bounding_box import *
 from .leverage import *
 from .reaction_type_control import *
+from .two_class_classifier import *
 from .similarity_distance import *

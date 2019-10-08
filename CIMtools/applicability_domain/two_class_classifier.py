@@ -20,7 +20,7 @@ from numpy import sqrt, hstack, unique
 from sklearn.base import BaseEstimator, clone
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import cross_val_predict, KFold, GridSearchCV
+from sklearn.model_selection import cross_val_predict, KFold
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
@@ -45,6 +45,8 @@ class TwoClassClassifiers(BaseEstimator):
         self.score = score
         self.reg_model = reg_model
         self.clf_model = clf_model
+        if threshold != 'cv' and not isinstance(threshold, float):
+            raise ValueError('Invalid value for threshold. Allowed string value is "cv".')
         if score not in ('ba_ad', 'rmse_ad'):
             raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
 
@@ -82,7 +84,7 @@ class TwoClassClassifiers(BaseEstimator):
         self.AD_clf = clf_model.fit(X, y_clf)
         if self.threshold == 'cv':
             self.threshold_value = 0
-            score = 0
+            score_values = 0
             Y_pred, Y_true, AD = [], [], []
             for train_index, test_index in cv.split(X):
                 x_train = safe_indexing(X, train_index)
@@ -93,15 +95,16 @@ class TwoClassClassifiers(BaseEstimator):
                 Y_pred.append(reg_model.fit(x_train, y_train).predict(x_test))
                 Y_true.append(y_test)
                 AD.append(clf_model.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
-            AD_ = unique(hstack(AD))
+            AD_stack = hstack(AD)
+            AD_ = unique(AD_stack)
             for z in AD_:
-                AD_new = hstack(AD) <= z
+                AD_new = AD_stack <= z
                 if self.score == 'ba_ad':
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
                     val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-                if val >= score:
-                    score = val
+                if val >= score_values:
+                    score_values = val
                     self.threshold_value = z
         else:
             self.threshold_value = self.threshold
@@ -123,7 +126,7 @@ class TwoClassClassifiers(BaseEstimator):
             Array contains True (reaction in AD) and False (reaction residing outside AD).
         """
         # Check is fit had been called
-        check_is_fitted(self, ['AD_clf'])
+        check_is_fitted(self, ['AD_clf', 'threshold_value'])
         # Check that X have correct shape
         X = check_array(X)
         return self.AD_clf.predict_proba(X)[:, 0] <= self.threshold_value

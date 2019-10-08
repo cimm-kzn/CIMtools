@@ -97,7 +97,7 @@ class SimilarityDistance(BaseEstimator):
         self.score = score
         self.threshold = threshold
         self.reg_model = reg_model
-        if threshold not in ('auto','cv') and not isinstance(threshold, float):
+        if threshold not in ('auto', 'cv') and not isinstance(threshold, float):
             raise ValueError('Invalid value for threshold. Allowed string values are "auto", "cv".')
         if score not in ('ba_ad', 'rmse_ad'):
             raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
@@ -127,7 +127,7 @@ class SimilarityDistance(BaseEstimator):
                 raise ValueError("Y must be specified to find the optimal threshold.")
             y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
             self.threshold_value = 0
-            score = 0
+            score_value = 0
             Y_pred, Y_true, AD = [], [], []
             cv = KFold(n_splits=5, random_state=1, shuffle=True)
             for train_index, test_index in cv.split(X):
@@ -143,15 +143,16 @@ class SimilarityDistance(BaseEstimator):
                 Y_pred.append(reg_model.predict(x_test))
                 Y_true.append(y_test)
                 AD.append(data_test)
-            AD_ = unique(hstack(AD))
+            AD_stack = hstack(AD)
+            AD_ = unique(AD_stack)
             for z in AD_:
-                AD_new = hstack(AD) <= z
+                AD_new = AD_stack <= z
                 if self.score == 'ba_ad':
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
                     val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-                if val >= score:
-                    score = val
+                if val >= score_value:
+                    score_value = val
                     self.threshold_value = z
         else:
             self.threshold_value = self.threshold
@@ -194,7 +195,7 @@ class SimilarityDistance(BaseEstimator):
             be considered as an inlier according to the fitted model.
         """
         # Check is fit had been called
-        check_is_fitted(self, ['tree'])
+        check_is_fitted(self, ['tree', 'threshold_value'])
         # Check data
         X = check_array(X)
         return self.tree.query(X)[0].flatten() <= self.threshold_value
