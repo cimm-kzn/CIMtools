@@ -81,4 +81,26 @@ class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
     _dtype = (MoleculeContainer, CGRContainer)
 
 
-__all__ = ['StandardizeCGR']
+class StandardizeReaction(BaseEstimator, CIMtoolsTransformerMixin):
+    def __init__(self):
+        """
+        Reactions standardization
+
+        For molecules kekule/thiele and groups standardization procedures will be applied.
+        """
+
+    def transform(self, x):
+        return iter2array(self.__prepare(g) for g in super().transform(x))
+
+    @staticmethod
+    def __prepare(r):
+        r = r.copy()
+        r.standardize()
+        r.kekule()
+        r.thiele()
+        return r
+
+    _dtype = ReactionContainer
+
+
+__all__ = ['StandardizeCGR', 'StandardizeReaction']
