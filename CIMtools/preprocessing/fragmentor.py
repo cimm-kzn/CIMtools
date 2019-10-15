@@ -17,7 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import MoleculeContainer, CGRContainer
-from CGRtools.files import SDFwrite
+from CGRtools.files import SDFWrite
 from logging import info
 from os import close
 from os.path import devnull
@@ -219,7 +219,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         out_file_svm = work_dir / 'output.svm'
         out_file_hdr = work_dir / 'output.hdr'
 
-        with inp_file.open('w', encoding='utf-8') as f, SDFwrite(f) as w:
+        with inp_file.open('w', encoding='utf-8') as f, SDFWrite(f) as w:
             for s in x:
                 w.write(s)
 
