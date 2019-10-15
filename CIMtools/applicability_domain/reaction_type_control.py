@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,11 +19,12 @@
 #
 from CGRtools.containers import ReactionContainer
 from numpy import array
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_is_fitted
 from ..utils import iter2array
 
 
-class ReactionTypeControl:
+class ReactionTypeControl(BaseEstimator, ClassifierMixin):
     """Reaction Type Control (RTC) is performed using reaction signature.
 
     The signature includes both the reaction centre itself and its 1, 2, and so on the environment
@@ -43,10 +45,9 @@ class ReactionTypeControl:
             return str(~structure)
         else:
             cgr = ~structure  # Condence Graph of Reaction
-            cgr.reset_query_marks()  # reset hyb and neighbors marks to atoms
             # get subgraph with atoms and their neighbors
-            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env)
-            return format(aug_center, 'h')  # String for graph reaction center
+            aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env, as_query=True)
+            return format(aug_center, '!n')  # String for graph reaction center
 
     def fit(self, X):
         """Fit structure-based AD. The training model  memorizes the unique set of reaction signature.
@@ -73,7 +74,7 @@ class ReactionTypeControl:
 
         Returns
         -------
-        self : array contains True (reaction in AD) and False (reaction residing outside AD).
+        a : array contains True (reaction in AD) and False (reaction residing outside AD).
         """
         check_is_fitted(self, ['_train_signatures'])
         X = iter2array(X, dtype=ReactionContainer)

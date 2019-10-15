@@ -13,7 +13,7 @@ INSTALL
 
 or latest repository version
 
-    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links
+    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
 
 *step 2:* config ENVIRONMENT
 

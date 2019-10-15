@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,7 +18,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from numpy import array, column_stack, eye, hstack, linalg, ones, unique
-from sklearn.base import BaseEstimator, clone
+from sklearn.base import BaseEstimator, clone, ClassifierMixin
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 from sklearn.utils import safe_indexing
@@ -25,7 +26,7 @@ from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
 
-class Leverage(BaseEstimator):
+class Leverage(BaseEstimator, ClassifierMixin):
     """ Distance-based method
     The model space can be represented by a two-dimensional matrix comprising n chemicals (rows) and
     k variables (columns), called the descriptor matrix (X). The leverage of a chemical provides a measure of the
@@ -63,12 +64,14 @@ class Leverage(BaseEstimator):
         if score not in ('ba_ad', 'rmse_ad'):
             raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
 
-    def __make_inverse_matrix(self, X):
+    @staticmethod
+    def __make_inverse_matrix(X):
         X = column_stack(((ones(X.shape[0])), X))
         influence_matrix = X.T.dot(X) + eye(X.shape[1]).dot(1e-8)
         return linalg.inv(influence_matrix)
 
-    def __find_leverages(self, X, inverse_influence_matrix):
+    @staticmethod
+    def __find_leverages(X, inverse_influence_matrix):
         X = column_stack(((ones(X.shape[0])), X))
         return array([X[i, :].dot(inverse_influence_matrix).dot(X[i, :]) for i in range(X.shape[0])])
 
@@ -106,7 +109,7 @@ class Leverage(BaseEstimator):
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
                 if self.reg_model is None:
-                    reg_model = RandomForestRegressor(n_estimators=500, random_state=1).fit(x_train, y_train)
+                    reg_model = RandomForestRegressor().fit(x_train, y_train)
                 else:
                     reg_model = clone(self.reg_model).fit(x_train, y_train)
                 Y_pred.append(reg_model.predict(x_test))
@@ -119,7 +122,7 @@ class Leverage(BaseEstimator):
                 AD_new = AD_stack <= z
                 if self.score == 'ba_ad':
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-                elif self.score == 'rmse_ad':
+                else:
                     val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 if val >= score_value:
                     score_value = val
@@ -144,7 +147,7 @@ class Leverage(BaseEstimator):
                    The objects distances to center of the training set.
         """
         # Check is fit had been called
-        check_is_fitted(self, ['inverse_influence_matrix'])
+        check_is_fitted(self, ['inverse_influence_matrix', 'threshold_value'])
         # Check that X have correct shape
         X = check_array(X)
         return self.__find_leverages(X, self.inverse_influence_matrix)

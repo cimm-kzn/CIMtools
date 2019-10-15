@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -52,7 +52,7 @@ class Eval:
         self.__expr_stack = self.__parser(expression)
 
     def __call__(self, value):
-        return self.__evaluate_stack([str(value) if x == 'X' else x for x in self.__expr_stack])
+        return self.__evaluate_stack([value if x == 'X' else x for x in self.__expr_stack])
 
     @staticmethod
     def __parser(expression):
@@ -102,27 +102,25 @@ class Eval:
     @classmethod
     def __evaluate_stack(cls, s):
         op = s.pop()
-        if op == 'unary -':
-            return -cls.__evaluate_stack(s)
-        if op in '+-*/^':
-            op2 = cls.__evaluate_stack(s)
-            op1 = cls.__evaluate_stack(s)
-            return cls.__opn[op](op1, op2)
-        elif op == "PI":
-            return pi
-        elif op == "E":
-            return e
-        elif op in cls.__fn:
-            return cls.__fn[op](cls.__evaluate_stack(s))
-        elif op[0].isalpha():
-            return 0
+        if isinstance(op, str):
+            if op == 'unary -':
+                return -cls.__evaluate_stack(s)
+            if op in '+-*/^':
+                op2 = cls.__evaluate_stack(s)
+                op1 = cls.__evaluate_stack(s)
+                return cls.__opn[op](op1, op2)
+            elif op == "PI":
+                return pi
+            elif op == "E":
+                return e
+            else:
+                return cls.__fn[op](cls.__evaluate_stack(s))
         else:
-            return float(op)
+            return op
 
     __opn = {'+': add, '-': sub, '*': mul, '/': truediv, '^': pow}
-
-    __fn = dict(sin=sin, cos=cos, tan=tan, lg=log10, ln=log, abs=abs, trunc=lambda a: int(a), round=round,
-                sgn=lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0)
+    __fn = {'sin': sin, 'cos': cos, 'tan': tan, 'lg': log10, 'ln': log, 'abs': abs, 'trunc': lambda a: int(a),
+            'round': round, 'sgn': lambda a: (1 if a > 0 else -1) if abs(a) > 1e-12 else 0}
 
 
 __all__ = ['EquationTransformer']

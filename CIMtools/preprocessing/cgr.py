@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,11 +16,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools import CGRpreparer
+from CGRtools import CGRPreparer
 from CGRtools.containers import ReactionContainer
-from logging import warning
 from sklearn.base import BaseEstimator
-from traceback import format_exc
 from ..base import CIMtoolsTransformerMixin
 from ..exceptions import ConfigurationError
 from ..utils import iter2array
@@ -33,7 +31,7 @@ class CGR(BaseEstimator, CIMtoolsTransformerMixin):
 
     def __init(self):
         try:
-            self.__cgr = CGRpreparer(self.cgr_type)
+            self.__cgr = CGRPreparer(self.cgr_type)
         except Exception as e:
             raise ConfigurationError from e
 
@@ -52,18 +50,8 @@ class CGR(BaseEstimator, CIMtoolsTransformerMixin):
 
     def transform(self, x):
         x = super().transform(x)
-
-        res = []
-        for n, s in enumerate(x):
-            try:
-                c = self.__cgr.compose(s)
-            except (TypeError, ValueError):
-                warning(f'skip reaction {n}:\n{format_exc()}')
-                res.append(None)
-            else:
-                res.append(c)
-
-        return iter2array(res, allow_none=True)
+        cgr = self.__cgr
+        return iter2array(cgr.compose(s) for s in x)
 
     _dtype = ReactionContainer
 

@@ -17,7 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from numpy import hstack, mean, sqrt, var, unique
-from sklearn.base import BaseEstimator, clone
+from sklearn.base import BaseEstimator, clone, ClassifierMixin
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import BallTree
 from sklearn.model_selection import KFold
@@ -26,7 +26,7 @@ from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
 
-class SimilarityDistance(BaseEstimator):
+class SimilarityDistance(BaseEstimator, ClassifierMixin):
     """ Distance-based method for  defining applicability domain (AD).
 
     In the case of non-linear kNN QSPR method, since the models are based on chemical similarity calculations,
@@ -173,7 +173,7 @@ class SimilarityDistance(BaseEstimator):
         y : array, shape (n_samples,)
         """
         # Check is fit had been called
-        check_is_fitted(self, ['tree'])
+        check_is_fitted(self, ['tree', 'threshold_value'])
         # Check data
         X = check_array(X)
         return self.tree.query(X)[0].flatten()

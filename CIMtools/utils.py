@@ -24,7 +24,7 @@ from sklearn.exceptions import DataConversionWarning
 from warnings import warn
 
 
-def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer), allow_none=False):
+def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer)):
     if isinstance(data, ndarray):
         if len(data.shape) != 1:
             if len(data.shape) == 2 and data.shape[1] == 1:
@@ -40,12 +40,8 @@ def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer),
 
     if not len(data):
         raise ValueError('empty input array')
-    if allow_none:
-        if not all(isinstance(x, dtype) for x in data if x is not None):
-            raise ValueError('invalid dtype')
-    else:
-        if not all(isinstance(x, dtype) for x in data):
-            raise ValueError('invalid dtype')
+    if not all(isinstance(x, dtype) for x in data):
+        raise TypeError('invalid dtype')
 
     if isinstance(data, (ndarray, Series)):
         return data
@@ -58,7 +54,7 @@ def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer),
     return Series(data, dtype=dtype)
 
 
-def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer), allow_none=False):
+def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer)):
     if isinstance(data, (ndarray, DataFrame)):
         if not data.size:
             raise ValueError('empty input array')
@@ -69,35 +65,24 @@ def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, C
                 raise ValueError('invalid input array shape')
             flat = data.flat
 
-        if allow_none:
-            if not all(isinstance(x, dtype) for x in flat if x is not None):
-                raise ValueError('invalid dtype')
-        elif not all(isinstance(x, dtype) for x in flat):
-            raise ValueError('invalid dtype')
+        if not all(isinstance(x, dtype) for x in flat):
+            raise TypeError('invalid dtype')
         return data
 
     if not isinstance(data, (list, tuple)):  # try to unpack iterable
         data = list(data)
+    if not data:
+        raise ValueError('empty input array')
     if not all(isinstance(x, (list, tuple)) for x in data):
         data = [x if isinstance(x, (list, tuple)) else list(x) for x in data]
 
-    if not len(data):
+    shape = len(data[0])
+    if not shape:
         raise ValueError('empty input array')
-
-    if allow_none:
-        shape = max((len(x) for x in data), default=0)
-        if not shape:
-            raise ValueError('empty input array')
-        elif not all(isinstance(y, dtype) for x in data for y in x if y is not None):
-            raise ValueError('invalid dtype')
-    else:
-        shape = len(data[0])
-        if not shape:
-            raise ValueError('empty input array')
-        elif not all(len(x) == shape for x in data[1:]):
-            raise ValueError('input data contains None')
-        elif not all(isinstance(y, dtype) for x in data for y in x):
-            raise ValueError('invalid dtype')
+    elif not all(len(x) == shape for x in data[1:]):
+        raise ValueError('input data contains None')
+    elif not all(isinstance(y, dtype) for x in data for y in x):
+        raise TypeError('invalid dtype')
 
     if isinstance(dtype, tuple):
         dtype = all(issubclass(x, Number) for x in dtype) and dtype[0] or object
