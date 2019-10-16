@@ -27,16 +27,17 @@ from ..utils import iter2array
 class ReactionTypeControl(BaseEstimator, ClassifierMixin):
     """Reaction Type Control (RTC) is performed using reaction signature.
 
-    The signature includes both the reaction centre itself and its 1, 2, and so on the environment
+    The signature includes both the reaction centre itself and its nearest environment up to {env}
     Since the reaction signature is not a very clear term, we considered the environment parameter as a hyper-parameter.
     Therefore, the method has one internal parameter. If the environment is 0,
-    then the reaction signature is considered only the atoms at which the change occurs.
-    If environment = 1, the first environment was included in the reaction signature,
+    then the reaction signature considers only the atoms at which the change occurs.
+    If environment = 1, the first circle neighbours included in the reaction signature,
     if environment = 2 - the second environment,
     and so on up to the whole reaction (env='all').
     In addition, by default, all atoms put a label on their hybridization.
     Reaction is considered belonging to model’s AD if its reaction signature coincides with ones used in training set.
     """
+
     def __init__(self, env=0):
         self.env = env
 

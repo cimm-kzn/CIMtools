@@ -53,6 +53,14 @@ class TwoClassClassifiers(BaseEstimator):
     def fit(self, X, y=None):
         """
         Model building and threshold searching
+        During training, a model is built and a probability threshold is found by which the object is considered to
+        belong to the applicability domain of the model.
+        For this reason, in fit method we pass the following parameters:
+        reg_model and clf_model. Reg_model is regression model, clf_model is classification model.
+        They are have the hyperparameters too. You can use GridSearchCV(reg_model) and GridSearchCV(clf_model).
+        The best models will be found on all x_train and y_train.
+        The copy(models with the best parameters) then will be used for finding threshold.
+
         Parameters
         ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)
