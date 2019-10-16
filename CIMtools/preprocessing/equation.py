@@ -105,16 +105,18 @@ class Eval:
         if isinstance(op, str):
             if op == 'unary -':
                 return -cls.__evaluate_stack(s)
-            if op in '+-*/^':
+            elif op in '+-*/^':
                 op2 = cls.__evaluate_stack(s)
                 op1 = cls.__evaluate_stack(s)
                 return cls.__opn[op](op1, op2)
-            elif op == "PI":
+            elif op in cls.__fn:
+                return cls.__fn[op](cls.__evaluate_stack(s))
+            elif op == 'PI':
                 return pi
-            elif op == "E":
+            elif op == 'E':
                 return e
             else:
-                return cls.__fn[op](cls.__evaluate_stack(s))
+                return float(op)
         else:
             return op
 
