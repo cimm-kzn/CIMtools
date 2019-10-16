@@ -16,13 +16,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CIMtools.applicability_domain import ReactionTypeControl
 from CGRtools.containers import ReactionContainer
 from numpy import sqrt, hstack, unique
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 from sklearn.model_selection import KFold
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array
+from ..applicability_domain import ReactionTypeControl
 from ..utils import iter2array
 
 
