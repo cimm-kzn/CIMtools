@@ -17,3 +17,4 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .pairwise import *
+from .applicability_domain_metrics import *
