@@ -137,4 +137,5 @@ class TwoClassClassifiers(BaseEstimator):
         X = check_array(X)
         return self.AD_clf.predict_proba(X)[:, 0] <= self.threshold_value
 
+
 __all__ = ['TwoClassClassifiers']

@@ -13,12 +13,10 @@ INSTALL
 
 or latest repository version
 
-    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools --process-dependency-links
+    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
 
 *step 2:* config ENVIRONMENT
 
 * add CHEMAXON_REST (optional)
 
         export CHEMAXON_REST="url/to/webservices"
-
-* edit PATH for Fragmentor using. Add path to fragmentor bin files
