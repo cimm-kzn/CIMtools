@@ -104,7 +104,9 @@ class SimilarityDistance(BaseEstimator, ClassifierMixin):
 
     def fit(self, X, y=None):
         """Fit distance-based AD.
-
+        All AD’s model hyperparameters were selected based on internal cross-validation using training set.
+        The hyperparameters of the AD definition approach have been optimized in the cross-validation,
+        where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
         Parameters
         ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)

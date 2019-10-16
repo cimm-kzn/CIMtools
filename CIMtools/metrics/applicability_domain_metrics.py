@@ -16,8 +16,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from numpy import sqrt
+from CIMtools.applicability_domain import ReactionTypeControl
+from CGRtools.containers import ReactionContainer
+from numpy import sqrt, hstack, unique
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
+from sklearn.model_selection import KFold
+from sklearn.utils import safe_indexing
+from sklearn.utils.validation import check_array
+from ..utils import iter2array
 
 
 def balanced_accuracy_score_with_ad(Y_true, Y_pred, AD):
@@ -40,4 +46,65 @@ def rmse_score_with_ad(Y_true, Y_pred, AD):
     return RMSE_AD_out_n - RMSE_AD
 
 
-__all__ = ['balanced_accuracy_score_with_ad', 'rmse_score_with_ad']
+def optimal_env(X, y, data, envs, reg_model, score):
+    """
+    Function for finding the best number of neighbours in ReactionTypeControl method.
+
+    All AD’s model hyperparameters were selected based on internal cross-validation using training set.
+    The hyperparameters of the AD definition approach have been optimized in the cross-validation,
+    where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
+
+    :param X: array-like or sparse matrix, shape (n_samples, n_features)
+            The input samples. Internally, it will be converted to
+            ``dtype=np.float32`` and if a sparse matrix is provided
+             to a sparse ``csr_matrix``.
+    :param y: array-like, shape = [n_samples] or [n_samples, n_outputs]
+             The target values (real numbers in regression).
+    :param data: after read rdf file
+    :param envs: list or tuple. Numbers of neighbours.
+    :param reg_model: estimator
+    :param score: 'ba_score' or 'rmse_score'
+    :return: int
+    """
+    X = check_array(X)
+    y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+    data = iter2array(X, dtype=ReactionContainer)
+
+    if isinstance(envs, (list, tuple)) == False:
+        raise ValueError('envs must be list or tuple.')
+    if reg_model is None:
+        raise ValueError('Model is not defined.')
+    if score not in ('ba_ad', 'rmse_ad'):
+        raise ValueError('Invalid value for score. Allowed string values are "ba_ad", "rmse_ad".')
+
+    cv = KFold(n_splits=5, shuffle=True, random_state=1)
+    score_value = 0
+    env_value = 0
+    for env in envs:
+
+        Y_pred, Y_true, AD = [], [], []
+        for train_index, test_index in cv.split(X):
+            x_train = safe_indexing(X, train_index)
+            x_test = safe_indexing(X, test_index)
+            y_train = safe_indexing(y, train_index)
+            y_test = safe_indexing(y, test_index)
+            data_train = safe_indexing(data, train_index)
+            data_test = safe_indexing(data, test_index)
+            Y_pred.append(reg_model.fit(x_train, y_train).predict(x_test))
+            Y_true.append(y_test)
+            AD.append(ReactionTypeControl(env=env).fit(data_train).predict(data_test))
+        AD_stack = hstack(AD)
+        AD_ = unique(AD_stack)
+        for z in AD_:
+            AD_new = AD_stack <= z
+        if score == 'ba_ad':
+            val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
+        elif score == 'rmse_ad':
+            val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
+        if val >= score_value:
+            score_value = val
+            env_value = env
+    return env_value
+
+
+__all__ = ['balanced_accuracy_score_with_ad', 'rmse_score_with_ad', 'optimal_env']
