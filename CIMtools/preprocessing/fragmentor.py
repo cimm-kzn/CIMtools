@@ -17,7 +17,8 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import MoleculeContainer, CGRContainer
-from CGRtools.files import SDFwrite
+from CGRtools.files import SDFWrite
+from distutils.util import get_platform
 from logging import info
 from os import close
 from os.path import devnull
@@ -35,21 +36,28 @@ from ..utils import iter2array
 
 class Fragmentor(BaseEstimator, TransformerMixin):
     def __init__(self, fragment_type=3, min_length=2, max_length=10, cgr_dynbonds=0, doallways=False,
-                 useformalcharge=False, header=None, workpath='.', version=None, verbose=False, remove_rare_ratio=0,
-                 return_domain=False):
+                 useformalcharge=False, header=None, workpath='.', version='2017',
+                 verbose=False, remove_rare_ratio=0, return_domain=False):
         """
         ISIDA Fragmentor wrapper
 
-        :param workpath: path for temp files.
-        :param version: fragmentor version. need for selecting Fragmentor executables named as fragmentor-{version}
+        :param fragment_type: fragmentation type. see Fragmentor manual (-t)
+        :param min_length: minimal length of fragments. see Fragmentor manual (-l)
+        :param max_length: maximal length of fragments. see Fragmentor manual (-u)
+        :param cgr_dynbonds: see Fragmentor manual (-d)
+        :param doallways: see Fragmentor manual (--DoAllWays)
+        :param useformalcharge: see Fragmentor manual (--UseFormalCharge)
         :param header: if None descriptors will be generated on train set
                        if False Fragmentor will work in headless mode. in this mod fit unusable and Fragmentor return
                            all found descriptors
                        else path string to existing header file acceptable
+        :param workpath: path for temp files
+        :param version: fragmentor version
+        :param verbose: silent Fragmentor output
         :param remove_rare_ratio: if descriptors found on train less then given ratio it will be removed from header.
                                   if partial fit used, be sure to use finalize method.
                                   unusable if headless mode set
-        :param return_domain: add AD bool column. if False molecule has new features
+        :param return_domain: add AD bool column. False in column is: molecule/CGR has new features
         """
         self.fragment_type = fragment_type
         self.min_length = min_length
@@ -73,12 +81,17 @@ class Fragmentor(BaseEstimator, TransformerMixin):
                 k not in ('header', 'workpath') and not k.startswith('_Fragmentor__')}
 
     def __setstate__(self, state):
+        if state['version'] is None:
+            state['version'] = '2017'  # backward compatibility with <4.0
+
         super().__setstate__({k: v for k, v in state.items() if k != '_Fragmentor__head_dump'})
         # backward compatibility with 1.4.0 - 1.4.6
         if '_Fragmentor__head_less' not in state:
             self.__head_less = False
         if '_Fragmentor__head_generate' not in state:
             self.__head_generate = True
+        if 'return_domain' not in state:
+            self.return_domain = False
 
         if state.get('_Fragmentor__head_dump'):
             self.__load_header(state['_Fragmentor__head_dump'])
@@ -217,7 +230,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         out_file_svm = work_dir / 'output.svm'
         out_file_hdr = work_dir / 'output.hdr'
 
-        with inp_file.open('w', encoding='utf-8') as f, SDFwrite(f) as w:
+        with inp_file.open('w', encoding='utf-8') as f, SDFWrite(f) as w:
             for s in x:
                 w.write(s)
 
@@ -301,7 +314,7 @@ class Fragmentor(BaseEstimator, TransformerMixin):
         return DataFrame(vector, columns=list(head_dict.values())).fillna(0), Series(ad)
 
     def __exec_params(self, inp, out):
-        tmp = [f'fragmentor-{self.version}' if self.version else 'fragmentor', '-i', str(inp), '-o', str(out)]
+        tmp = [fragmentor % self.version, '-i', str(inp), '-o', str(out)]
 
         if self.__head_exec:
             tmp.extend(('-h', str(self.__head_exec)))
@@ -367,3 +380,14 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
 
 __all__ = ['Fragmentor']
+
+platform = get_platform()
+if platform == 'win-amd64':
+    fragmentor = 'fragmentor_win_%s.exe'
+elif platform == 'linux-x86_64':
+    fragmentor = 'fragmentor_lin_%s'
+# elif platform.startswith('macosx') and platform.endswith('x86_64'):
+#     fragmentor = 'fragmentor_mac_%s'
+else:
+    del Fragmentor
+    __all__ = []

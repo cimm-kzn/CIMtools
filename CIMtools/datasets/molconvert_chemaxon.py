@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.files import MRVread
+from CGRtools.files import MRVRead
 from io import StringIO, BytesIO
 from pathlib import Path
 from subprocess import run, PIPE
@@ -54,7 +54,7 @@ def molconvert_chemaxon(data):
     if p.returncode != 0:
         raise ConfigurationError(p.stderr.decode())
 
-    with BytesIO(p.stdout) as f, MRVread(f) as r:
+    with BytesIO(p.stdout) as f, MRVRead(f) as r:
         return iter2array(r)
 
 

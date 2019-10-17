@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools import CGRreactor
-from CGRtools.containers import MoleculeContainer
+from CGRtools.reactor import CGRReactor
+from CGRtools.containers import MoleculeContainer, CGRContainer, ReactionContainer
 from sklearn.base import BaseEstimator
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
@@ -25,33 +25,22 @@ from ...utils import iter2array
 
 
 class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
-    def __init__(self, templates, balance_groups=False):
+    def __init__(self, templates=(), delete_atoms=False):
         """
-        CGR standardization and reaction balancing
+        Molecule and CGR standardization
+
+        For molecules kekule/thiele and groups standardization procedures will be applied.
 
         :param templates: CGRTemplates. list of rules for graph modifications.
-        :param balance_groups: if True: for unbalanced reactions contains multiple attached functional groups in
-            products and one of them described in reagents - will be restored information about all equal groups.
-            for example:
-
-                R + B1-X-> B'1-R'-B'2 + X'
-
-            where B' is transformed B, R and X same.
-            we know what B'1 and B'2 is equal and B'1 is transformed B1 =>
-            this groups most likely appeared from a single reagent. we can add copy of B-X to reagents.
-            results will be:
-
-                R + B1-X1 + B2-X2 -> B'1-R'-B'2 + X'1 + X'2
-
+        :param delete_atoms: if True atoms exists in templates reactants but not exists in products will be removed
         """
         self.templates = templates
-        self.balance_groups = balance_groups
+        self.delete_atoms = delete_atoms
         self.__init()
 
     def __init(self):
         try:
-            assert self.templates or self.balance_groups, 'invalid params. need balance_groups or/and templates'
-            self.__fixes = [CGRreactor(x) for x in self.templates]
+            self.__fixes = [CGRReactor(x, delete_atoms=self.delete_atoms) for x in self.templates]
         except Exception as e:
             raise ConfigurationError from e
 
@@ -69,23 +58,49 @@ class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
         return self
 
     def transform(self, x):
-        return iter2array((self.__prepare(g) for g in super().transform(x)), allow_none=True)
+        return iter2array(self.__prepare(g) for g in super().transform(x))
 
     def __prepare(self, g):
-        if self.balance_groups:  # DO NOT WORKING
-            g = clone_subgraphs(g)
+        if isinstance(g, MoleculeContainer):
+            g = g.copy()
+            g.standardize()
+            g.kekule()
+            g.thiele()
 
         for fix in self.__fixes:
             while True:
-                p = fix(g)
-                if p:
+                try:
+                    p = next(fix(g, False))
+                except StopIteration:
+                    break
+                else:
                     p.meta.update(g.meta)
                     g = p
-                else:
-                    break
         return g
 
-    _dtype = MoleculeContainer
+    _dtype = (MoleculeContainer, CGRContainer)
 
 
-__all__ = ['StandardizeCGR']
+class StandardizeReaction(BaseEstimator, CIMtoolsTransformerMixin):
+    def __init__(self):
+        """
+        Reactions standardization
+
+        For molecules kekule/thiele and groups standardization procedures will be applied.
+        """
+
+    def transform(self, x):
+        return iter2array(self.__prepare(g) for g in super().transform(x))
+
+    @staticmethod
+    def __prepare(r):
+        r = r.copy()
+        r.standardize()
+        r.kekule()
+        r.thiele()
+        return r
+
+    _dtype = ReactionContainer
+
+
+__all__ = ['StandardizeCGR', 'StandardizeReaction']

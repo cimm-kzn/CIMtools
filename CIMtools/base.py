@@ -17,7 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import ReactionContainer
-from itertools import tee, chain
+from itertools import tee
 from sklearn.base import TransformerMixin
 from .utils import iter2array
 
@@ -45,7 +45,8 @@ class CIMtoolsTransformerMixin(TransformerMixin):
 def reaction_support(_class):
     class ReactionSupport(_class):
         def transform(self, x):
-            assert all(isinstance(s, ReactionContainer) for s in x), 'invalid dtype, olny ReactionContainers acceptable'
+            if not all(isinstance(s, ReactionContainer) for s in x):
+                raise TypeError('invalid dtype, only ReactionContainers acceptable')
 
             shifts = {}
             mols = []
@@ -57,16 +58,12 @@ def reaction_support(_class):
                     mols.extend(si)
 
             transformed = super().transform(mols)
-            assert len(transformed) == len(mols), 'unexpected transformed molecules amount'
+            if len(transformed) != len(mols):
+                raise ValueError('unexpected transformed molecules amount')
 
-            out = []
-            for s, r, p in zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reactants'])),
-                                  (transformed[y: z] for y, z in self.__pairwise(shifts['products']))):
-                if any(i is None for i in chain(r, p)):
-                    out.append(None)
-                else:
-                    out.append(ReactionContainer(r, p, meta=s.meta))
-            return iter2array(out, allow_none=True)
+            return iter2array(ReactionContainer(r, p, meta=s.meta) for s, r, p in
+                              zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reactants'])),
+                                     (transformed[y: z] for y, z in self.__pairwise(shifts['products']))))
 
         @staticmethod
         def __pairwise(iterable):

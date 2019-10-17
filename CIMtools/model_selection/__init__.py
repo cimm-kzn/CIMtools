@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019  Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,4 +17,5 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .group_out import *
+from .reaction_type_control_selection import *
 from .transformation_out import *
