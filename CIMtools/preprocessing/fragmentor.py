@@ -386,8 +386,8 @@ if platform == 'win-amd64':
     fragmentor = 'fragmentor_win_%s.exe'
 elif platform == 'linux-x86_64':
     fragmentor = 'fragmentor_lin_%s'
-# elif platform.startswith('macosx') and platform.endswith('x86_64'):
-#     fragmentor = 'fragmentor_mac_%s'
+elif platform.startswith('macosx') and platform.endswith('x86_64'):
+    fragmentor = 'fragmentor_mac_%s'
 else:
     del Fragmentor
     __all__ = []
