@@ -345,14 +345,14 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
         except ValueError as e:
             raise ConfigurationError from e
-        if not head_dict:
-            raise ConfigurationError('empty header')
-
         return head_dict
 
     def __load_header(self, header):
-        self.__head_dict = self.__parse_header(header)
-        self.__head_dump = self.__format_header(self.__head_dict)
+        head_dict = self.__parse_header(header)
+        if not head_dict:
+            raise ConfigurationError('empty header')
+        self.__head_dict = head_dict
+        self.__head_dump = self.__format_header(head_dict)
 
     def __prepare_header(self):
         if not self.__head_exec:
