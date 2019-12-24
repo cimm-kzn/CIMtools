@@ -52,7 +52,7 @@ setup(
     python_requires='>=3.6.1',
     cmdclass={'bdist_wheel': _bdist_wheel},
     install_requires=['CGRtools[mrv]>=4.0,<4.1', 'pandas>=0.22.0,<0.26', 'scikit-learn>=0.20.1,<0.22',
-                      'requests>=2.21,<2.23', 'pyparsing>=2.2.0,<2.5', 'numpy>=1.15.0,<1.18'],
+                      'requests>=2.21,<2.23', 'pyparsing>=2.2.0,<2.5'],
     data_files=[('bin', fragmentor)],
     zip_safe=False,
     long_description=(Path(__file__).parent / 'README.md').open().read(),
