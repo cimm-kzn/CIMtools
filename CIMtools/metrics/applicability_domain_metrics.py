@@ -94,13 +94,10 @@ def optimal_env(X, y, data, envs, reg_model, score):
             Y_true.append(y_test)
             AD.append(ReactionTypeControl(env=env).fit(data_train).predict(data_test))
         AD_stack = hstack(AD)
-        AD_ = unique(AD_stack)
-        for z in AD_:
-            AD_new = AD_stack <= z
         if score == 'ba_ad':
-            val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
+            val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_stack)
         elif score == 'rmse_ad':
-            val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
+            val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_stack)
         if val >= score_value:
             score_value = val
             env_value = env
