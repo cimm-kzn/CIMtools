@@ -2,6 +2,7 @@
 #
 #  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
 #  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2020 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -106,11 +107,14 @@ class TransformationOut(BaseCrossValidator):
 
         train_data = defaultdict(list)
         test_data = []
+        uniq_data = []
 
         for n, (structure, condition) in enumerate(zip(cgrs, groups)):
             train_data[structure].append(n)
             if len(condition_structure[condition]) > 1:
                 test_data.append(n)
+            else:
+                uniq_data.append(n)
 
         if self.n_splits > len(train_data):
             raise ValueError("Cannot have number of splits n_splits=%d greater"
@@ -153,6 +157,11 @@ class TransformationOut(BaseCrossValidator):
                 for fold in train_folds[i+1:]:
                     train_index.extend(fold)
                 test_index = test_folds[i]
+                for uni in uniq_data:
+                    if uni in test_index:
+                        raise ValueError('Unique reaction can not be in test set')
+                    if uni not in train_index:
+                        train_index.append(uni)
                 yield array(train_index), array(test_index)
 
 
