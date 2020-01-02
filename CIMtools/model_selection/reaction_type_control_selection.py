@@ -76,7 +76,7 @@ def rtc_env_selection(X, y, data, envs, reg_model, score):
             AD.append(ReactionTypeControl(env=env).fit(data_train).predict(data_test))
         if score == 'ba_ad':
             val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=hstack(AD))
-        elif score == 'rmse_ad':
+        else:
             val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=hstack(AD))
         if val >= score_value:
             score_value = val
