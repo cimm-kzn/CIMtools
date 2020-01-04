@@ -105,20 +105,16 @@ class TransformationOut(BaseCrossValidator):
         for structure, condition in zip(cgrs, groups):
             condition_structure[condition].add(structure)
 
+        train_data = defaultdict(list)
         test_data = []
         uniq_data = []
 
         for n, (structure, condition) in enumerate(zip(cgrs, groups)):
             if len(condition_structure[condition]) > 1:
+                train_data[structure].append(n)
                 test_data.append(n)
             else:
                 uniq_data.append(n)
-
-        train_data = defaultdict(list)
-
-        for n, (structure, condition) in enumerate(zip(cgrs, groups)):
-            if n not in uniq_data:
-                train_data[structure].append(n)
 
         if self.n_splits > len(train_data):
             raise ValueError("Cannot have number of splits n_splits=%d greater"
