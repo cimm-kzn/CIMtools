@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2019 Ravil Mukhametgaleev <sonic-mc@mail.ru>
 #  This file is part of CIMtools.
 #
