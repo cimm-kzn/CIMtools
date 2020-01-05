@@ -106,13 +106,13 @@ class TransformationOut(BaseCrossValidator):
             condition_structure[condition].add(structure)
 
         train_data = defaultdict(list)
-        test_data = []
+        test_data = set()
         uniq_data = []
 
         for n, (structure, condition) in enumerate(zip(cgrs, groups)):
             if len(condition_structure[condition]) > 1:
                 train_data[structure].append(n)
-                test_data.append(n)
+                test_data.add(n)
             else:
                 uniq_data.append(n)
 
@@ -144,11 +144,8 @@ class TransformationOut(BaseCrossValidator):
                 else:
                     train_folds[-1].extend(train_data[structure])
 
-            test_folds = [[] for _ in range(self.n_splits)]
-            for test, train in zip(test_folds, train_folds):
-                for index in train:
-                    if index in test_data:
-                        test.append(index)
+            test_folds = [set(train).intersection(test_data) for test, train in
+                          zip([[] for _ in range(self.n_splits)], train_folds)]
 
             for i in range(self.n_splits):
                 train_index = []
