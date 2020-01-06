@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2020 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -105,12 +106,15 @@ class TransformationOut(BaseCrossValidator):
             condition_structure[condition].add(structure)
 
         train_data = defaultdict(list)
-        test_data = []
+        test_data = set()
+        uniq_data = []
 
         for n, (structure, condition) in enumerate(zip(cgrs, groups)):
-            train_data[structure].append(n)
             if len(condition_structure[condition]) > 1:
-                test_data.append(n)
+                train_data[structure].append(n)
+                test_data.add(n)
+            else:
+                uniq_data.append(n)
 
         if self.n_splits > len(train_data):
             raise ValueError("Cannot have number of splits n_splits=%d greater"
@@ -140,11 +144,7 @@ class TransformationOut(BaseCrossValidator):
                 else:
                     train_folds[-1].extend(train_data[structure])
 
-            test_folds = [[] for _ in range(self.n_splits)]
-            for test, train in zip(test_folds, train_folds):
-                for index in train:
-                    if index in test_data:
-                        test.append(index)
+            test_folds = [test_data.intersection(train) for train in train_folds]
 
             for i in range(self.n_splits):
                 train_index = []
@@ -153,6 +153,7 @@ class TransformationOut(BaseCrossValidator):
                 for fold in train_folds[i+1:]:
                     train_index.extend(fold)
                 test_index = test_folds[i]
+                train_index.extend(uniq_data)
                 yield array(train_index), array(test_index)
 
 
