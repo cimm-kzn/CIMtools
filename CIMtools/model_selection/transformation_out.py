@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
-#  Copyright 2018 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2020 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
@@ -144,8 +144,7 @@ class TransformationOut(BaseCrossValidator):
                 else:
                     train_folds[-1].extend(train_data[structure])
 
-            test_folds = [set(train).intersection(test_data) for test, train in
-                          zip([[] for _ in range(self.n_splits)], train_folds)]
+            test_folds = [test_data.intersection(train) for train in train_folds]
 
             for i in range(self.n_splits):
                 train_index = []
