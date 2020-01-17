@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2019 Ravil Mukhametgaleev <sonic-mc@mail.ru>
 #  This file is part of CIMtools.
 #
@@ -194,7 +194,7 @@ known_solvents = (
     ('3-methylbutan-1-ol', 'CC(C)CCO', '3-methyl-1-butanol', '3-methylbutanol', 'i-amyl alcohol', 'isoamyl alcohol',
      'isobutyl carbinol', 'isopentanol', 'isopentyl alcohol'),
     ('acetic acid', 'CC(O)=O', 'ethanoic acid', 'glacial acetic acid'),
-    ('acetonitrile', 'CC##N', 'ethanenitrile', 'cyanomethane', 'ethyl nitrile', 'methanecarbonitrile',
+    ('acetonitrile', 'CC#N', 'ethanenitrile', 'cyanomethane', 'ethyl nitrile', 'methanecarbonitrile',
      'methyl cyanide'),
     ('benzene', 'C1=CC=CC=C1', 'benzol', '[6]annulene'),
     ('benzenecarbonitrile', 'N#Cc1ccccc1', 'benzonitrile', 'cyanobenzene', 'phenyl cyanide'),
@@ -256,7 +256,7 @@ known_solvents = (
      's-propanol', 'iproh', 'i-proh', 'dimethyl carbinol', 'ipa'),
     ('propan-2-one', 'CC(C)=O', 'acetone', 'dimethyl ketone', 'dimethyl carbonyl', 'β-ketopropane', 'propanone',
      '2-propanone', 'dimethyl formaldehyde', 'pyroacetic spirit (archaic)', 'Ketone propane'),
-    ('propanenitrile', 'CCC##N', 'cyanoethane', 'ethyl cyanide', 'propionitrile', 'propylnitrile', 'propiononitrile'),
+    ('propanenitrile', 'CCC#N', 'cyanoethane', 'ethyl cyanide', 'propionitrile', 'propylnitrile', 'propiononitrile'),
     ('pyridine', 'C1=CC=NC=C1', 'azinine', 'azine', 'azabenzene'),
     ('tetrachloromethane', 'ClC(Cl)(Cl)Cl', 'carbon tetrachloride', 'benziform', 'benzinoform', 'carbon chloride',
      'carbon tet', 'freon-10', 'freon 10', 'refrigerant-10', 'halon-104', 'methane tetrachloride',

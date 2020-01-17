@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
-#  Copyright 2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import ReactionContainer
-from numpy import hstack, unique
+from numpy import hstack
 from sklearn.model_selection import KFold
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array
@@ -33,7 +33,7 @@ def rtc_env_selection(X, y, data, envs, reg_model, score):
 
     All AD’s model hyperparameters were selected based on internal cross-validation using training set.
     The hyperparameters of the AD definition approach have been optimized in the cross-validation,
-    where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
+    where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
 
     :param X: array-like or sparse matrix, shape (n_samples, n_features)
             The input samples. Internally, it will be converted to
@@ -44,7 +44,7 @@ def rtc_env_selection(X, y, data, envs, reg_model, score):
     :param data: after read rdf file
     :param envs: list or tuple. Numbers of neighbours.
     :param reg_model: estimator
-    :param score: 'ba_score' or 'rmse_score'
+    :param score: 'ba_ad' or 'rmse_ad'
     :return: int
     """
     X = check_array(X)
@@ -74,14 +74,10 @@ def rtc_env_selection(X, y, data, envs, reg_model, score):
             Y_pred.append(reg_model.fit(x_train, y_train).predict(x_test))
             Y_true.append(y_test)
             AD.append(ReactionTypeControl(env=env).fit(data_train).predict(data_test))
-        AD_stack = hstack(AD)
-        AD_ = unique(AD_stack)
-        for z in AD_:
-            AD_new = AD_stack <= z
         if score == 'ba_ad':
-            val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-        elif score == 'rmse_ad':
-            val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
+            val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=hstack(AD))
+        else:
+            val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=hstack(AD))
         if val >= score_value:
             score_value = val
             env_value = env

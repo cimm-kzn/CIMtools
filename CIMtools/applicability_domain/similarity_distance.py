@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -106,7 +107,7 @@ class SimilarityDistance(BaseEstimator, ClassifierMixin):
         """Fit distance-based AD.
         All AD’s model hyperparameters were selected based on internal cross-validation using training set.
         The hyperparameters of the AD definition approach have been optimized in the cross-validation,
-        where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
+        where metrics RMSE_AD or BA_AD were used as maximized scoring functions.
         Parameters
         ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)

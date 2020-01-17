@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -87,13 +87,13 @@ class FragmentorFingerprint(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, x):
-        x = self._transform_bitset(x)
+        x = self.transform_bitset(x)
         out = zeros((len(x), 2 ** self.fingerprint_size), dtype=bool8)
         for i, j in enumerate(x):
             out[i, j] = True
         return out
 
-    def _transform_bitset(self, x):
+    def transform_bitset(self, x):
         x = iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         mask = 2 ** self.fingerprint_size - 1
         fp_count = self.bits_count
@@ -109,7 +109,7 @@ class FragmentorFingerprint(BaseEstimator, TransformerMixin):
                                            for r in range(0, fp_active, 2)] + prev
 
         out = []
-        for s, row in zip(x, df.itertuples(index=False)):
+        for s, (_, row) in zip(x, df.iterrows()):
             active_bits = set()
             # add atomic bits
             if isinstance(s, MoleculeContainer):

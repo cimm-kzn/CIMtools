@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2019 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2019 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -345,14 +345,14 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
         except ValueError as e:
             raise ConfigurationError from e
-        if not head_dict:
-            raise ConfigurationError('empty header')
-
         return head_dict
 
     def __load_header(self, header):
-        self.__head_dict = self.__parse_header(header)
-        self.__head_dump = self.__format_header(self.__head_dict)
+        head_dict = self.__parse_header(header)
+        if not head_dict:
+            raise ConfigurationError('empty header')
+        self.__head_dict = head_dict
+        self.__head_dump = self.__format_header(head_dict)
 
     def __prepare_header(self):
         if not self.__head_exec:
@@ -386,8 +386,8 @@ if platform == 'win-amd64':
     fragmentor = 'fragmentor_win_%s.exe'
 elif platform == 'linux-x86_64':
     fragmentor = 'fragmentor_lin_%s'
-# elif platform.startswith('macosx') and platform.endswith('x86_64'):
-#     fragmentor = 'fragmentor_mac_%s'
+elif platform.startswith('macosx') and platform.endswith('x86_64'):
+    fragmentor = 'fragmentor_mac_%s'
 else:
     del Fragmentor
     __all__ = []
