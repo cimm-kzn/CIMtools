@@ -75,23 +75,24 @@ class TwoClassClassifiers(BaseEstimator):
         y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         # Check that X have correct shape
         X = check_array(X)
+
         if self.reg_model is None:
             reg_model = RandomForestRegressor(n_estimators=500, random_state=1)
-            reg_model_int = RandomForestRegressor(n_estimators=500, random_state=1)
         else:
             reg_model = clone(self.reg_model)
-            reg_model_int = clone(self.reg_model)
-        cv = KFold(n_splits=5, random_state=1, shuffle=True)
-        y_pred = cross_val_predict(reg_model, X, y, cv=cv)
         if self.clf_model is None:
             clf_model = RandomForestClassifier(n_estimators=500, random_state=1)
-            clf_model_int = RandomForestClassifier(n_estimators=500, random_state=1)
         else:
             clf_model = clone(self.clf_model)
-            clf_model_int = clone(self.clf_model)
+
+        cv = KFold(n_splits=5, random_state=1, shuffle=True)
+        y_pred = cross_val_predict(reg_model, X, y, cv=cv)
         y_clf = abs(y_pred - y) <= 3 * sqrt(mean_squared_error(y, y_pred))
         self.AD_clf = clf_model.fit(X, y_clf)
         if self.threshold == 'cv':
+            reg_model_int = clone(reg_model)
+            clf_model_int = clone(clf_model)
+
             self.threshold_value = 0
             score_value = 0
             Y_pred, Y_true, AD = [], [], []
