@@ -92,7 +92,7 @@ class TwoClassClassifiers(BaseEstimator):
         self.AD_clf = clf_model.fit(X, y_clf)
         if self.threshold == 'cv':
             self.threshold_value = 0
-            score_value = 0
+            self.score_value = 0
             Y_pred, Y_true, AD = [], [], []
             for train_index, test_index in cv.split(X):
                 x_train = safe_indexing(X, train_index)
@@ -101,14 +101,18 @@ class TwoClassClassifiers(BaseEstimator):
                 y_test = safe_indexing(y, test_index)
                 y_train_clf = safe_indexing(y_clf, train_index)
                 if isinstance(reg_model, GridSearchCV):
-                    Y_pred.append(reg_model.best_estimator_.fit(x_train, y_train).predict(x_test))
+                    reg_model_int = clone(reg_model.best_estimator_)
+                    Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
                 else:
-                    Y_pred.append(reg_model.fit(x_train, y_train).predict(x_test))
+                    reg_model_int = clone(self.reg_model)
+                    Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
                 Y_true.append(y_test)
                 if isinstance(clf_model, GridSearchCV):
-                    AD.append(self.AD_clf.best_estimator_.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
+                    ad_clf_int = clone(self.AD_clf.best_estimator_)
+                    AD.append(ad_clf_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
                 else:
-                    AD.append(self.clf_model.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
+                    ad_clf_int = clone(self.clf_model)
+                    AD.append(ad_clf_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
             AD_stack = hstack(AD)
             AD_ = unique(AD_stack)
             for z in AD_:
@@ -117,8 +121,8 @@ class TwoClassClassifiers(BaseEstimator):
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
                     val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-                if val >= score_value:
-                    score_value = val
+                if val >= self.score_value:
+                    self.score_value = val
                     self.threshold_value = z
         else:
             self.threshold_value = self.threshold
