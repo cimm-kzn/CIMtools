@@ -57,9 +57,6 @@ class TwoClassClassifiers(BaseEstimator):
         belong to the applicability domain of the model.
         For this reason, in fit method we pass the following parameters:
         reg_model and clf_model. Reg_model is regression model, clf_model is classification model.
-        They are have the hyperparameters too. You can use GridSearchCV(reg_model) and GridSearchCV(clf_model).
-        The best models will be found on all x_train and y_train.
-        The copy(models with the best parameters) then will be used for finding threshold.
 
         Parameters
         ----------
@@ -80,19 +77,23 @@ class TwoClassClassifiers(BaseEstimator):
         X = check_array(X)
         if self.reg_model is None:
             reg_model = RandomForestRegressor(n_estimators=500, random_state=1)
+            reg_model_int = RandomForestRegressor(n_estimators=500, random_state=1)
         else:
             reg_model = clone(self.reg_model)
-        if self.clf_model is None:
-            clf_model = RandomForestClassifier(n_estimators=500, random_state=1)
-        else:
-            clf_model = clone(self.clf_model)
+            reg_model_int = clone(self.reg_model)
         cv = KFold(n_splits=5, random_state=1, shuffle=True)
         y_pred = cross_val_predict(reg_model, X, y, cv=cv)
+        if self.clf_model is None:
+            clf_model = RandomForestClassifier(n_estimators=500, random_state=1)
+            clf_model_int = RandomForestClassifier(n_estimators=500, random_state=1)
+        else:
+            clf_model = clone(self.clf_model)
+            clf_model_int = clone(self.clf_model)
         y_clf = abs(y_pred - y) <= 3 * sqrt(mean_squared_error(y, y_pred))
         self.AD_clf = clf_model.fit(X, y_clf)
         if self.threshold == 'cv':
             self.threshold_value = 0
-            self.score_value = 0
+            score_value = 0
             Y_pred, Y_true, AD = [], [], []
             for train_index, test_index in cv.split(X):
                 x_train = safe_indexing(X, train_index)
@@ -100,19 +101,9 @@ class TwoClassClassifiers(BaseEstimator):
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
                 y_train_clf = safe_indexing(y_clf, train_index)
-                if isinstance(reg_model, GridSearchCV):
-                    reg_model_int = clone(reg_model.best_estimator_)
-                    Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
-                else:
-                    reg_model_int = clone(self.reg_model)
-                    Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
+                Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
                 Y_true.append(y_test)
-                if isinstance(clf_model, GridSearchCV):
-                    ad_clf_int = clone(self.AD_clf.best_estimator_)
-                    AD.append(ad_clf_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
-                else:
-                    ad_clf_int = clone(self.clf_model)
-                    AD.append(ad_clf_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
+                AD.append(clf_model_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
             AD_stack = hstack(AD)
             AD_ = unique(AD_stack)
             for z in AD_:
@@ -121,8 +112,8 @@ class TwoClassClassifiers(BaseEstimator):
                     val = balanced_accuracy_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
                 elif self.score == 'rmse_ad':
                     val = rmse_score_with_ad(Y_true=hstack(Y_true), Y_pred=hstack(Y_pred), AD=AD_new)
-                if val >= self.score_value:
-                    self.score_value = val
+                if val >= score_value:
+                    score_value = val
                     self.threshold_value = z
         else:
             self.threshold_value = self.threshold
