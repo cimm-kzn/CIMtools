@@ -144,7 +144,7 @@ class TransformationOut(BaseCrossValidator):
                 else:
                     train_folds[-1].extend(train_data[structure])
 
-            test_folds = [test_data.intersection(train) for train in train_folds]
+            test_folds = [list(test_data.intersection(train)) for train in train_folds]
 
             for i in range(self.n_splits):
                 train_index = []

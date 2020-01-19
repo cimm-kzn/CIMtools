@@ -57,9 +57,6 @@ class TwoClassClassifiers(BaseEstimator):
         belong to the applicability domain of the model.
         For this reason, in fit method we pass the following parameters:
         reg_model and clf_model. Reg_model is regression model, clf_model is classification model.
-        They are have the hyperparameters too. You can use GridSearchCV(reg_model) and GridSearchCV(clf_model).
-        The best models will be found on all x_train and y_train.
-        The copy(models with the best parameters) then will be used for finding threshold.
 
         Parameters
         ----------
@@ -78,6 +75,7 @@ class TwoClassClassifiers(BaseEstimator):
         y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         # Check that X have correct shape
         X = check_array(X)
+
         if self.reg_model is None:
             reg_model = RandomForestRegressor(n_estimators=500, random_state=1)
         else:
@@ -86,11 +84,15 @@ class TwoClassClassifiers(BaseEstimator):
             clf_model = RandomForestClassifier(n_estimators=500, random_state=1)
         else:
             clf_model = clone(self.clf_model)
+
         cv = KFold(n_splits=5, random_state=1, shuffle=True)
         y_pred = cross_val_predict(reg_model, X, y, cv=cv)
         y_clf = abs(y_pred - y) <= 3 * sqrt(mean_squared_error(y, y_pred))
         self.AD_clf = clf_model.fit(X, y_clf)
         if self.threshold == 'cv':
+            reg_model_int = clone(reg_model)
+            clf_model_int = clone(clf_model)
+
             self.threshold_value = 0
             score_value = 0
             Y_pred, Y_true, AD = [], [], []
@@ -100,15 +102,9 @@ class TwoClassClassifiers(BaseEstimator):
                 y_train = safe_indexing(y, train_index)
                 y_test = safe_indexing(y, test_index)
                 y_train_clf = safe_indexing(y_clf, train_index)
-                if isinstance(reg_model, GridSearchCV):
-                    Y_pred.append(reg_model.best_estimator_.fit(x_train, y_train).predict(x_test))
-                else:
-                    Y_pred.append(reg_model.fit(x_train, y_train).predict(x_test))
+                Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
                 Y_true.append(y_test)
-                if isinstance(clf_model, GridSearchCV):
-                    AD.append(self.AD_clf.best_estimator_.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
-                else:
-                    AD.append(self.clf_model.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
+                AD.append(clf_model_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
             AD_stack = hstack(AD)
             AD_ = unique(AD_stack)
             for z in AD_:
