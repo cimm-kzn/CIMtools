@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
-#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2019, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -48,7 +48,12 @@ class ReactionTypeControl(BaseEstimator, ClassifierMixin):
             cgr = ~structure  # Condence Graph of Reaction
             # get subgraph with atoms and their neighbors
             aug_center = cgr.augmented_substructure(cgr.center_atoms, deep=self.env, as_query=True)
-            return format(aug_center, '!n')  # String for graph reaction center
+            # remove neighbors marks
+            sn = aug_center._neighbors
+            pn = aug_center._p_neighbors
+            for n in aug_center:
+                sn[n] = pn[n] = ()
+            return str(aug_center)  # String for graph reaction center
 
     def fit(self, X):
         """Fit structure-based AD. The training model  memorizes the unique set of reaction signature.

@@ -22,7 +22,7 @@ from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.1'
+version = '4.0.2'
 
 platform = get_platform()
 if platform == 'win-amd64':
