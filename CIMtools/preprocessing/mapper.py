@@ -24,8 +24,8 @@ from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
 from subprocess import run
 from tempfile import mkdtemp
-from CIMtools.exceptions import ConfigurationError
-from CIMtools.utils import iter2array
+from ..exceptions import ConfigurationError
+from ..utils import iter2array
 
 
 class Mapper(BaseEstimator,TransformerMixin):
