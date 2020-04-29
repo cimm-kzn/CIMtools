@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2015-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,13 +16,13 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.containers import MoleculeContainer, CGRContainer
+from CGRtools.containers import CGRContainer, MoleculeContainer
 from CGRtools.files import SDFWrite
 from distutils.util import get_platform
 from logging import info
 from os import close
 from os.path import devnull
-from pandas import DataFrame, Series, concat
+from pandas import concat, DataFrame, Series
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -236,20 +236,32 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
         execparams = self.__exec_params(inp_file, out_file)
         info(' '.join(execparams))
-        if self.verbose:
-            exitcode = call(execparams) == 0
-        else:
-            with open(devnull, 'w') as silent:
-                exitcode = call(execparams, stdout=silent, stderr=silent) == 0
-
+        try:
+            if self.verbose:
+                exitcode = call(execparams) == 0
+            else:
+                with open(devnull, 'w') as silent:
+                    exitcode = call(execparams, stdout=silent, stderr=silent) == 0
+        except FileNotFoundError:
+            rmtree(str(work_dir))
+            raise
         if not (exitcode and out_file_svm.exists() and out_file_hdr.exists()):
+            rmtree(str(work_dir))
             raise ConfigurationError(f'{self.__class__.__name__} execution FAILED')
 
         if self.__head_less:
-            head_dict = self.__parse_header(out_file_hdr)
+            try:
+                head_dict = self.__parse_header(out_file_hdr)
+            except ConfigurationError:
+                rmtree(str(work_dir))
+                raise
         else:
             if fit:  # dump header
-                self.__load_header(out_file_hdr)
+                try:
+                    self.__load_header(out_file_hdr)
+                except ConfigurationError:
+                    rmtree(str(work_dir))
+                    raise
                 if not partial:
                     self.__head_generate = False
             head_dict = self.__head_dict
@@ -258,8 +270,8 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             x, d = self.__parse_svm(out_file_svm, head_dict)
         except Exception as e:
             raise ConfigurationError(e)
-
-        rmtree(str(work_dir))
+        finally:
+            rmtree(str(work_dir))
 
         if not self.__head_less and fit:
             if self.remove_rare_ratio:
@@ -345,12 +357,12 @@ class Fragmentor(BaseEstimator, TransformerMixin):
             head_dict = {int(k[:-1]): v for k, v in (i.split() for i in head_dump.splitlines())}
         except ValueError as e:
             raise ConfigurationError from e
+        if not head_dict:
+            raise ConfigurationError('empty header')
         return head_dict
 
     def __load_header(self, header):
         head_dict = self.__parse_header(header)
-        if not head_dict:
-            raise ConfigurationError('empty header')
         self.__head_dict = head_dict
         self.__head_dump = self.__format_header(head_dict)
 
