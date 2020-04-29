@@ -49,9 +49,9 @@ class Mapper(BaseEstimator,TransformerMixin):
                 r.meta['Id'] = num
                 f.write(r)
         try:
-            p=run(['java','-jar',path_to_jar,'-j','MAPPING','-i',inp_file,'-o',out_folder,'-rdf_id','Id','-min','-mixture'])    
+            p = run(['java','-jar',path_to_jar,'-j','MAPPING','-i',inp_file,'-o',out_folder,'-rdf_id','Id','-min','-mixture'])    
         except FileNotFoundError as e: 
-            raise ConfigurationError(e)
+            raise ConfigurationError from e
 
         if p.returncode != 0: 
             raise ConfigurationError('execution failed') 
