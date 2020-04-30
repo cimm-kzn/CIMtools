@@ -18,10 +18,11 @@
 #
 from CGRtools.containers import ReactionContainer
 from CGRtools import RDFRead, RDFWrite
+from os.path import devnull
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
-from subprocess import run
+from subprocess import call
 from tempfile import mkdtemp
 from . import __path__
 from ..exceptions import ConfigurationError
@@ -29,50 +30,59 @@ from ..utils import iter2array
 
 
 class RDTool(BaseEstimator, TransformerMixin):
-    def __init__(self, algorithm='max'):
+    def __init__(self, algorithm='max', verbose=False):
         """
         :param algorithm: 'max','min','mixture'
         """
         self.algorithm = algorithm
+        self.verbose = verbose
 
     def transform(self, x):
-        algorithms = ['max','min','mixture']
+        algorithms = ['max', 'min', 'mixture']
         if self.algorithm not in algorithms:
             raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
         algorithms.remove(self.algorithm)
-   
+
         x = iter2array(x, dtype=ReactionContainer)
-        
-        work_dir = Path(mkdtemp(prefix='rdt_')) 
+
+        work_dir = Path(mkdtemp(prefix='rdt_'))
         input_file = work_dir / 're_map.rdf'
         out_folder = work_dir / 'results'
         jar = Path(__path__[0]) / 'rdtool.jar'
-        
+
         with RDFWrite(input_file) as f:
-            for num,r in enumerate(x):
+            for num, r in enumerate(x):
                 meta = r.meta.copy()
                 r.meta.clear()
                 r.meta['Id'] = num
                 f.write(r)
                 r.meta.clear()
                 r.meta.update(meta)
+
+        execparams = ['java', '-jar', jar, '-j', 'MAPPING', '-i', input_file, '-o', out_folder, '-rdf_id', 'Id',
+                      '-' + algorithms[0], '-' + algorithms[1]]
         try:
-            p = run(['java','-jar', jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
+            if self.verbose:
+                exitcode = call(execparams) != 0
+            else:
+                with open(devnull, 'w') as silent:
+                    exitcode = call(execparams, stdout=silent, stderr=silent) != 0
         except FileNotFoundError as e:
             rmtree(work_dir)
             raise ConfigurationError(e)
 
-        if p.returncode != 0:
+        if exitcode:
             rmtree(work_dir)
-            raise ConfigurationError('execution failed') 
-        
-        out_file = self.algorithm.upper()+'_reactions.rdf'
-        x_out = RDFRead(Path(out_folder/out_file)).read()
+            raise ConfigurationError('execution failed')
+
+        out_file = self.algorithm.upper() + '_reactions.rdf'
+        x_out = RDFRead(Path(out_folder / out_file)).read()
         if len(x) != len(x_out):
             rmtree(work_dir)
             raise ValueError('invalid data')
-        
+
         rmtree(work_dir)
         return x_out
-               
+
+
 __all__ = ['RDTool']
