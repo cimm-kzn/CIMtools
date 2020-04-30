@@ -54,7 +54,8 @@ class RDTool(BaseEstimator, TransformerMixin):
                 r.meta.clear()
                 r.meta['Id'] = num
                 f.write(r)
-                r.meta.update(meta) 
+                r.meta.clear()
+                r.meta.update(meta)
         try:
             p = run(['java','-jar', jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
         except FileNotFoundError as e:
