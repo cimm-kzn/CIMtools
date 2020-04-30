@@ -18,7 +18,6 @@
 #
 from CGRtools.containers import ReactionContainer
 from CGRtools import RDFRead, RDFWrite
-from os import walk, path
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -35,27 +34,27 @@ class RDTool(BaseEstimator, TransformerMixin):
         :param algorithm: 'max','min','mixture'
         """
         self.algorithm = algorithm
-        if self.algorithm not in ('max','min','mixture'):
-            raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
 
     def transform(self, x):
         algorithms = ['max','min','mixture']
-        if self.algorithm in algorithms:
-            algorithms.remove(self.algorithm)
+        if self.algorithm not in algorithms:
+            raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
+        algorithms.remove(self.algorithm)
    
         x = iter2array(x, dtype=ReactionContainer)
         
         work_dir = Path(mkdtemp(prefix='rdt_')) 
         input_file = work_dir / 're_map.rdf'
         out_folder = work_dir / 'results'
-        jar = work_dir / Path(__path__[0]) / 'rdtool.jar'
+        jar = Path(__path__[0]) / 'rdtool.jar'
         
         with RDFWrite(input_file) as f:
-            x_copy = x.copy()
-            del x
-            for num,r in enumerate(x_copy):
+            for num,r in enumerate(x):
+                meta = r.meta.copy()
+                r.meta.clear()
                 r.meta['Id'] = num
                 f.write(r)
+                r.meta.update(meta) 
         try:
             p = run(['java','-jar', jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
         except FileNotFoundError as e:
