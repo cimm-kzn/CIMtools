@@ -24,6 +24,7 @@ from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
 from subprocess import run
 from tempfile import mkdtemp
+from . import __path__
 from ..exceptions import ConfigurationError
 from ..utils import iter2array
 
@@ -34,31 +35,29 @@ class RDTool(BaseEstimator, TransformerMixin):
         :param algorithm: 'max','min','mixture'
         """
         self.algorithm = algorithm
+        if self.algorithm not in ('max','min','mixture'):
+            raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
 
     def transform(self, x):
         algorithms = ['max','min','mixture']
         if self.algorithm in algorithms:
             algorithms.remove(self.algorithm)
-        else:
-            raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
    
-        x = iter2array(x, dtype=(ReactionContainer))
+        x = iter2array(x, dtype=ReactionContainer)
         
-        work_dir = Path(mkdtemp(prefix='mapp_')) 
+        work_dir = Path(mkdtemp(prefix='rdt_')) 
         input_file = work_dir / 're_map.rdf'
         out_folder = work_dir / 'results'
-    
-        for dirpath, dirnames, filenames in walk("."):
-            for filename in filenames:
-                if filename == 'aam-utils-j8 (1).jar':
-                    path_to_jar = path.join(dirpath, filename)
+        jar = work_dir / Path(__path__[0]) / 'rdtool.jar'
         
         with RDFWrite(input_file) as f:
-            for num,r in enumerate(x):
+            x_copy = x.copy()
+            del x
+            for num,r in enumerate(x_copy):
                 r.meta['Id'] = num
                 f.write(r)
         try:
-            p = run(['java','-jar', path_to_jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
+            p = run(['java','-jar', jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
         except FileNotFoundError as e:
             rmtree(work_dir)
             raise ConfigurationError(e)
