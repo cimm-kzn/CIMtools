@@ -54,6 +54,7 @@ setup(
     install_requires=['CGRtools[mrv]>=4.0,<4.1', 'pandas>=0.22.0,<0.26', 'scikit-learn>=0.20.1,<0.23',
                       'requests>=2.21,<2.23', 'pyparsing>=2.2.0,<2.5'],
     data_files=[('bin', fragmentor)],
+    package_data={'CIMtools.preprocessing': ['rdtool.jar']},
     zip_safe=False,
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     classifiers=['Environment :: Plugins',
