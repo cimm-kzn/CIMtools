@@ -28,14 +28,23 @@ from ..exceptions import ConfigurationError
 from ..utils import iter2array
 
 
-class Mapper(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        pass
-    
+class RDTool(BaseEstimator, TransformerMixin):
+    def __init__(self, algorithm='max'):
+        """
+        :param algorithm: 'max','min','mixture'
+        """
+        self.algorithm = algorithm
+
     def transform(self, x):
+        algorithms = ['max','min','mixture']
+        if self.algorithm in algorithms:
+            algorithms.remove(self.algorithm)
+        else:
+            raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
+   
         x = iter2array(x, dtype=(ReactionContainer))
         
-        work_dir = Path(mkdtemp(prefix='mapp_'), dir=str(Path.home())) 
+        work_dir = Path(mkdtemp(prefix='mapp_')) 
         input_file = work_dir / 're_map.rdf'
         out_folder = work_dir / 'results'
     
@@ -49,18 +58,22 @@ class Mapper(BaseEstimator, TransformerMixin):
                 r.meta['Id'] = num
                 f.write(r)
         try:
-            p = run(['java','-jar', path_to_jar,'-j','MAPPING','-i',inp_file,'-o',out_folder,'-rdf_id','Id','-min','-mixture'])    
-        except FileNotFoundError as e: 
+            p = run(['java','-jar', path_to_jar,'-j','MAPPING','-i',input_file,'-o',out_folder,'-rdf_id','Id','-'+algorithms[0],'-'+algorithms[1]])    
+        except FileNotFoundError as e:
+            rmtree(work_dir)
             raise ConfigurationError(e)
 
-        if p.returncode != 0: 
+        if p.returncode != 0:
+            rmtree(work_dir)
             raise ConfigurationError('execution failed') 
         
-        x_out = RDFRead(Path(out_folder/'MAX_reactions.rdf')).read()
+        out_file = self.algorithm.upper()+'_reactions.rdf'
+        x_out = RDFRead(Path(out_folder/out_file)).read()
         if len(x) != len(x_out):
+            rmtree(work_dir)
             raise ValueError('invalid data')
         
         rmtree(work_dir)
         return x_out
                
-__all__ = ['Mapper']
+__all__ = ['RDTool']
