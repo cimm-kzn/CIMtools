@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -20,5 +20,6 @@ from .cgr import *
 from .equation import *
 from .fingerprint import *
 from .fragmentor import *
+from .rdtool import *
 from .solvent import *
 from .standardize import *

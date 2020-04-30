@@ -1,7 +1,7 @@
 CIMtools
 =========
 ChemoInformatics Modeling tools distributive.  
-include ISIDA Fragmentor python wrapper
+Include ISIDA Fragmentor python wrapper and RDtool atom-to-atom mapper python wrapper.
 
 
 INSTALL
@@ -77,7 +77,7 @@ General part
     pip install CIMtools
     ```    
 
-* Install CGRtools library DEV version for features that are not well tested
+* Install CGRtools library DEV version for features that are not well tested. Git lfs installation required https://git-lfs.github.com/.
 
     ```
     pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
@@ -114,3 +114,4 @@ CONTRIBUTORS
 
 * Assima Rakhimbekova <asima.astana@outlook.com>
 * Tagir Akhmetshin <tagirshin@gmail.com>
+* Zarina Ibragimova <zarinaIbr12@yandex.ru>
