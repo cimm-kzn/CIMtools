@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016-2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2016-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@ from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.2'
+version = '4.0.3'
 
 platform = get_platform()
 if platform == 'win-amd64':
