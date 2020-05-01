@@ -16,6 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from numbers import Number
 from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
 from pandas import DataFrame
@@ -39,7 +40,7 @@ class EquationTransformer(BaseEstimator, TransformerMixin):
         return [f'equation={self.equation}']
 
     def transform(self, x):
-        x = iter2array(x)
+        x = iter2array(x, dtype=Number)
         f = Eval(self.equation)
         return DataFrame([[f(x)] for x in x], columns=self.get_feature_names())
 

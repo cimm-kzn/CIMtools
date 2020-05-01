@@ -38,7 +38,7 @@ class SolventVectorizer(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def transform(x):
-        x = iter2array(x)
+        x = iter2array(x, dtype=str)
         return DataFrame([described_solvents[x] for x in x], columns=header)
 
     def fit(self, x, y=None):

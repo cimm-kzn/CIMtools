@@ -17,6 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from collections import Mapping
 from functools import partial
 from itertools import chain
 from operator import itemgetter
@@ -105,6 +106,8 @@ class DictToConditions(BaseEstimator, TransformerMixin):
         self.default_first_amount = default_first_amount
 
     def transform(self, x):
+        x = iter2array(x, dtype=Mapping)
+
         if self.solvents:
             if len(self.solvents) > 1:
                 solvents = self.solvents
@@ -161,7 +164,7 @@ class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
                [f'solvent_amount.{x}' for x in range(1, self.max_solvents + 1)]
 
     def transform(self, x):
-        x = iter2array(x)
+        x = iter2array(x, dtype=Conditions)
         res = []
         for c in x:
             solvents, amounts = zip(*c.solvents[:self.max_solvents])
