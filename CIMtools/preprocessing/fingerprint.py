@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2019, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -19,7 +19,9 @@
 from CGRtools.containers import MoleculeContainer, CGRContainer
 from numpy import zeros, bool8
 from hashlib import md5
+from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
+from ..exceptions import ConfigurationError
 from ..utils import iter2array
 
 
@@ -99,7 +101,13 @@ class FragmentorFingerprint(BaseEstimator, TransformerMixin):
         fp_count = self.bits_count
         fp_active = self.bits_active * 2
 
-        df = self.__fragmentor.transform(x)
+        try:
+            df = self.__fragmentor.transform(x)
+        except ConfigurationError as e:
+            if str(e) == 'empty header':
+                df = DataFrame([[]] * len(x))
+            else:
+                raise
         bits_map = {}
         for f in df.columns:
             prev = []
