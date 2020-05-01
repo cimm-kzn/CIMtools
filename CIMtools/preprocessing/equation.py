@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016-2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2016-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@ from operator import add, sub, mul, truediv, pow
 from pandas import DataFrame
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import column_or_1d
+from ..utils import iter2array
 
 
 class EquationTransformer(BaseEstimator, TransformerMixin):
@@ -39,7 +39,7 @@ class EquationTransformer(BaseEstimator, TransformerMixin):
         return [f'equation={self.equation}']
 
     def transform(self, x):
-        x = column_or_1d(x, warn=True)
+        x = iter2array(x)
         f = Eval(self.equation)
         return DataFrame([[f(x)] for x in x], columns=self.get_feature_names())
 

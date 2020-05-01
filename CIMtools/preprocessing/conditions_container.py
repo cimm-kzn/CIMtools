@@ -22,8 +22,8 @@ from itertools import chain
 from operator import itemgetter
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import column_or_1d
-from .metric_constants import C, bar
+from ..metric_constants import C, bar
+from ..utils import iter2array
 
 
 class Conditions:
@@ -138,7 +138,8 @@ class DictToConditions(BaseEstimator, TransformerMixin):
         else:
             pressures = [self.default_pressure] * len(x)
 
-        return [Conditions(t, p, zip(*s)) for t, p, s in zip(temperatures, pressures, zip(solvents, amounts))]
+        return DataFrame([[Conditions(t, p, zip(*s))]
+                          for t, p, s in zip(temperatures, pressures, zip(solvents, amounts))], columns=['conditions'])
 
     def fit(self, x, y=None):
         return self
@@ -160,11 +161,11 @@ class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
                [f'solvent_amount.{x}' for x in range(1, self.max_solvents + 1)]
 
     def transform(self, x):
-        x = column_or_1d(x, warn=True)
+        x = iter2array(x)
         res = []
-        for x in x:
-            solvents, amounts = zip(*x.solvents[:self.max_solvents])
-            res.append(chain((x.temperature, x.pressure), solvents, amounts))
+        for c in x:
+            solvents, amounts = zip(*c.solvents[:self.max_solvents])
+            res.append(chain((c.temperature, c.pressure), solvents, amounts))
         return DataFrame(res, columns=self.get_feature_names())
 
     def fit(self, x, y=None):

@@ -17,6 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .cgr import *
+from .conditions_container import *
 from .equation import *
 from .fingerprint import *
 from .fragmentor import *
