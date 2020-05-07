@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 #
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import column_or_1d
+from ..utils import iter2array
 
 
 class SolventVectorizer(BaseEstimator, TransformerMixin):
@@ -38,7 +38,7 @@ class SolventVectorizer(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def transform(x):
-        x = column_or_1d(x, warn=True)
+        x = iter2array(x, dtype=str)
         return DataFrame([described_solvents[x] for x in x], columns=header)
 
     def fit(self, x, y=None):

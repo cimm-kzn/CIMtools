@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2019 Ravil Mukhametgaleev <sonic-mc@mail.ru>
 #  This file is part of CIMtools.
 #
@@ -17,13 +17,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from collections import Mapping
 from functools import partial
 from itertools import chain
 from operator import itemgetter
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import column_or_1d
-from .metric_constants import C, bar
+from ..metric_constants import C, bar
+from ..utils import iter2array
 
 
 class Conditions:
@@ -78,7 +79,7 @@ class Conditions:
         self.__solvents = tuple(sorted(solvents, key=itemgetter(1), reverse=True))
 
 
-class DictToConditions:
+class DictToConditions(BaseEstimator, TransformerMixin):
     def __init__(self, temperature=None, pressure=None, solvents=None, amounts=None,
                  default_temperature=25 * C, default_pressure=1 * bar,
                  default_first_solvent='water', default_first_amount=1):
@@ -95,50 +96,56 @@ class DictToConditions:
         elif amounts and len(amounts) > 1:
             raise ValueError('multiple amount without solvents impossible')
 
-        self.__temperature = temperature
-        self.__pressure = pressure
-        self.__solvents = solvents
-        self.__amounts = amounts
-        self.__default_temperature = default_temperature
-        self.__default_pressure = default_pressure
-        self.__default_first_solvent = default_first_solvent
-        self.__default_first_amount = default_first_amount
+        self.temperature = temperature
+        self.pressure = pressure
+        self.solvents = solvents
+        self.amounts = amounts
+        self.default_temperature = default_temperature
+        self.default_pressure = default_pressure
+        self.default_first_solvent = default_first_solvent
+        self.default_first_amount = default_first_amount
 
     def transform(self, x):
-        if self.__solvents:
-            if len(self.__solvents) > 1:
-                solvents = self.__solvents
+        x = iter2array(x, dtype=Mapping)
+
+        if self.solvents:
+            if len(self.solvents) > 1:
+                solvents = self.solvents
                 solvents = [[d[k] for k in solvents] for d in x]
-                amounts = self.__amounts
+                amounts = self.amounts
                 amounts = [[d[k] for k in amounts] for d in x]
             else:
-                solvents = self.__solvents[0]
-                solvents = [[d.get(solvents, self.__default_first_solvent)] for d in x]
-                if self.__amounts:
-                    amounts = self.__amounts[0]
-                    amounts = [[d.get(amounts, self.__default_first_amount)] for d in x]
+                solvents = self.solvents[0]
+                solvents = [[d.get(solvents, self.default_first_solvent)] for d in x]
+                if self.amounts:
+                    amounts = self.amounts[0]
+                    amounts = [[d.get(amounts, self.default_first_amount)] for d in x]
                 else:
-                    amounts = [[self.__default_first_amount]] * len(x)
-        elif self.__amounts:
-            amounts = self.__amounts[0]
-            amounts = [[d.get(amounts, self.__default_first_amount)] for d in x]
-            solvents = [[self.__default_first_solvent]] * len(x)
+                    amounts = [[self.default_first_amount]] * len(x)
+        elif self.amounts:
+            amounts = self.amounts[0]
+            amounts = [[d.get(amounts, self.default_first_amount)] for d in x]
+            solvents = [[self.default_first_solvent]] * len(x)
         else:
             solvents = amounts = [[]] * len(x)
 
-        if self.__temperature:
-            temperatures = self.__temperature
-            temperatures = [d.get(temperatures, self.__default_temperature) for d in x]
+        if self.temperature:
+            temperatures = self.temperature
+            temperatures = [d.get(temperatures, self.default_temperature) for d in x]
         else:
-            temperatures = [self.__default_temperature] * len(x)
+            temperatures = [self.default_temperature] * len(x)
 
-        if self.__pressure:
-            pressures = self.__pressure
-            pressures = [d.get(pressures, self.__default_pressure) for d in x]
+        if self.pressure:
+            pressures = self.pressure
+            pressures = [d.get(pressures, self.default_pressure) for d in x]
         else:
-            pressures = [self.__default_pressure] * len(x)
+            pressures = [self.default_pressure] * len(x)
 
-        return [Conditions(t, p, zip(*s)) for t, p, s in zip(temperatures, pressures, zip(solvents, amounts))]
+        return DataFrame([[Conditions(t, p, zip(*s))]
+                          for t, p, s in zip(temperatures, pressures, zip(solvents, amounts))], columns=['conditions'])
+
+    def fit(self, x, y=None):
+        return self
 
 
 class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
@@ -157,11 +164,11 @@ class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
                [f'solvent_amount.{x}' for x in range(1, self.max_solvents + 1)]
 
     def transform(self, x):
-        x = column_or_1d(x, warn=True)
+        x = iter2array(x, dtype=Conditions)
         res = []
-        for x in x:
-            solvents, amounts = zip(*x.solvents[:self.max_solvents])
-            res.append(chain((x.temperature, x.pressure), solvents, amounts))
+        for c in x:
+            solvents, amounts = zip(*c.solvents[:self.max_solvents])
+            res.append(chain((c.temperature, c.pressure), solvents, amounts))
         return DataFrame(res, columns=self.get_feature_names())
 
     def fit(self, x, y=None):

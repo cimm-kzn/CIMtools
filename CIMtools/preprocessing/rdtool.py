@@ -19,6 +19,10 @@
 from CGRtools.containers import ReactionContainer
 from CGRtools import RDFRead, RDFWrite
 from os.path import devnull
+<<<<<<< HEAD
+=======
+from pandas import DataFrame
+>>>>>>> cd389ebd1d39700f4d3020ab0e01a9da1302a61f
 from pathlib import Path
 from shutil import rmtree
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -82,7 +86,11 @@ class RDTool(BaseEstimator, TransformerMixin):
             raise ValueError('invalid data')
 
         rmtree(work_dir)
+<<<<<<< HEAD
         return x_out
+=======
+        return DataFrame([[x] for x in x_out], columns=['reaction'])
+>>>>>>> cd389ebd1d39700f4d3020ab0e01a9da1302a61f
 
 
 __all__ = ['RDTool']

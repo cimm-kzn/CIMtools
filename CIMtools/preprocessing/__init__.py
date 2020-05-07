@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,8 +17,10 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .cgr import *
+from .conditions_container import *
 from .equation import *
 from .fingerprint import *
 from .fragmentor import *
+from .rdtool import *
 from .solvent import *
 from .standardize import *

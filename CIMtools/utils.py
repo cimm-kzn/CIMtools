@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -20,21 +20,19 @@ from CGRtools.containers import ReactionContainer, MoleculeContainer, CGRContain
 from numbers import Number
 from numpy import ndarray, ravel
 from pandas import DataFrame, Series
-from sklearn.exceptions import DataConversionWarning
-from warnings import warn
 
 
 def iter2array(data, dtype=(MoleculeContainer, ReactionContainer, CGRContainer)):
     if isinstance(data, ndarray):
         if len(data.shape) != 1:
             if len(data.shape) == 2 and data.shape[1] == 1:
-                warn('A column-vector y was passed when a 1d array was'
-                     ' expected. Please change the shape of y to '
-                     '(n_samples, ), for example using ravel().',
-                     DataConversionWarning, stacklevel=2)
                 data = ravel(data)
             else:
                 raise ValueError('invalid data shape')
+    elif isinstance(data, DataFrame):
+        if data.shape[1] != 1:
+            raise ValueError('invalid data shape')
+        data = ravel(data)
     elif not isinstance(data, (Series, list, tuple)):  # try to unpack iterable
         data = list(data)
 
@@ -90,3 +88,6 @@ def nested_iter_to_2d_array(data, dtype=(MoleculeContainer, ReactionContainer, C
         dtype = object
 
     return DataFrame(data, dtype=dtype)
+
+
+__all__ = ['iter2array', 'nested_iter_to_2d_array']
