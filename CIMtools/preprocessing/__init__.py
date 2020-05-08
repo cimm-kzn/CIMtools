@@ -21,6 +21,7 @@ from .conditions_container import *
 from .equation import *
 from .fingerprint import *
 from .fragmentor import *
+from .mapping import *
 from .rdtool import *
 from .solvent import *
 from .standardize import *
