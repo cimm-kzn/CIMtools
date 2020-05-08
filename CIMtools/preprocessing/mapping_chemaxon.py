@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2020 Zarina Ibragimova <zarinaIbr12@yandex.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,12 +16,18 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from .cgr import *
-from .conditions_container import *
-from .equation import *
-from .fingerprint import *
-from .fragmentor import *
-from .mapping_chemaxon import *
-from .rdtool import *
-from .solvent import *
-from .standardize import *
+from CGRtools.containers import ReactionContainer
+from .standardize import StandardizeChemAxon
+
+
+class MappingChemAxon(StandardizeChemAxon):
+    def __init__(self, workpath='.'):
+        rules = '<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1">\n  <Actions>\n    \
+        <UnmapReaction ID="Unmap"/>\n    <MapReaction ID="Map Reaction" KeepMapping="false" MappingStyle="COMPLETE" MarkBonds="false"/>\n  \
+        </Actions>\n</StandardizerConfiguration>\n'
+ 
+        super().__init__(rules, workpath)
+    
+    _dtype = ReactionContainer
+    
+__all__ = ['MappingChemAxon']
