@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1">
+  <Actions>
+    <UnmapReaction ID="Unmap"/>
+    <MapReaction ID="Map Reaction" KeepMapping="false" MappingStyle="COMPLETE" MarkBonds="false"/>
+  </Actions>
+</StandardizerConfiguration>
