@@ -24,7 +24,6 @@ from pathlib import Path
 from requests import post
 from requests.exceptions import RequestException
 from subprocess import run, PIPE
-from sklearn.base import BaseEstimator
 from tempfile import mkstemp
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
@@ -33,7 +32,7 @@ from ...exceptions import ConfigurationError
 CHEMAXON_REST = getenv('CHEMAXON_REST')
 
 
-class StandardizeChemAxon(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeChemAxon(CIMtoolsTransformerMixin):
     def __init__(self, rules, workpath='.'):
         self.rules = rules
         self.set_work_path(workpath)

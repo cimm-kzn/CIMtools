@@ -22,9 +22,8 @@ from functools import partial
 from itertools import chain
 from operator import itemgetter
 from pandas import DataFrame
-from sklearn.base import BaseEstimator, TransformerMixin
+from ..base import CIMtoolsTransformerMixin
 from ..metric_constants import C, bar
-from ..utils import iter2array
 
 
 class Conditions:
@@ -79,7 +78,7 @@ class Conditions:
         self.__solvents = tuple(sorted(solvents, key=itemgetter(1), reverse=True))
 
 
-class DictToConditions(BaseEstimator, TransformerMixin):
+class DictToConditions(CIMtoolsTransformerMixin):
     def __init__(self, temperature=None, pressure=None, solvents=None, amounts=None,
                  default_temperature=25 * C, default_pressure=1 * bar,
                  default_first_solvent='water', default_first_amount=1):
@@ -106,7 +105,7 @@ class DictToConditions(BaseEstimator, TransformerMixin):
         self.default_first_amount = default_first_amount
 
     def transform(self, x):
-        x = iter2array(x, dtype=Mapping)
+        x = super().transform(x)
 
         if self.solvents:
             if len(self.solvents) > 1:
@@ -144,11 +143,10 @@ class DictToConditions(BaseEstimator, TransformerMixin):
         return DataFrame([[Conditions(t, p, zip(*s))]
                           for t, p, s in zip(temperatures, pressures, zip(solvents, amounts))], columns=['conditions'])
 
-    def fit(self, x, y=None):
-        return self
+    _dtype = Mapping
 
 
-class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
+class ConditionsToDataFrame(CIMtoolsTransformerMixin):
     def __init__(self, max_solvents=1):
         self.max_solvents = max_solvents
 
@@ -164,15 +162,14 @@ class ConditionsToDataFrame(BaseEstimator, TransformerMixin):
                [f'solvent_amount.{x}' for x in range(1, self.max_solvents + 1)]
 
     def transform(self, x):
-        x = iter2array(x, dtype=Conditions)
+        x = super().transform(x)
         res = []
         for c in x:
             solvents, amounts = zip(*c.solvents[:self.max_solvents])
             res.append(chain((c.temperature, c.pressure), solvents, amounts))
         return DataFrame(res, columns=self.get_feature_names())
 
-    def fit(self, x, y=None):
-        return self
+    _dtype = Conditions
 
 
 known_solvents = (

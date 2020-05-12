@@ -19,12 +19,11 @@
 from CGRtools import CGRPreparer
 from CGRtools.containers import ReactionContainer
 from pandas import DataFrame
-from sklearn.base import BaseEstimator
 from ..base import CIMtoolsTransformerMixin
 from ..exceptions import ConfigurationError
 
 
-class CGR(BaseEstimator, CIMtoolsTransformerMixin):
+class CGR(CIMtoolsTransformerMixin):
     def __init__(self, cgr_type='0'):
         self.cgr_type = cgr_type
         self.__init()

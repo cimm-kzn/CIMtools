@@ -22,12 +22,13 @@ from .standardize import StandardizeChemAxon
 
 class MappingChemAxon(StandardizeChemAxon):
     def __init__(self, workpath='.'):
-        rules = '<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1">\n  <Actions>\n    \
-        <UnmapReaction ID="Unmap"/>\n    <MapReaction ID="Map Reaction" KeepMapping="false" MappingStyle="COMPLETE" MarkBonds="false"/>\n  \
-        </Actions>\n</StandardizerConfiguration>\n'
- 
+        rules = '<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1"><Actions>' \
+                '<UnmapReaction ID="Unmap"/><MapReaction ID="Map Reaction" KeepMapping="false" ' \
+                'MappingStyle="COMPLETE" MarkBonds="false"/></Actions></StandardizerConfiguration>'
+
         super().__init__(rules, workpath)
-    
+
     _dtype = ReactionContainer
-    
+
+
 __all__ = ['MappingChemAxon']

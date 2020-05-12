@@ -86,6 +86,7 @@ class FragmentorFingerprint(BaseEstimator, TransformerMixin):
         self.__fragmentor.delete_work_path()
 
     def fit(self, x, y=None):
+        iter2array(x, dtype=(MoleculeContainer, CGRContainer))
         return self
 
     def transform(self, x):

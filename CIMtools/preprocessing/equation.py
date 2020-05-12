@@ -21,11 +21,10 @@ from math import sin, cos, tan, log, log10, e, pi
 from operator import add, sub, mul, truediv, pow
 from pandas import DataFrame
 from pyparsing import Literal, CaselessLiteral, Word, Combine, Optional, ZeroOrMore, Forward, nums, alphas
-from sklearn.base import BaseEstimator, TransformerMixin
-from ..utils import iter2array
+from ..base import CIMtoolsTransformerMixin
 
 
-class EquationTransformer(BaseEstimator, TransformerMixin):
+class EquationTransformer(CIMtoolsTransformerMixin):
     def __init__(self, equation='x'):
         self.equation = equation
 
@@ -40,12 +39,11 @@ class EquationTransformer(BaseEstimator, TransformerMixin):
         return [f'equation={self.equation}']
 
     def transform(self, x):
-        x = iter2array(x, dtype=Number)
+        x = super().transform(x)
         f = Eval(self.equation)
         return DataFrame([[f(x)] for x in x], columns=self.get_feature_names())
 
-    def fit(self, x, y=None):
-        return self
+    _dtype = Number
 
 
 class Eval:

@@ -22,15 +22,14 @@ from os.path import devnull
 from pandas import DataFrame
 from pathlib import Path
 from shutil import rmtree
-from sklearn.base import BaseEstimator, TransformerMixin
 from subprocess import call
 from tempfile import mkdtemp
 from . import __path__
+from ..base import CIMtoolsTransformerMixin
 from ..exceptions import ConfigurationError
-from ..utils import iter2array
 
 
-class RDTool(BaseEstimator, TransformerMixin):
+class RDTool(CIMtoolsTransformerMixin):
     def __init__(self, algorithm='max', verbose=False):
         """
         :param algorithm: 'max','min','mixture'
@@ -39,12 +38,12 @@ class RDTool(BaseEstimator, TransformerMixin):
         self.verbose = verbose
 
     def transform(self, x):
+        x = super().transform(x)
+
         algorithms = ['max', 'min', 'mixture']
         if self.algorithm not in algorithms:
             raise ValueError("Invalid value for algorithm of mapping. Allowed string values are 'max','min','mixture'")
         algorithms.remove(self.algorithm)
-
-        x = iter2array(x, dtype=ReactionContainer)
 
         work_dir = Path(mkdtemp(prefix='rdt_'))
         input_file = work_dir / 're_map.rdf'
@@ -84,6 +83,8 @@ class RDTool(BaseEstimator, TransformerMixin):
 
         rmtree(work_dir)
         return DataFrame([[x] for x in x_out], columns=['reaction'])
+
+    _dtype = ReactionContainer
 
 
 __all__ = ['RDTool']

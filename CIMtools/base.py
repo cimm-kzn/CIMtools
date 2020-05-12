@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,11 +18,11 @@
 #
 from CGRtools.containers import ReactionContainer
 from itertools import tee
-from sklearn.base import TransformerMixin
+from sklearn.base import BaseEstimator, TransformerMixin
 from .utils import iter2array
 
 
-class CIMtoolsTransformerMixin(TransformerMixin):
+class CIMtoolsTransformerMixin(TransformerMixin, BaseEstimator):
     def fit(self, x, y=None):
         """Do nothing and return the estimator unchanged
 
@@ -42,28 +42,56 @@ class CIMtoolsTransformerMixin(TransformerMixin):
     _dtype = None
 
 
-def reaction_support(_class):
-    class ReactionSupport(_class):
+def reaction_support(_class, module=None):
+    """
+    Class Factory for transformers without reactions support.
+
+    :param module: Current module name. required for pickle. By default _class module used.
+    """
+    class ReactionSupported(_class):
+        def fit(self, x, y=None, **fit_params):
+            return self.__run(False, x, y=y, **fit_params)
+
         def transform(self, x):
-            if not all(isinstance(s, ReactionContainer) for s in x):
-                raise TypeError('invalid dtype, only ReactionContainers acceptable')
+            return self.__run(True, x)
 
-            shifts = {}
+        def fit_transform(self, x, y=None, **fit_params):
+            self.fit(x, y, **fit_params)
+            return self.transform(x)
+
+        def __run(self, transform, x, **kwargs):
+            x = iter2array(x, dtype=ReactionContainer)
+
             mols = []
-            for i in ('reactants', 'products'):
-                sh = shifts[i] = [len(mols)]
-                for s in x:
-                    si = s[i]
-                    sh.append(len(si) + sh[-1])
-                    mols.extend(si)
+            r_shifts = [0]
+            for s in x:
+                ms = s.reactants
+                r_shifts.append(len(ms) + len(mols))
+                mols.extend(ms)
 
-            transformed = super().transform(mols)
-            if len(transformed) != len(mols):
-                raise ValueError('unexpected transformed molecules amount')
+            p_shifts = [len(mols)]
+            for s in x:
+                ms = s.products
+                p_shifts.append(len(ms) + len(mols))
+                mols.extend(ms)
 
-            return iter2array(ReactionContainer(r, p, meta=s.meta) for s, r, p in
-                              zip(x, (transformed[y: z] for y, z in self.__pairwise(shifts['reactants'])),
-                                     (transformed[y: z] for y, z in self.__pairwise(shifts['products']))))
+            g_shifts = [len(mols)]
+            for s in x:
+                ms = s.reagents
+                g_shifts.append(len(ms) + len(mols))
+                mols.extend(ms)
+
+            if transform:
+                transformed = super().transform(mols)
+                if len(transformed) != len(mols):
+                    raise ValueError('unexpected transformed molecules amount')
+
+                return [(r, p, g) for r, p, g in
+                        zip((transformed[y: z] for y, z in self.__pairwise(r_shifts)),
+                            (transformed[y: z] for y, z in self.__pairwise(p_shifts)),
+                            (transformed[y: z] for y, z in self.__pairwise(g_shifts)))]
+            else:
+                return super().fit(mols, **kwargs)
 
         @staticmethod
         def __pairwise(iterable):
@@ -72,4 +100,9 @@ def reaction_support(_class):
             next(b, None)
             return zip(a, b)
 
-    return ReactionSupport
+    ReactionSupported.__qualname__ = f'ReactionSupported{_class.__name__}'
+    ReactionSupported.__module__ = module or _class.__module__
+    return ReactionSupported
+
+
+__all__ = ['CIMtoolsTransformerMixin', 'reaction_support']

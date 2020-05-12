@@ -19,12 +19,11 @@
 from CGRtools.reactor import CGRReactor
 from CGRtools.containers import MoleculeContainer, CGRContainer, ReactionContainer
 from pandas import DataFrame
-from sklearn.base import BaseEstimator
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
 
 
-class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeCGR(CIMtoolsTransformerMixin):
     def __init__(self, templates=(), delete_atoms=False):
         """
         Molecule and CGR standardization
@@ -81,7 +80,7 @@ class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
     _dtype = (MoleculeContainer, CGRContainer)
 
 
-class StandardizeReaction(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeReaction(CIMtoolsTransformerMixin):
     def __init__(self):
         """
         Reactions standardization
