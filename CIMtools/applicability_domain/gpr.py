@@ -76,10 +76,10 @@ class GPR_AD(BaseEstimator):
         else:
             gpr_model = clone(self.gpr_model)
 
-        cv = KFold(n_splits=5, random_state=1, shuffle=True)
         self.AD_gpr = gpr_model.fit(X, y_gpr)
 
         if self.threshold == 'cv':
+            cv = KFold(n_splits=5, random_state=1, shuffle=True)
             gpr_model_int = clone(gpr_model)
 
             self.threshold_value = 0
@@ -126,7 +126,6 @@ class GPR_AD(BaseEstimator):
         ad : array of shape = [n_samples]
             Array contains True (reaction in AD) and False (reaction residing outside AD).
         """
-    # Check is fit had been called
         # Check is fit had been called
         check_is_fitted(self, ['AD_gpr', 'threshold_value'])
         # Check that X have correct shape
