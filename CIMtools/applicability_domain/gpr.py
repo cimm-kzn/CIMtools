@@ -36,7 +36,7 @@ class GPR_AD(BaseEstimator):
     The prediction density has normal (Gaussian) distribution with the mean corresponding to predicted value
     of the property and the variance corresponding to prediction confidence [1].
     If the variance is greater than a predefined threshold σ*, the chemical reaction is considered as
-    X-outlier (out of AD).
+    X-outlier (out of AD)
     """
     def __init__(self, threshold='cv', score='ba_ad', gpr_model=None):
         self.threshold = threshold
