@@ -88,19 +88,19 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
         if p.returncode != 0:
             raise ConfigurationError(p.stderr.decode())
 
-        with BytesIO(p.stdout) as f, MRVRead(f) as r:
+        with BytesIO(p.stdout) as f, MRVRead(f, remap=False) as r:
             res = r.read()
             if len(res) != len(structures):
-                raise ValueError('invalid data')
+                raise ValueError(f'invalid data. Number of standardized structures ({len(res)})'
+                                 f' less than given ({len(structures)})')
             return res
 
     def __processor_s(self, structure):
         with StringIO() as f:
             with MRVWrite(f) as w:
                 w.write(structure)
-            data = dict(structure=f.getvalue(), parameters='mrv',
-                        filterChain=[dict(filter='standardizer',
-                                          parameters=dict(standardizerDefinition=self.rules))])
+            data = {'structure': f.getvalue(), 'parameters': 'mrv',
+                    'filterChain': [{'filter': 'standardizer', 'parameters': {'standardizerDefinition': self.rules}}]}
         try:
             q = post(f'{CHEMAXON_REST}/rest-v0/util/calculate/molExport', json=data, timeout=20)
         except RequestException as e:
@@ -113,7 +113,7 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
         if not res:
             raise ValueError('invalid data')
 
-        with BytesIO(res['structure'].encode()) as f, MRVRead(f) as r:
+        with BytesIO(res['structure'].encode()) as f, MRVRead(f, remap=False) as r:
             return r.read()
 
     __config = None
