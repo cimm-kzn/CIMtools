@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,13 +18,12 @@
 #
 from CGRtools import CGRPreparer
 from CGRtools.containers import ReactionContainer
-from sklearn.base import BaseEstimator
+from pandas import DataFrame
 from ..base import CIMtoolsTransformerMixin
 from ..exceptions import ConfigurationError
-from ..utils import iter2array
 
 
-class CGR(BaseEstimator, CIMtoolsTransformerMixin):
+class CGR(CIMtoolsTransformerMixin):
     def __init__(self, cgr_type='0'):
         self.cgr_type = cgr_type
         self.__init()
@@ -51,7 +50,7 @@ class CGR(BaseEstimator, CIMtoolsTransformerMixin):
     def transform(self, x):
         x = super().transform(x)
         cgr = self.__cgr
-        return iter2array(cgr.compose(s) for s in x)
+        return DataFrame([[cgr.compose(s)] for s in x], columns=['CGR'])
 
     _dtype = ReactionContainer
 

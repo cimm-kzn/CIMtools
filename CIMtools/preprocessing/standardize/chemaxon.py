@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -19,21 +19,20 @@
 from CGRtools.files import MRVRead, MRVWrite
 from io import StringIO, BytesIO
 from os import close, getenv
+from pandas import DataFrame
 from pathlib import Path
 from requests import post
 from requests.exceptions import RequestException
 from subprocess import run, PIPE
-from sklearn.base import BaseEstimator
 from tempfile import mkstemp
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
-from ...utils import iter2array
 
 
 CHEMAXON_REST = getenv('CHEMAXON_REST')
 
 
-class StandardizeChemAxon(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeChemAxon(CIMtoolsTransformerMixin):
     def __init__(self, rules, workpath='.'):
         self.rules = rules
         self.set_work_path(workpath)
@@ -72,7 +71,8 @@ class StandardizeChemAxon(BaseEstimator, CIMtoolsTransformerMixin):
 
     def transform(self, x):
         x = super().transform(x)
-        return iter2array(self.__processor_m(x) if x.size > 1 or not CHEMAXON_REST else self.__processor_s(x[0]))
+        x = self.__processor_m(x) if x.size > 1 or not CHEMAXON_REST else self.__processor_s(x[0])
+        return DataFrame([[x] for x in x], columns=['standardized'])
 
     def __processor_m(self, structures):
         with StringIO() as f:

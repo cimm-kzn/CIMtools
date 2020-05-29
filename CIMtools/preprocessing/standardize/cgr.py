@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,13 +18,12 @@
 #
 from CGRtools.reactor import CGRReactor
 from CGRtools.containers import MoleculeContainer, CGRContainer, ReactionContainer
-from sklearn.base import BaseEstimator
+from pandas import DataFrame
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
-from ...utils import iter2array
 
 
-class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeCGR(CIMtoolsTransformerMixin):
     def __init__(self, templates=(), delete_atoms=False):
         """
         Molecule and CGR standardization
@@ -58,7 +57,7 @@ class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
         return self
 
     def transform(self, x):
-        return iter2array(self.__prepare(g) for g in super().transform(x))
+        return DataFrame([[self.__prepare(g)] for g in super().transform(x)], columns=['standardized'])
 
     def __prepare(self, g):
         if isinstance(g, MoleculeContainer):
@@ -81,7 +80,7 @@ class StandardizeCGR(BaseEstimator, CIMtoolsTransformerMixin):
     _dtype = (MoleculeContainer, CGRContainer)
 
 
-class StandardizeReaction(BaseEstimator, CIMtoolsTransformerMixin):
+class StandardizeReaction(CIMtoolsTransformerMixin):
     def __init__(self):
         """
         Reactions standardization
@@ -90,7 +89,7 @@ class StandardizeReaction(BaseEstimator, CIMtoolsTransformerMixin):
         """
 
     def transform(self, x):
-        return iter2array(self.__prepare(g) for g in super().transform(x))
+        return DataFrame([[self.__prepare(g)] for g in super().transform(x)], columns=['standardized'])
 
     @staticmethod
     def __prepare(r):
