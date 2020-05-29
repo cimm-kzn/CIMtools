@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2020 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,33 +18,30 @@
 #
 from numpy import sqrt, hstack, unique
 from sklearn.base import BaseEstimator, clone
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import cross_val_predict, KFold
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
 from sklearn.utils import safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
 
-class TwoClassClassifiers(BaseEstimator):
+class GPR_AD(BaseEstimator):
     """
-    Model learns to distinguish inliers from outliers.
-    Objects with high prediction error in cross-validation (more than 3xRMSE) are considered outliers,
-    while the rest are inliers.
-    Two-class classification methods is trained to distinguish them, and provides the value of confidence that
-    object belongs to inliers. The latter is used as a measure that object is in AD.
-    In this case, Random Forest Classifier implemented in scikit-learn library is used.
-    The method requires fitting of two hyperparameters: max_features and probability threshold P*.
-    If the object’s predicted probability of belonging to the inliers is greater than P*,
-    its prediction is considered reliable (within AD).
-    Other hyperparameters of Random Forest Classifier were set to defaults,
-    except number of decision trees in RF was set to 500.
+    Gaussian Process Regression (GPR) assumes that the joint distribution of a real-valued property of
+    chemical reactions and their descriptors is multivariate normal (Gaussian) with the elements of its covariance
+    matrix computed by means of special covariance functions (kernels). For every reaction,
+    a GPR model produces using the Bayes’ theorem a posterior conditional distribution (so-called prediction density)
+    of the reaction property given the vector of reaction descriptors.
+    The prediction density has normal (Gaussian) distribution with the mean corresponding to predicted value
+    of the property and the variance corresponding to prediction confidence [1].
+    If the variance is greater than a predefined threshold σ*, the chemical reaction is considered as
+    X-outlier (out of AD).
     """
-    def __init__(self, threshold='cv', score='ba_ad', reg_model=None, clf_model=None):
+    def __init__(self, threshold='cv', score='ba_ad', gpr_model=None):
         self.threshold = threshold
         self.score = score
-        self.reg_model = reg_model
-        self.clf_model = clf_model
+        self.gpr_model = gpr_model
         if threshold != 'cv' and not isinstance(threshold, float):
             raise ValueError('Invalid value for threshold. Allowed string value is "cv".')
         if score not in ('ba_ad', 'rmse_ad'):
@@ -53,13 +50,8 @@ class TwoClassClassifiers(BaseEstimator):
     def fit(self, X, y=None):
         """
         Model building and threshold searching
-        During training, a model is built and a probability threshold is found by which the object is considered to
+        During training, a model is built and a ariance threshold σ* is found by which the object is considered to
         belong to the applicability domain of the model.
-        For this reason, in fit method we pass the following parameters:
-        reg_model and clf_model. Reg_model is regression model, clf_model is classification model.
-
-        Parameters
-        ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)
             The input samples. Use ``dtype=np.float32`` for maximum
             efficiency.
@@ -76,22 +68,19 @@ class TwoClassClassifiers(BaseEstimator):
         # Check that X have correct shape
         X = check_array(X)
 
-        if self.reg_model is None:
-            reg_model = RandomForestRegressor(n_estimators=500, random_state=1)
+        self.scaler = StandardScaler()
+        y_gpr = self.scaler.fit_transform(y.reshape(-1, 1))
+
+        if self.gpr_model is None:
+            gpr_model = GaussianProcessRegressor(random_state=1)
         else:
-            reg_model = clone(self.reg_model)
-        if self.clf_model is None:
-            clf_model = RandomForestClassifier(n_estimators=500, random_state=1)
-        else:
-            clf_model = clone(self.clf_model)
+            gpr_model = clone(self.gpr_model)
 
         cv = KFold(n_splits=5, random_state=1, shuffle=True)
-        y_pred = cross_val_predict(reg_model, X, y, cv=cv)
-        y_clf = abs(y_pred - y) <= 3 * sqrt(mean_squared_error(y, y_pred))
-        self.AD_clf = clf_model.fit(X, y_clf)
+        self.AD_gpr = gpr_model.fit(X, y_gpr)
+
         if self.threshold == 'cv':
-            reg_model_int = clone(reg_model)
-            clf_model_int = clone(clf_model)
+            gpr_model_int = clone(gpr_model)
 
             self.threshold_value = 0
             score_value = 0
@@ -99,12 +88,14 @@ class TwoClassClassifiers(BaseEstimator):
             for train_index, test_index in cv.split(X):
                 x_train = safe_indexing(X, train_index)
                 x_test = safe_indexing(X, test_index)
-                y_train = safe_indexing(y, train_index)
-                y_test = safe_indexing(y, test_index)
-                y_train_clf = safe_indexing(y_clf, train_index)
-                Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
-                Y_true.append(y_test)
-                AD.append(clf_model_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])
+                y_train = safe_indexing(y_gpr, train_index)
+                y_test = safe_indexing(y_gpr, test_index)
+                gpr_model_int.fit(x_train, y_train)
+                y_pred, y_var = gpr_model_int.predict(x_test, return_std=True)
+
+                Y_pred.append(y_pred.flatten())
+                Y_true.append(y_test.flatten())
+                AD.append(y_var)
             AD_stack = hstack(AD)
             AD_ = unique(AD_stack)
             for z in AD_:
@@ -135,11 +126,14 @@ class TwoClassClassifiers(BaseEstimator):
         ad : array of shape = [n_samples]
             Array contains True (reaction in AD) and False (reaction residing outside AD).
         """
+    # Check is fit had been called
         # Check is fit had been called
-        check_is_fitted(self, ['AD_clf', 'threshold_value'])
+        check_is_fitted(self, ['AD_gpr', 'threshold_value'])
         # Check that X have correct shape
         X = check_array(X)
-        return self.AD_clf.predict_proba(X)[:, 0] <= self.threshold_value
+        Y_pred_GPR, Y_var = self.AD_gpr.predict(X, return_std=True)
+
+        return Y_var <= self.threshold_value
 
 
-__all__ = ['TwoClassClassifiers']
+__all__ = ['GPR_AD']
