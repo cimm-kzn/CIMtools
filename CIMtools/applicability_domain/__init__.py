@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
-#  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2019, 2020 Assima Rakhimbekova <asima.astana@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -22,6 +22,7 @@ from .leverage import *
 from .reaction_type_control import *
 from .two_class_classifier import *
 from .similarity_distance import *
+from .gpr import *
 
 
-__all__ = ['Box', 'Leverage', 'ReactionTypeControl', 'TwoClassClassifiers', 'SimilarityDistance']
+__all__ = ['Box', 'Leverage', 'ReactionTypeControl', 'TwoClassClassifiers', 'SimilarityDistance', 'GPR_AD']
