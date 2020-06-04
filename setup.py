@@ -22,7 +22,7 @@ from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.5'
+version = '4.0.6'
 
 platform = get_platform()
 if platform == 'win-amd64':
@@ -52,7 +52,7 @@ setup(
     python_requires='>=3.6.1',
     cmdclass={'bdist_wheel': _bdist_wheel},
     install_requires=['CGRtools[mrv]>=4.0,<4.1', 'pandas>=0.22.0,<0.26', 'scikit-learn>=0.20.1,<0.23',
-                      'requests>=2.21,<2.23', 'pyparsing>=2.2.0,<2.5'],
+                      'pyparsing>=2.2.0,<2.5', 'pyjnius>=1.3.0'],
     data_files=[('bin', fragmentor)],
     package_data={'CIMtools.preprocessing': ['rdtool.jar']},
     zip_safe=False,
@@ -65,6 +65,7 @@ setup(
                  'Programming Language :: Python :: 3 :: Only',
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',
+                 'Programming Language :: Python :: 3.8',
                  'Topic :: Scientific/Engineering',
                  'Topic :: Scientific/Engineering :: Chemistry',
                  'Topic :: Scientific/Engineering :: Information Analysis',

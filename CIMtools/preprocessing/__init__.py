@@ -22,7 +22,6 @@ from .equation import *
 from .fingerprint import *
 from .fragmentor import *
 from .graph_to_matrix import *
-from .mapping_chemaxon import *
 from .rdtool import *
 from .solvent import *
 from .standardize import *

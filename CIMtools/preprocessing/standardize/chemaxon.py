@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2020 Zarina Ibragimova <zarinaIbr12@yandex.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,107 +17,89 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.files import MRVRead, MRVWrite
+from CGRtools import MRVRead, MRVWrite, ReactionContainer
 from io import StringIO, BytesIO
-from os import close, getenv
 from pandas import DataFrame
 from pathlib import Path
-from requests import post
-from requests.exceptions import RequestException
-from subprocess import run, PIPE
-from tempfile import mkstemp
+from shutil import which
+from warnings import warn
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
 
 
-CHEMAXON_REST = getenv('CHEMAXON_REST')
-
-
 class StandardizeChemAxon(CIMtoolsTransformerMixin):
-    def __init__(self, rules, workpath='.'):
+    def __init__(self, rules):
         self.rules = rules
-        self.set_work_path(workpath)
+        self.__standardizer_obj = self.__standardizer(rules)
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__standardizer is None:  # load only once
+            from jnius_config import add_classpath
+            add_classpath(*jars)
+            from jnius import autoclass
+
+            cls.__standardizer = autoclass('chemaxon.standardizer.Standardizer')
+            cls.__importer = autoclass('chemaxon.formats.MolImporter')
+            cls.__exporter = autoclass('chemaxon.formats.MolExporter')
+        return super().__new__(cls)
 
     def __getstate__(self):
-        return {k: v for k, v in super().__getstate__().items()
-                if not k.startswith('_StandardizeChemAxon__') and k != 'workpath'}
+        return {'rules': self.rules}
 
     def __setstate__(self, state):
         super().__setstate__(state)
-        self.set_work_path('.')
-
-    def __del__(self):
-        self.delete_work_path()
+        self.__standardizer_obj = self.__standardizer(self.rules)
 
     def set_params(self, **params):
         if params:
             super().set_params(**params)
-            self.set_work_path(self.workpath)
+            self.__standardizer_obj = self.__standardizer(self.rules)
         return self
-
-    def set_work_path(self, workpath):
-        self.workpath = workpath
-        self.delete_work_path()
-
-        fd, fn = mkstemp(prefix='std_', suffix='.xml', dir=workpath)
-        self.__config = Path(fn)
-        with self.__config.open('w') as f:
-            f.write(self.rules)
-        close(fd)
-
-    def delete_work_path(self):
-        if self.__config is not None:
-            self.__config.unlink()
-            self.__config = None
 
     def transform(self, x):
         x = super().transform(x)
-        x = self.__processor_m(x) if x.size > 1 or not CHEMAXON_REST else self.__processor_s(x[0])
-        return DataFrame([[x] for x in x], columns=['standardized'])
-
-    def __processor_m(self, structures):
-        with StringIO() as f:
-            with MRVWrite(f) as w:
-                for s in structures:
+        out = []
+        for n, s in enumerate(x):
+            with StringIO() as f:
+                with MRVWrite(f) as w:
                     w.write(s)
-            tmp = f.getvalue().encode()
-        try:
-            p = run(['standardize', '-c', str(self.__config), '-f', 'mrv', '-g'], input=tmp, stdout=PIPE, stderr=PIPE)
-        except FileNotFoundError as e:
-            raise ConfigurationError from e
+                js = self.__importer.importMol(f.getvalue())
 
-        if p.returncode != 0:
-            raise ConfigurationError(p.stderr.decode())
+            try:
+                self.__standardizer_obj.standardize(js)
+            except Exception as e:
+                if 'Invalid standardizer action' in e.args[0]:
+                    raise ConfigurationError from e
+                warn(f'structure ({n}): {s} not processed')
+                raise ValueError from e
 
-        with BytesIO(p.stdout) as f, MRVRead(f, remap=False) as r:
-            res = r.read()
-            if len(res) != len(structures):
-                raise ValueError(f'invalid data. Number of standardized structures ({len(res)})'
-                                 f' less than given ({len(structures)})')
-            return res
+            mrv = self.__exporter.exportToFormat(js, 'mrv')
+            with BytesIO(mrv.encode()) as f, MRVRead(f, remap=False) as r:
+                p = r.read()
+                if not p:
+                    raise ValueError(f'structure ({n}): {s} export failed')
+            out.append(p)
+        return DataFrame(out, columns=['standardized'])
 
-    def __processor_s(self, structure):
-        with StringIO() as f:
-            with MRVWrite(f) as w:
-                w.write(structure)
-            data = {'structure': f.getvalue(), 'parameters': 'mrv',
-                    'filterChain': [{'filter': 'standardizer', 'parameters': {'standardizerDefinition': self.rules}}]}
-        try:
-            q = post(f'{CHEMAXON_REST}/rest-v0/util/calculate/molExport', json=data, timeout=20)
-        except RequestException as e:
-            raise ConfigurationError from e
-
-        if q.status_code not in (201, 200):
-            raise ValueError('invalid data')
-
-        res = q.json()
-        if not res:
-            raise ValueError('invalid data')
-
-        with BytesIO(res['structure'].encode()) as f, MRVRead(f, remap=False) as r:
-            return r.read()
-
-    __config = None
+    __standardizer = None
+    __importer = None
+    __exporter = None
 
 
-__all__ = ['StandardizeChemAxon']
+class MappingChemAxon(StandardizeChemAxon):
+    def __init__(self):
+        rules = '<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1"><Actions>' \
+                '<UnmapReaction ID="Unmap"/><MapReaction ID="Map Reaction" KeepMapping="false" ' \
+                'MappingStyle="COMPLETE" MarkBonds="false"/></Actions></StandardizerConfiguration>'
+        super().__init__(rules)
+
+    _dtype = ReactionContainer
+
+
+std = which('standardize')
+if std:
+    jars = [str(x) for x in (Path(std).resolve().parents[1] / 'lib').iterdir() if x.name.endswith('.jar')]
+    __all__ = ['StandardizeChemAxon', 'MappingChemAxon']
+else:
+    del StandardizeChemAxon, MappingChemAxon
+    __all__ = []

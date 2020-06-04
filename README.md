@@ -88,9 +88,11 @@ General part
 SETUP
 =====
 
-* add CHEMAXON_REST environment variable (optional)
+For ChemAxon standardizer used pyjnius. First of all install JDK (not JRE) OpenJDK or Oracle.
+Some times it can't to find java installation properly. Just set environment variables. 
 
-        export CHEMAXON_REST="url/to/webservices" [in BASH]
+    JAVA_HOME = '/path/to/dir/which/contain/bin/dir'. for example /usr/lib/jvm/java-11-openjdk-amd64
+    JVM_PATH = '/path/to/lib/server/libjvm.so'. For example '/usr/lib/jvm/java-11-openjdk-amd64/lib/server/libjvm.so' 
 
 PACKAGING
 =========
