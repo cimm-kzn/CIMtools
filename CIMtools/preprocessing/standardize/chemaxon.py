@@ -19,10 +19,10 @@
 #
 from CGRtools import MRVRead, MRVWrite, ReactionContainer
 from io import StringIO, BytesIO
+from logging import warning
 from pandas import DataFrame
 from pathlib import Path
 from shutil import which
-from warnings import warn
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
 
@@ -70,7 +70,7 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
             except Exception as e:
                 if 'Invalid standardizer action' in e.args[0]:
                     raise ConfigurationError from e
-                warn(f'structure ({n}): {s} not processed')
+                warning(f'structure ({n}): {s} not processed')
                 raise ValueError from e
 
             mrv = self.__exporter.exportToFormat(js, 'mrv')

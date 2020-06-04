@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,3 +18,12 @@
 #
 from .cgr import *
 from .chemaxon import *
+from .rdtool import *
+
+
+__all__ = ['StandardizeCGR', 'StandardizeReaction']
+if 'RDTool' in locals():
+    __all__.append('RDTool')
+if 'StandardizeChemAxon' in locals():
+    __all__.append('StandardizeChemAxon')
+    __all__.append('MappingChemAxon')
