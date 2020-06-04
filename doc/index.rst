@@ -1,25 +1,23 @@
-.. mdinclude:: ../README.md
-
-CIMtools package
-================
-
-.. automodule:: CIMtools
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. include:: ../README.rst
 
 Subpackages
------------
+===========
 
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 2
 
     applicability_domain
+    model_selection
+    metrics
+    datasets
+    preprocessing
+    standardize
 
 Tutorial
---------
+========
 
 .. toctree::
-    :maxdepth: 4
+    :maxdepth: 1
 
     tutorial/metric_constants
+    tutorial/applicability_domain.ipynb

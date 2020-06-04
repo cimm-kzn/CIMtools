@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -18,3 +18,6 @@
 #
 from .pairwise import *
 from .applicability_domain_metrics import *
+
+
+__all__ = ['balanced_accuracy_score_with_ad', 'rmse_score_with_ad', 'tanimoto_kernel']

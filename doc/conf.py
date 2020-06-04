@@ -11,7 +11,7 @@ version = '4.0'
 project = 'CIMtools'
 
 needs_sphinx = '1.8'
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'numpydoc', 'm2r']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'numpydoc', 'nbsphinx']
 
 
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
@@ -24,7 +24,7 @@ pygments_style = 'flasky'
 todo_include_todos = False
 autoclass_content = 'both'
 
-html_theme_options = {'github_user': 'stsouko', 'github_repo': 'CIMtools', 'show_related': True}
+html_theme_options = {'github_user': 'cimm_kzn', 'github_repo': 'CIMtools', 'show_related': True}
 html_show_copyright = True
 html_show_sourcelink = False
 html_sidebars = {
@@ -35,3 +35,5 @@ html_sidebars = {
         'searchbox.html',
     ]
 }
+
+nbsphinx_execute = 'never'

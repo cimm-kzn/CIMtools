@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,3 +17,6 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .molconvert_chemaxon import *
+
+
+__all__ = ['molconvert_chemaxon']

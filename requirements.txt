@@ -1,5 +1,0 @@
-wheel
-m2r
-Flask-Sphinx-Themes
-numpydoc
-git+https://github.com/cimm-kzn/CGRtools.git@master#egg=CGRtools[mrv]

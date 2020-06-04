@@ -20,6 +20,9 @@ import numpy as np
 
 
 def tanimoto_kernel(x, y):
+    """
+
+    """
     x_dot = np.dot(x, y.T)
 
     x2 = (x**2).sum(axis=1)

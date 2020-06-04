@@ -55,7 +55,7 @@ setup(
                       'pyparsing>=2.2.0,<2.5', 'pyjnius>=1.3.0'],
     data_files=[('bin', fragmentor), ('lib', ['RDtool/rdtool.jar'])],
     zip_safe=False,
-    long_description=(Path(__file__).parent / 'README.md').open().read(),
+    long_description=(Path(__file__).parent / 'README.rst').open().read(),
     classifiers=['Environment :: Plugins',
                  'Intended Audience :: Science/Research',
                  'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
@@ -70,5 +70,8 @@ setup(
                  'Topic :: Scientific/Engineering :: Information Analysis',
                  'Topic :: Software Development',
                  'Topic :: Software Development :: Libraries',
-                 'Topic :: Software Development :: Libraries :: Python Modules']
+                 'Topic :: Software Development :: Libraries :: Python Modules'],
+    command_options={'build_sphinx': {'source_dir': ('setup.py', 'doc'),
+                                      'build_dir':  ('setup.py', 'build/doc'),
+                                      'all_files': ('setup.py', True)}}
 )
