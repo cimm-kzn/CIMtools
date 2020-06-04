@@ -7,8 +7,7 @@ dependencies:
   - pip
   - pip:
     - wheel
-    - Flask-Sphinx-Themes
-    - numpydoc
+    - sphinx_rtd_theme
     - nbsphinx
     - git+https://github.com/cimm-kzn/CGRtools.git@master#egg=CGRtools[mrv]
     - .

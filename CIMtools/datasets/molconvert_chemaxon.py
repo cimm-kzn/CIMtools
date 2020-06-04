@@ -26,9 +26,17 @@ from ..utils import iter2array
 
 def molconvert_chemaxon(data):
     """
-    molconvert wrapper
-    :param data: buffer or string or path to file
-    :return: array of molecules of reactions
+    ChemAxon molconvert wrapper.
+
+    Parameters
+    ----------
+    data : Buffer or string or path to file
+        All supported by molconvert formats for chemical data storing.
+
+    Returns
+    -------
+    array : Array of molecules of reactions
+        CGRtools data types for Reactions and Molecules storing.
     """
     if isinstance(data, Path):
         with data.open('rb') as f:

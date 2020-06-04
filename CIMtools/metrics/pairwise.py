@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016-2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2016-2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -21,7 +21,24 @@ import numpy as np
 
 def tanimoto_kernel(x, y):
     """
+    Calculate Tanimoto between each elements of array x and y.
 
+    Parameters
+    ----------
+    x : 2D array
+        Array of features.
+
+    y : 2D array
+        Array of features.
+
+    Note
+    ----
+    Features in arrays x and y should be equal and in same order.
+
+    Returns
+    -------
+    array : 2D array
+        Pairwise Tanimoto coefficients.
     """
     x_dot = np.dot(x, y.T)
 
