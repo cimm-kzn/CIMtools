@@ -32,14 +32,15 @@ def balanced_accuracy_score_with_ad(Y_true, Y_pred, AD):
     as X-outliers, while false inliers (FI) are Y-outliers that are wrongly predicted by the AD definition
     as X-inliers. The quality of outliers/inliers determination can be assessed using an analogue
     of the balanced accuracy.
+
     Parameters
     ----------
-    Y_true: array-like, shape = [n_samples]
-            The target values (real numbers in regression).
-    Y_pred: array-like, shape = [n_samples]
-            The predicted values of Y_true.
-    AD: array-like, shape = [n_samples]
-        Array contains True (reaction in AD) and False (reaction residing outside AD).
+    Y_true : array-like, shape = [n_samples]
+             The target values (real numbers in regression).
+    Y_pred : array-like, shape = [n_samples]
+             The predicted values of Y_true.
+    AD : array-like, shape = [n_samples]
+         Array contains True (reaction in AD) and False (reaction residing outside AD).
 
     Returns
     -------
@@ -61,12 +62,13 @@ def rmse_score_with_ad(Y_true, Y_pred, AD):
 
     Parameters
     ----------
-    Y_true: array-like, shape = [n_samples]
-            The target values (real numbers in regression).
-    Y_pred: array-like, shape = [n_samples]
-            The predicted values of Y_true.
-    AD: array-like, shape = [n_samples]
-        Array contains True (reaction in AD) and False (reaction residing outside AD).
+    Y_true : array-like, shape = [n_samples]
+             The target values (real numbers in regression).
+    Y_pred : array-like, shape = [n_samples]
+             The predicted values of Y_true.
+    AD : array-like, shape = [n_samples]
+         Array contains True (reaction in AD) and False (reaction residing outside AD).
+
     Returns
     -------
     difference between RMSE of property prediction for reactions outside AD and within AD : float
