@@ -22,21 +22,19 @@ from sklearn.utils.validation import check_array, check_is_fitted
 
 
 class Box(BaseEstimator, ClassifierMixin):
-    """ This approach defines AD as a bounding block, which is an N-dimensional hypercube
+    """
+    This approach defines AD as a bounding block, which is an N-dimensional hypercube
     defined on the basis of the maximum and minimum values of each descriptor used to construct the model.
     If test compound is outside of hypercube it is outside of AD model.
     The method doesn’t have internal parameters, threshold.
-
-    Parameters
-    ----------
-    Bounding Box doesn't have parameters.
     """
 
     def __init__(self):
         pass
 
     def fit(self, X, y=None):
-        """Find min and max values of every feature.
+        """
+        Find min and max values of every feature.
 
         Parameters
         ----------
@@ -57,7 +55,8 @@ class Box(BaseEstimator, ClassifierMixin):
         return self
 
     def predict(self, X):
-        """ Predict if a particular sample is an outlier or not.
+        """
+        Predict if a particular sample is an outlier or not.
 
         Parameters
         ----------
@@ -69,8 +68,8 @@ class Box(BaseEstimator, ClassifierMixin):
         Returns
         -------
         is_inlier : array, shape (n_samples,)
-                   For each observations, tells whether or not (True or False) it should
-                   be considered as an inlier according to the fitted model.
+            For each observations, tells whether or not (True or False) it should
+            be considered as an inlier according to the fitted model.
         """
         # Check is fit had been called
         check_is_fitted(self, ['_x_min', '_x_max'])

@@ -22,7 +22,13 @@ from .equation import *
 from .fingerprint import *
 from .fragmentor import *
 from .graph_to_matrix import *
-from .mapping_chemaxon import *
-from .rdtool import *
 from .solvent import *
 from .standardize import *
+
+
+__all__ = ['Conditions', 'DictToConditions', 'ConditionsToDataFrame', 'SolventVectorizer', 'EquationTransformer',
+           'CGR', 'MoleculesToMatrix', 'CGRToMatrix']
+
+if 'Fragmentor' in locals():
+    __all__.append('Fragmentor')
+    __all__.append('FragmentorFingerprint')
