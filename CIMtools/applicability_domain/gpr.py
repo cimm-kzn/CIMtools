@@ -52,6 +52,9 @@ class GPR_AD(BaseEstimator):
         Model building and threshold searching
         During training, a model is built and a ariance threshold σ* is found by which the object is considered to
         belong to the applicability domain of the model.
+
+        Parameters
+        ----------
         X : array-like or sparse matrix, shape (n_samples, n_features)
             The input samples. Use ``dtype=np.float32`` for maximum
             efficiency.
