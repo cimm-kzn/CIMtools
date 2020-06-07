@@ -101,6 +101,7 @@ class MorganFPs(BaseEstimator, TransformerMixin):
 
         return list(identifier_sentences), list(alternating_sentence)
 
+#fingerprint
     def morgan(self, cgr, radius):
         active_bits = set()
         fingerprint = zeros(self.fingerprint_size)
