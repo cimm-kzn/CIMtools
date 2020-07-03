@@ -22,12 +22,13 @@ from .equation import *
 from .fingerprint import *
 from .fragmentor import *
 from .graph_to_matrix import *
+from .morgan import *
 from .solvent import *
 from .standardize import *
 
 
 __all__ = ['Conditions', 'DictToConditions', 'ConditionsToDataFrame', 'SolventVectorizer', 'EquationTransformer',
-           'CGR', 'MoleculesToMatrix', 'CGRToMatrix']
+           'CGR', 'MoleculesToMatrix', 'CGRToMatrix', 'MorganFingerprint']
 
 if 'Fragmentor' in locals():
     __all__.append('Fragmentor')
