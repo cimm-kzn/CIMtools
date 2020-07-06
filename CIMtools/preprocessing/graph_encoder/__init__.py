@@ -17,6 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from importlib.util import find_spec
 from os.path import dirname, join
 from sys import modules
 from ..graph_to_matrix import MoleculesToMatrix
@@ -67,4 +68,8 @@ class GNNFingerprint(CIMtoolsTransformerMixin):
     __encoder = None
 
 
-__all__ = ['GNNFingerprint']
+if find_spec('tensorflow'):
+    __all__ = ['GNNFingerprint']
+else:
+    del GNNFingerprint
+    __all__ = []
