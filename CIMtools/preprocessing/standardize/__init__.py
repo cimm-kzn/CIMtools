@@ -21,7 +21,7 @@ from .chemaxon import *
 from .rdtool import *
 
 
-__all__ = ['StandardizeCGR', 'StandardizeReaction']
+__all__ = ['StandardizeCGR']
 if 'RDTool' in locals():
     __all__.append('RDTool')
 if 'StandardizeChemAxon' in locals():
