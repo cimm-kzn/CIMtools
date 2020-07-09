@@ -61,7 +61,7 @@ General part
 
 * Install CGRtools library DEV version for features that are not well tested. Git lfs installation required <https://git-lfs.github.com/>::
 
-    pip install -U git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
+    pip install -U git+https://github.com/cimm-kzn/CIMtools.git@master#egg=CIMtools
 
 **If you still have questions, please open issue within github.**
 
