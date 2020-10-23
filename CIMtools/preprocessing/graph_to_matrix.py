@@ -42,24 +42,35 @@ class SlicedTuple(Sequence):
 class GraphToMatrix(CIMtoolsTransformerMixin):
     def transform(self, x):
         x = super().transform(x)
-
         size = max(len(g) for g in x)
         atoms = zeros((len(x), size, self._atom_vector_size), dtype=int)
-        bonds = zeros((len(x), size, size), dtype=int)
+        if self.adjacent:
+            bonds = zeros((len(x), size, size), dtype=int)
+        else:
+            ngb = max(len(b) for g in x for b in g._bonds.values())
+            bonds = zeros((len(x), size, ngb), dtype=int)
+            connections = zeros((len(x), size, ngb), dtype=int) - 1
 
         for i, g in enumerate(x):
             aam = {}
             for j, (n, a) in enumerate(g.atoms()):
                 aam[n] = j
                 atoms[i, j, :] = self._atom_vector(a)
-            for n, m, b in g.bonds():
-                bonds[i, aam[n], aam[m]] = bonds[i, aam[m], aam[n]] = int(b)
-        return SlicedTuple((atoms, bonds))
+            if self.adjacent:
+                for n, m, b in g.bonds():
+                    bonds[i, aam[n], aam[m]] = bonds[i, aam[m], aam[n]] = int(b)
+            else:
+                for n, mb in g._bonds.items():
+                    n = aam[n]
+                    for j, (m, b) in enumerate(mb.items()):
+                        bonds[i, n, j] = int(b)
+                        connections[i, n, j] = aam[m]
+        return SlicedTuple((atoms, bonds)) if self.adjacent else SlicedTuple((atoms, bonds, connections))
 
 
 class MoleculesToMatrix(GraphToMatrix):
     def __init__(self, charge=True, is_radical=False, isotope=False, hybridization=False, neighbors=False,
-                 implicit_hydrogens=False, total_hydrogens=False, in_ring=False):
+                 implicit_hydrogens=False, total_hydrogens=False, in_ring=False, adjacent=True):
         self.charge = charge
         self.is_radical = is_radical
         self.isotope = isotope
@@ -68,6 +79,7 @@ class MoleculesToMatrix(GraphToMatrix):
         self.implicit_hydrogens = implicit_hydrogens
         self.total_hydrogens = total_hydrogens
         self.in_ring = in_ring
+        self.adjacent = adjacent
 
     def _atom_vector(self, atom):
         vector = [atom.atomic_number]
@@ -115,13 +127,14 @@ class MoleculesToMatrix(GraphToMatrix):
 
 class CGRToMatrix(GraphToMatrix):
     def __init__(self, charge=True, is_radical=False, isotope=False, hybridization=False, neighbors=False,
-                 in_ring=False):
+                 in_ring=False, adjacent=True):
         self.charge = charge
         self.is_radical = is_radical
         self.isotope = isotope
         self.hybridization = hybridization
         self.neighbors = neighbors
         self.in_ring = in_ring
+        self.adjacent = adjacent
 
     def _atom_vector(self, atom):
         vector = [atom.atomic_number]
