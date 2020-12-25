@@ -23,7 +23,7 @@ from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.8'
+version = '4.0.9'
 
 
 class _bdist_wheel(bdist_wheel):
@@ -57,7 +57,7 @@ setup(
     author_email='nougmanoff@protonmail.com',
     python_requires='>=3.6.1',
     cmdclass={'bdist_wheel': _bdist_wheel, 'sdist': _sdist},
-    install_requires=['CGRtools[mrv]>=4.0,<4.1', 'pandas>=0.22', 'scikit-learn>=0.23',
+    install_requires=['CGRtools[mrv]>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
                       'pyparsing>=2.2', 'pyjnius>=1.3.0'],
     extras_require={'gnnfp': ['tensorflow>=2.2.0']},
     package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5']},

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -21,7 +22,7 @@ from sklearn.base import BaseEstimator, clone
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_val_predict, KFold
-from sklearn.utils import safe_indexing
+from sklearn.utils import _safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
@@ -97,11 +98,11 @@ class TwoClassClassifiers(BaseEstimator):
             score_value = 0
             Y_pred, Y_true, AD = [], [], []
             for train_index, test_index in cv.split(X):
-                x_train = safe_indexing(X, train_index)
-                x_test = safe_indexing(X, test_index)
-                y_train = safe_indexing(y, train_index)
-                y_test = safe_indexing(y, test_index)
-                y_train_clf = safe_indexing(y_clf, train_index)
+                x_train = _safe_indexing(X, train_index)
+                x_test = _safe_indexing(X, test_index)
+                y_train = _safe_indexing(y, train_index)
+                y_test = _safe_indexing(y, test_index)
+                y_train_clf = _safe_indexing(y_clf, train_index)
                 Y_pred.append(reg_model_int.fit(x_train, y_train).predict(x_test))
                 Y_true.append(y_test)
                 AD.append(clf_model_int.fit(x_train, y_train_clf).predict_proba(x_test)[:, 0])

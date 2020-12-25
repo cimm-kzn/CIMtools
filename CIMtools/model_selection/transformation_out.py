@@ -18,13 +18,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools import ReactionContainer
 from collections import defaultdict
 from logging import warning
 from numpy import array
 from random import random
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils import check_random_state
-from sklearn.utils.validation import indexable
+from sklearn.utils import check_random_state, indexable
+from ..utils import iter2array
 
 
 class TransformationOut(BaseCrossValidator):
@@ -97,8 +98,9 @@ class TransformationOut(BaseCrossValidator):
         test : ndarray
             The testing set indices for that split.
         """
-        X, y, groups = indexable(X, y, groups)
-        cgrs = [~r for r in X]
+        x = iter2array(X, dtype=ReactionContainer)
+        x, groups = indexable(x, groups)
+        cgrs = [~r for r in x]
 
         condition_structure = defaultdict(set)
 
