@@ -16,10 +16,31 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from io import TextIOWrapper
 from numpy import array
+from pkg_resources import resource_stream
 from sklearn.datasets.base import _convert_data_dataframe
 from sklearn.utils import Bunch
 from CGRtools import RDFRead
+
+
+def _load(file_name, caller_name, return_X_y=False, as_frame=False):
+    data = []
+    with TextIOWrapper(resource_stream('CIMtools.datasets', 'data/{}.rdf'.format(file_name))) as s, RDFRead(s) as f:
+        for r in f:
+            r.thiele()  # aromatizes benzene rings
+            data.append(r)
+    data = array(data)
+    target = array([float(x.meta['logK']) for x in data])
+    feature_names = [file_name + ' reactions', ]
+    target_names = ['logK', ]
+    frame = None
+    if as_frame:
+        frame, data, target = _convert_data_dataframe(caller_name=caller_name, data=data, target=target,
+                                                      feature_names=feature_names, target_names=target_names)
+    if return_X_y:
+        return data, target
+    return Bunch(data=data, target=target, frame=frame, target_names=target_names, feature_names=feature_names)
 
 
 def load_sn2(*, return_X_y=False, as_frame=False):
@@ -59,24 +80,18 @@ def load_sn2(*, return_X_y=False, as_frame=False):
             The data array.
         target : ndarray of shape (4830, )
             The regression target (logarithm of the reaction rate constant).
+        feature_names: list
+            The name of the dataset ('SN2 reactions').
+        target_names: list
+            The name of target (['logK']).
+        frame: DataFrame of shape (4830, 2)
+            Only present when `as_frame=True`. DataFrame with `data` and
+            `target`.
 
     (data, target) : tuple if ``return_X_y`` is True
     """
-    data = []
-    with RDFRead('SN2.rdf') as f:
-        for r in f:
-            r.canonicalize() # standardize dataset: (1) standardize functional groups;
-            # (2) leads to kekula formula for benzene rings; (3) removes hydrogens; (4) aromatizes benzene rings.
-            data.append(r)
-    data = array(data)
-    target = array([float(x.meta['logK']) for x in data])
-    if as_frame:
-        frame = None
-        frame, data, target = _convert_data_dataframe(caller_name="load_sn2", data=data, target=target,
-                                                      feature_names=['reaction', ], target_names=['target', ])
-    if return_X_y:
-        return data, target
-    return Bunch(data=data, target=target)
+    return _load('SN2', 'load_sn2', return_X_y, as_frame)
+
 
 def load_e2(*, return_X_y=False, as_frame=False):
     """Load and return bimolecular elimination (E2) reactions dataset (regression).
@@ -114,24 +129,18 @@ def load_e2(*, return_X_y=False, as_frame=False):
             The data array.
         target : ndarray of shape (1820, )
             The regression target (logarithm of the reaction rate constant).
+        feature_names: list
+            The name of the dataset (['E2 reactions']).
+        target_names: list
+            The name of target (['logK']).
+        frame: DataFrame of shape (1820, 2)
+            Only present when `as_frame=True`. DataFrame with `data` and
+            `target`.
 
     (data, target) : tuple if ``return_X_y`` is True
     """
-    data = []
-    with RDFRead('E2.rdf') as f:
-        for r in f:
-            r.canonicalize() # standardize dataset: (1) standardize functional groups;
-            # (2) leads to kekula formula for benzene rings; (3) removes hydrogens; (4) aromatizes benzene rings.
-            data.append(r)
-    data = array(data)
-    target = array([float(x.meta['logK']) for x in data])
-    if as_frame:
-        frame = None
-        frame, data, target = _convert_data_dataframe(caller_name="load_e2", data=data, target=target,
-                                                      feature_names=['reaction', ], target_names=['target', ])
-    if return_X_y:
-        return data, target
-    return Bunch(data=data, target=target)
+    return _load('E2', 'load_e2', return_X_y, as_frame)
+
 
 def load_da(*, return_X_y=False, as_frame=False):
     """Load and return Diels-Alder reactions (DA) reactions dataset (regression).
@@ -169,24 +178,17 @@ a pandas DataFrame or Series depending on the number of target columns.
             The data array.
         target : ndarray of shape (1866, )
             The regression target (logarithm of the reaction rate constant).
+        feature_names: list
+            The name of the dataset (['DA reactions']).
+        target_names: list
+            The name of target (['logK']).
+        frame: DataFrame of shape (1866, 2)
+            Only present when `as_frame=True`. DataFrame with `data` and
+            `target`.
 
     (data, target) : tuple if ``return_X_y`` is True
     """
-    data = []
-    with RDFRead('DA.rdf') as f:
-        for r in f:
-            r.canonicalize() # standardize dataset: (1) standardize functional groups;
-            # (2) leads to kekula formula for benzene rings; (3) removes hydrogens; (4) aromatizes benzene rings.
-            data.append(r)
-    data = array(data)
-    target = array([float(x.meta['logK']) for x in data])
-    if as_frame:
-        frame = None
-        frame, data, target = _convert_data_dataframe(caller_name="load_da", data=data, target=target,
-                                                      feature_names=['reaction', ], target_names=['target', ])
-    if return_X_y:
-        return data, target
-    return Bunch(data=data, target=target)
+    return _load('DA', 'load_da', return_X_y, as_frame)
 
 
 __all__ = ['load_sn2', 'load_e2', 'load_da']
