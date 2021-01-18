@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2016-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@ from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.9'
+version = '4.0.10'
 
 
 class _bdist_wheel(bdist_wheel):
@@ -60,7 +60,8 @@ setup(
     install_requires=['CGRtools[mrv]>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
                       'pyparsing>=2.2', 'pyjnius>=1.3.0'],
     extras_require={'gnnfp': ['tensorflow>=2.2.0']},
-    package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5']},
+    package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5'],
+                  'CIMtools.datasets': ['data/*.rdf']},
     data_files=[('lib', ['RDtool/rdtool.jar'])],
     zip_safe=False,
     long_description=(Path(__file__).parent / 'README.rst').open().read(),
@@ -81,6 +82,5 @@ setup(
                  'Topic :: Software Development :: Libraries :: Python Modules'],
     command_options={'build_sphinx': {'source_dir': ('setup.py', 'doc'),
                                       'build_dir':  ('setup.py', 'build/doc'),
-                                      'all_files': ('setup.py', True)}},
-    package_data={'CIMtools.datasets': 'data/*.rdf'},
+                                      'all_files': ('setup.py', True)}}
 )
