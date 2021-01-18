@@ -21,14 +21,19 @@ from .conditions_container import *
 from .equation import *
 from .fingerprint import *
 from .fragmentor import *
+from .graph_encoder import *
 from .graph_to_matrix import *
 from .solvent import *
 from .standardize import *
+from .standardize import __all__ as _standardize
 
 
 __all__ = ['Conditions', 'DictToConditions', 'ConditionsToDataFrame', 'SolventVectorizer', 'EquationTransformer',
            'CGR', 'MoleculesToMatrix', 'CGRToMatrix']
+__all__.extend(_standardize)
 
 if 'Fragmentor' in locals():
     __all__.append('Fragmentor')
     __all__.append('FragmentorFingerprint')
+if 'GNNFingerprint' in locals():
+    __all__.append('GNNFingerprint')

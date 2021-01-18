@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2021 Assima Rakhimbekova <asima.rakhimbekova@outlook.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,6 +18,6 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .molconvert_chemaxon import *
+from .reactions import *
 
-
-__all__ = ['molconvert_chemaxon']
+__all__ = ['molconvert_chemaxon', 'load_sn2', 'load_e2', 'load_da']

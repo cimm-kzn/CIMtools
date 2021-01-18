@@ -16,29 +16,35 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from distutils.command.sdist import sdist
 from distutils.util import get_platform
 from pathlib import Path
 from setuptools import setup, find_packages
 from wheel.bdist_wheel import bdist_wheel
 
 
-version = '4.0.6'
-
-platform = get_platform()
-if platform == 'win-amd64':
-    fragmentor = ['Fragmentor/fragmentor_win_2017.exe']
-elif platform == 'linux-x86_64':
-    fragmentor = ['Fragmentor/fragmentor_lin_2017']
-elif platform.startswith('macosx') and platform.endswith('x86_64'):
-    fragmentor = ['Fragmentor/fragmentor_mac_2017']
-else:
-    fragmentor = []
+version = '4.0.9'
 
 
 class _bdist_wheel(bdist_wheel):
     def finalize_options(self):
         super().finalize_options()
         self.root_is_pure = False
+        platform = get_platform()
+        if platform == 'win-amd64':
+            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_win_2017.exe']))
+        elif platform == 'linux-x86_64':
+            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_lin_2017']))
+        elif platform.startswith('macosx') and platform.endswith('x86_64'):
+            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_mac_2017']))
+
+
+class _sdist(sdist):
+    def finalize_options(self):
+        super().finalize_options()
+        self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_win_2017.exe',
+                                                     'Fragmentor/fragmentor_lin_2017',
+                                                     'Fragmentor/fragmentor_mac_2017']))
 
 
 setup(
@@ -50,10 +56,12 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='nougmanoff@protonmail.com',
     python_requires='>=3.6.1',
-    cmdclass={'bdist_wheel': _bdist_wheel},
-    install_requires=['CGRtools[mrv]>=4.0,<4.1', 'pandas>=0.22.0,<0.26', 'scikit-learn>=0.20.1,<0.23',
-                      'pyparsing>=2.2.0,<2.5', 'pyjnius>=1.3.0'],
-    data_files=[('bin', fragmentor), ('lib', ['RDtool/rdtool.jar'])],
+    cmdclass={'bdist_wheel': _bdist_wheel, 'sdist': _sdist},
+    install_requires=['CGRtools[mrv]>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
+                      'pyparsing>=2.2', 'pyjnius>=1.3.0'],
+    extras_require={'gnnfp': ['tensorflow>=2.2.0']},
+    package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5']},
+    data_files=[('lib', ['RDtool/rdtool.jar'])],
     zip_safe=False,
     long_description=(Path(__file__).parent / 'README.rst').open().read(),
     classifiers=['Environment :: Plugins',
@@ -73,5 +81,6 @@ setup(
                  'Topic :: Software Development :: Libraries :: Python Modules'],
     command_options={'build_sphinx': {'source_dir': ('setup.py', 'doc'),
                                       'build_dir':  ('setup.py', 'build/doc'),
-                                      'all_files': ('setup.py', True)}}
+                                      'all_files': ('setup.py', True)}},
+    package_data={'CIMtools.datasets': 'data/*.rdf'},
 )

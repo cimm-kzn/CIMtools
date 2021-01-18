@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2020 Assima Rakhimbekova <asima.astana@outlook.com>
+#  Copyright 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,12 +17,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from numpy import sqrt, hstack, unique
+from numpy import hstack, unique
 from sklearn.base import BaseEstimator, clone
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.utils import safe_indexing
+from sklearn.utils import _safe_indexing
 from sklearn.utils.validation import check_array, check_is_fitted
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
@@ -89,10 +90,10 @@ class GPR_AD(BaseEstimator):
             score_value = 0
             Y_pred, Y_true, AD = [], [], []
             for train_index, test_index in cv.split(X):
-                x_train = safe_indexing(X, train_index)
-                x_test = safe_indexing(X, test_index)
-                y_train = safe_indexing(y_gpr, train_index)
-                y_test = safe_indexing(y_gpr, test_index)
+                x_train = _safe_indexing(X, train_index)
+                x_test = _safe_indexing(X, test_index)
+                y_train = _safe_indexing(y_gpr, train_index)
+                y_test = _safe_indexing(y_gpr, test_index)
                 gpr_model_int.fit(x_train, y_train)
                 y_pred, y_var = gpr_model_int.predict(x_test, return_std=True)
 

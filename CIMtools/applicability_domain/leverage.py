@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2019 Assima Rakhimbekova <asima.astana@outlook.com>
-#  Copyright 2019 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2019, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@ from numpy import array, column_stack, eye, hstack, linalg, ones, unique
 from sklearn.base import BaseEstimator, clone, ClassifierMixin
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
-from sklearn.utils import safe_indexing
-from sklearn.utils.validation import check_array, check_is_fitted
+from sklearn.utils import _safe_indexing
+from sklearn.utils.validation import check_array, check_is_fitted, check_consistent_length
 from ..metrics.applicability_domain_metrics import balanced_accuracy_score_with_ad, rmse_score_with_ad
 
 
@@ -102,15 +102,17 @@ class Leverage(BaseEstimator, ClassifierMixin):
             if y is None:
                 raise ValueError("Y must be specified to find the optimal threshold.")
             y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
+            check_consistent_length(X, y)
+
             self.threshold_value = 0
             score_value = 0
             Y_pred, Y_true, AD = [], [], []
             cv = KFold(n_splits=5, random_state=1, shuffle=True)
             for train_index, test_index in cv.split(X):
-                x_train = safe_indexing(X, train_index)
-                x_test = safe_indexing(X, test_index)
-                y_train = safe_indexing(y, train_index)
-                y_test = safe_indexing(y, test_index)
+                x_train = _safe_indexing(X, train_index)
+                x_test = _safe_indexing(X, test_index)
+                y_train = _safe_indexing(y, train_index)
+                y_test = _safe_indexing(y, test_index)
                 if self.reg_model is None:
                     reg_model = RandomForestRegressor().fit(x_train, y_train)
                 else:

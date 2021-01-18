@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2018 Tagir Akhmetshin <tagirshin@gmail.com>
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -17,10 +17,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools import ReactionContainer
 from collections import defaultdict
 from numpy import array
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import indexable
+from sklearn.utils import indexable
+from ..utils import iter2array
 
 
 class LeaveOneGroupOut(BaseCrossValidator):
@@ -69,8 +71,9 @@ class LeaveOneGroupOut(BaseCrossValidator):
         test : ndarray
             The testing set indices for that split.
         """
-        X, y, groups = indexable(X, y, groups)
-        cgrs = [~r for r in X]
+        x = iter2array(X, dtype=ReactionContainer)
+        x, groups = indexable(x, groups)
+        cgrs = [~r for r in x]
 
         structure_condition = defaultdict(set)
 
