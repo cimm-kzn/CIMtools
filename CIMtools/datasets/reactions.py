@@ -19,7 +19,7 @@
 from io import TextIOWrapper
 from numpy import array
 from pkg_resources import resource_stream
-from sklearn.datasets.base import _convert_data_dataframe
+from sklearn.datasets._base import _convert_data_dataframe
 from sklearn.utils import Bunch
 from CGRtools import RDFRead
 
