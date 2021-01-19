@@ -21,3 +21,4 @@ Tutorial
 
     tutorial/metric_constants
     tutorial/applicability_domain.ipynb
+    tutorial/validation.ipynb

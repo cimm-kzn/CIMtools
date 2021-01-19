@@ -6,7 +6,7 @@ if parent not in path:
     path.insert(0, parent)
 
 author = 'Dr. Ramil Nugmanov'
-copyright = '2014-2020, Dr. Ramil Nugmanov <nougmanoff@protonmail.com>'
+copyright = '2014-2021, Dr. Ramil Nugmanov <nougmanoff@protonmail.com>'
 version = '4.0'
 project = 'CIMtools'
 
