@@ -81,15 +81,10 @@ For wheel generation just type next command in source root::
 
     python setup.py bdist_wheel
 
-On Linux additionally do repairing of package::
-
-    pip install auditwheel
-    auditwheel repair dist/CIMtools-<version>-<python_version>-linux_x86_64.whl
-
 COPYRIGHT
 =========
 
-2015-2020 Ramil Nugmanov <nougmanoff@protonmail.com> main developer   
+2015-2021 Ramil Nugmanov <nougmanoff@protonmail.com> main developer
 
 CONTRIBUTORS
 ============
