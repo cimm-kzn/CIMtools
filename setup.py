@@ -61,7 +61,7 @@ setup(
                       'pyparsing>=2.2', 'pyjnius>=1.3.0'],
     extras_require={'gnnfp': ['tensorflow>=2.2.0']},
     package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5'],
-                  'CIMtools.datasets': ['data/*.rdf']},
+                  'CIMtools.datasets': ['data/*.rdf', 'data/tautomer_database_release_3a.xlsx']},
     data_files=[('lib', ['RDtool/rdtool.jar'])],
     zip_safe=False,
     long_description=(Path(__file__).parent / 'README.rst').open().read(),

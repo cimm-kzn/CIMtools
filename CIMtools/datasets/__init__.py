@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018, 2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2021 Assima Rakhimbekova <asima.rakhimbekova@outlook.com>
 #  This file is part of CIMtools.
 #
@@ -18,6 +18,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .molconvert_chemaxon import *
+from .nicklaus_tautomers import *
 from .reactions import *
 
-__all__ = ['molconvert_chemaxon', 'load_sn2', 'load_e2', 'load_da']
+__all__ = ['molconvert_chemaxon', 'load_sn2', 'load_e2', 'load_da', 'load_nicklaus_tautomers']

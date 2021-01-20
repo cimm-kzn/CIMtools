@@ -16,12 +16,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from CGRtools import RDFRead
 from io import TextIOWrapper
 from numpy import array
 from pkg_resources import resource_stream
 from sklearn.datasets._base import _convert_data_dataframe
 from sklearn.utils import Bunch
-from CGRtools import RDFRead
 
 
 def _load(file_name, caller_name, return_X_y=False, as_frame=False):
