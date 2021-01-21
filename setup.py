@@ -18,25 +18,9 @@
 #
 from distutils.command.sdist import sdist
 from distutils.util import get_platform
+from importlib.util import find_spec
 from pathlib import Path
 from setuptools import setup, find_packages
-from wheel.bdist_wheel import bdist_wheel
-
-
-version = '4.0.10'
-
-
-class _bdist_wheel(bdist_wheel):
-    def finalize_options(self):
-        super().finalize_options()
-        self.root_is_pure = False
-        platform = get_platform()
-        if platform == 'win-amd64':
-            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_win_2017.exe']))
-        elif platform == 'linux-x86_64':
-            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_lin_2017']))
-        elif platform.startswith('macosx') and platform.endswith('x86_64'):
-            self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_mac_2017']))
 
 
 class _sdist(sdist):
@@ -47,17 +31,38 @@ class _sdist(sdist):
                                                      'Fragmentor/fragmentor_mac_2017']))
 
 
+cmd_class = {'sdist': _sdist}
+
+
+if find_spec('wheel'):
+    from wheel.bdist_wheel import bdist_wheel
+
+    class _bdist_wheel(bdist_wheel):
+        def finalize_options(self):
+            super().finalize_options()
+            self.root_is_pure = False
+            platform = get_platform()
+            if platform == 'win-amd64':
+                self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_win_2017.exe']))
+            elif platform == 'linux-x86_64':
+                self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_lin_2017']))
+            elif platform.startswith('macosx') and platform.endswith('x86_64'):
+                self.distribution.data_files.append(('bin', ['Fragmentor/fragmentor_mac_2017']))
+
+    cmd_class['bdist_wheel'] = _bdist_wheel
+
+
 setup(
     name='CIMtools',
-    version=version,
+    version='4.0.11',
     packages=find_packages(),
-    url='https://github.com/stsouko/CIMtools',
+    url='https://github.com/cimm-kzn/CIMtools',
     license='GPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='nougmanoff@protonmail.com',
     python_requires='>=3.6.1',
-    cmdclass={'bdist_wheel': _bdist_wheel, 'sdist': _sdist},
-    install_requires=['CGRtools[mrv]>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
+    cmdclass=cmd_class,
+    install_requires=['CGRtools>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
                       'pyparsing>=2.2', 'pyjnius>=1.3.0'],
     extras_require={'gnnfp': ['tensorflow>=2.2.0']},
     package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5'],

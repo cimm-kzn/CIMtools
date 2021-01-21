@@ -17,8 +17,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools import MRVRead, MRVWrite, ReactionContainer
-from io import StringIO, BytesIO
+from CGRtools import RDFRead, RDFWrite, ReactionContainer
+from io import StringIO
 from logging import warning
 from pandas import DataFrame
 from pathlib import Path
@@ -62,9 +62,9 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
         out = []
         for n, s in enumerate(x):
             with StringIO() as f:
-                with MRVWrite(f) as w:
+                with RDFWrite(f) as w:
                     w.write(s)
-                js = self.__importer.importMol(f.getvalue())
+                js = self.__importer.importMol(f.getvalue(), 'rdf')
 
             try:
                 self.__standardizer_obj.standardize(js)
@@ -76,8 +76,8 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
                     out.append([s])
                     continue
                 raise ValueError from e
-            mrv = self.__exporter.exportToFormat(js, 'mrv')
-            with BytesIO(mrv.encode()) as f, MRVRead(f, remap=False) as r:
+            rdf = self.__exporter.exportToFormat(js, 'rdf')
+            with StringIO(rdf) as f, RDFRead(f, remap=False) as r:
                 p = r.read()
                 if not p:
                     if self.__skip:

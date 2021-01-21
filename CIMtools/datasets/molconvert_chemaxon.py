@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRtools.files import MRVRead
+from CGRtools import RDFRead
 from io import StringIO, BytesIO
 from pathlib import Path
 from subprocess import run, PIPE
@@ -55,14 +55,14 @@ def molconvert_chemaxon(data):
         raise ValueError('invalid input')
 
     try:
-        p = run(['molconvert', '-g', 'mrv'], input=data, stdout=PIPE)
+        p = run(['molconvert', '-g', 'rdf'], input=data, stdout=PIPE)
     except FileNotFoundError as e:
         raise ConfigurationError from e
 
     if p.returncode != 0:
         raise ConfigurationError(p.stderr.decode())
 
-    with BytesIO(p.stdout) as f, MRVRead(f) as r:
+    with StringIO(p.stdout.decode()) as f, RDFRead(f) as r:
         return iter2array(r)
 
 
