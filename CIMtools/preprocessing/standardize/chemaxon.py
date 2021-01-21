@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2018-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2018-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2020 Zarina Ibragimova <zarinaIbr12@yandex.ru>
 #  This file is part of CIMtools.
 #
@@ -28,8 +28,9 @@ from ...exceptions import ConfigurationError
 
 
 class StandardizeChemAxon(CIMtoolsTransformerMixin):
-    def __init__(self, rules):
+    def __init__(self, rules, *, _skip_errors=False):
         self.rules = rules
+        self.__skip = _skip_errors
         self.__standardizer_obj = self.__standardizer(rules)
 
     def __new__(cls, *args, **kwargs):
@@ -70,13 +71,19 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
             except Exception as e:
                 if 'Invalid standardizer action' in e.args[0]:
                     raise ConfigurationError from e
-                warning(f'structure ({n}): {s} not processed')
+                if self.__skip:
+                    warning(f'structure ({n}): {s} not processed')
+                    out.append([s])
+                    continue
                 raise ValueError from e
-
             mrv = self.__exporter.exportToFormat(js, 'mrv')
             with BytesIO(mrv.encode()) as f, MRVRead(f, remap=False) as r:
                 p = r.read()
                 if not p:
+                    if self.__skip:
+                        warning(f'structure ({n}): {s} export failed')
+                        out.append([s])
+                        continue
                     raise ValueError(f'structure ({n}): {s} export failed')
             out.append(p)
         return DataFrame(out, columns=['standardized'])
@@ -87,11 +94,11 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
 
 
 class MappingChemAxon(StandardizeChemAxon):
-    def __init__(self):
+    def __init__(self, *, _skip_errors=False):
         rules = '<?xml version="1.0" encoding="UTF-8"?><StandardizerConfiguration Version="0.1"><Actions>' \
                 '<UnmapReaction ID="Unmap"/><MapReaction ID="Map Reaction" KeepMapping="false" ' \
                 'MappingStyle="COMPLETE" MarkBonds="false"/></Actions></StandardizerConfiguration>'
-        super().__init__(rules)
+        super().__init__(rules, _skip_errors=_skip_errors)
 
     _dtype = ReactionContainer
 
