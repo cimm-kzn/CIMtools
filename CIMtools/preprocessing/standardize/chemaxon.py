@@ -22,9 +22,24 @@ from io import StringIO
 from logging import warning
 from pandas import DataFrame
 from pathlib import Path
+from queue import Empty, Queue
 from shutil import which
+from threading import Thread
 from ...base import CIMtoolsTransformerMixin
 from ...exceptions import ConfigurationError
+
+
+class ExcThread(Thread):
+    def __init__(self, bucket, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bucket = bucket
+
+    def run(self):
+        try:
+            return super().run()
+        except Exception as e:
+            self.bucket.put(e)
+            raise
 
 
 class StandardizeChemAxon(CIMtoolsTransformerMixin):
@@ -35,8 +50,9 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
 
     def __new__(cls, *args, **kwargs):
         if cls.__standardizer is None:  # load only once
-            from jnius_config import add_classpath
+            from jnius_config import add_classpath, add_options
             add_classpath(*jars)
+            add_options('-Xms512M', '-Xmx2048M')
             from jnius import autoclass
 
             cls.__standardizer = autoclass('chemaxon.standardizer.Standardizer')
@@ -57,8 +73,10 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
             self.__standardizer_obj = self.__standardizer(self.rules)
         return self
 
-    def transform(self, x):
+    def transform(self, x, timeout=10):
         x = super().transform(x)
+
+        bucket = Queue()
         out = []
         for n, s in enumerate(x):
             with StringIO() as f:
@@ -67,7 +85,9 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
                 js = self.__importer.importMol(f.getvalue(), 'rdf')
 
             try:
-                self.__standardizer_obj.standardize(js)
+                thread = ExcThread(bucket, target=self.__standardizer_obj.standardize, args=(js, ), daemon=True)
+                thread.start()
+                thread.join(timeout)
             except Exception as e:
                 if 'Invalid standardizer action' in e.args[0]:
                     raise ConfigurationError from e
@@ -76,6 +96,18 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
                     out.append([s])
                     continue
                 raise ValueError from e
+            else:
+                try:
+                    e = bucket.get(block=False)
+                except Empty:
+                    pass
+                else:
+                    if self.__skip:
+                        warning(f'structure ({n}): {s} not processed due to: {e.args[0]}')
+                        out.append([s])
+                        continue
+                    raise ValueError from e
+
             rdf = self.__exporter.exportToFormat(js, 'rdf')
             with StringIO(rdf) as f, RDFRead(f, remap=False) as r:
                 p = r.read()
