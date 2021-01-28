@@ -52,7 +52,7 @@ def reaction_support(_class, module=None):
         def fit(self, x, y=None, **fit_params):
             return self.__run(False, x, y=y, **fit_params)
 
-        def transform(self, x, **kwargs):
+        def transform(self, x):
             return self.__run(True, x)
 
         def fit_transform(self, x, y=None, **fit_params):

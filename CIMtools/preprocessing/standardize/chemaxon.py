@@ -2,6 +2,7 @@
 #
 #  Copyright 2018-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  Copyright 2020 Zarina Ibragimova <zarinaIbr12@yandex.ru>
+#  Copyright 2021 Dinar Batyrshin <batyrshin-dinar@mail.ru>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -73,9 +74,8 @@ class StandardizeChemAxon(CIMtoolsTransformerMixin):
             self.__standardizer_obj = self.__standardizer(self.rules)
         return self
 
-    def transform(self, x, timeout=10):
+    def transform(self, x, *, timeout=10):
         x = super().transform(x)
-
         bucket = Queue()
         out = []
         for n, s in enumerate(x):
