@@ -3,6 +3,19 @@ CIMtools
 ChemoInformatics Modeling tools distributive.  
 Include ISIDA Fragmentor python wrapper and RDtool atom-to-atom mapper python wrapper.
 
+Documentation
+=============
+
+https://cimtools.readthedocs.io
+
+DataSets
+========
+CIMtools include datasets of reactional rate constants (SN2, E2, Diels-Alder) and tautomerism equilibriums (Nicklaus dataset).
+
+Has same API as sklearn. See tutorial for example.
+
+    from CIMtools.datasets import load_sn2, load_e2, load_da, load_nicklaus_tautomers
+
 
 INSTALL
 =======
