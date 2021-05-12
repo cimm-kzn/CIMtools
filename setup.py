@@ -54,7 +54,7 @@ if find_spec('wheel'):
 
 setup(
     name='CIMtools',
-    version='4.0.11',
+    version='4.0.12',
     packages=find_packages(),
     url='https://github.com/cimm-kzn/CIMtools',
     license='GPLv3',

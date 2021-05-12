@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2020 Ramil Nugmanov <nougmanoff@protonmail.com>
+#  Copyright 2015-2021 Ramil Nugmanov <nougmanoff@protonmail.com>
 #  This file is part of CIMtools.
 #
 #  CIMtools is free software; you can redistribute it and/or modify
@@ -95,6 +95,10 @@ class Fragmentor(BaseEstimator, TransformerMixin):
 
         if state.get('_Fragmentor__head_dump'):
             self.__load_header(state['_Fragmentor__head_dump'])
+        if self.__head_less:
+            self.header = False
+        else:
+            self.header = None
         self.set_work_path('.')
 
     def __del__(self):
