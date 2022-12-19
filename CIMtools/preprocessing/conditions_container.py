@@ -17,7 +17,10 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from collections import Mapping
+try:
+    from collections.abc import Mapping  # since python 3.10
+except ImportError:
+    from collections import Mapping
 from functools import partial
 from itertools import chain
 from operator import itemgetter
