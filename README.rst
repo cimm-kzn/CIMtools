@@ -97,11 +97,24 @@ For wheel generation just type next command in source root::
 COPYRIGHT
 =========
 
-2015-2021 Ramil Nugmanov <nougmanoff@protonmail.com> main developer
+2015-2021 Ramil Nugmanov nougmanoff@protonmail.com
+
+2021-2022 Timur Madzhidov tmadzhidov@gmail.com
+
+2022-2023 Timur Gimadiev timur.gimadiev@gmail.com
 
 CONTRIBUTORS
 ============
 
-* Assima Rakhimbekova <asima.astana@outlook.com>
-* Tagir Akhmetshin <tagirshin@gmail.com>
-* Zarina Ibragimova <zarinaIbr12@yandex.ru>
+* Ramil Nugmanov - main developer
+  nougmanoff@protonmail.com
+* Assima Rakhimbekova asima.astana@outlook.com
+* Tagir Akhmetshin tagirshin@gmail.com
+* Zarina Ibragimova zarinaIbr12@yandex.ru
+
+
+SUPERVISION
+------------
+  
+2015-2022 Timur Madzhidov
+tmadzhidov@gmail.com
