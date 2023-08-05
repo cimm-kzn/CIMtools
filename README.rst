@@ -115,6 +115,6 @@ CONTRIBUTORS
 
 SUPERVISION
 ------------
-  
-2015-2022 Timur Madzhidov
+
+Timur Madzhidov
 tmadzhidov@gmail.com
