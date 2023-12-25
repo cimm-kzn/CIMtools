@@ -30,7 +30,7 @@ def _load(file_name, caller_name, return_X_y=False, as_frame=False):
         for r in f:
             r.thiele()  # aromatizes benzene rings
             data.append(r)
-    data = array(data)
+    data = array(data, dtype=object)
     target = array([float(x.meta['logK']) for x in data])
     feature_names = [file_name + ' reactions', ]
     target_names = ['logK', ]

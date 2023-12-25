@@ -54,7 +54,7 @@ if find_spec('wheel'):
 
 setup(
     name='CIMtools',
-    version='4.0.13',
+    version='4.0.14',
     packages=find_packages(),
     url='https://github.com/cimm-kzn/CIMtools',
     license='GPLv3',
@@ -63,7 +63,7 @@ setup(
     python_requires='>=3.6.1',
     cmdclass=cmd_class,
     install_requires=['CGRtools>=4.0,<4.2', 'pandas>=0.22', 'scikit-learn>=0.24',
-                      'pyparsing>=2.2', 'pyjnius>=1.3.0'],
+                      'pyparsing>=2.2', 'pyjnius>=1.3.0', 'StructureFingerprint'],
     extras_require={'gnnfp': ['tensorflow>=2.2.0']},
     package_data={'CIMtools.preprocessing.graph_encoder': ['weights.h5'],
                   'CIMtools.datasets': ['data/*.rdf', 'data/tautomer_database_release_3a.xlsx']},
@@ -79,6 +79,10 @@ setup(
                  'Programming Language :: Python :: 3.6',
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',
+                 'Programming Language :: Python :: 3.9',
+                 'Programming Language :: Python :: 3.10',
+                 'Programming Language :: Python :: 3.11',
+                 'Programming Language :: Python :: 3.12',
                  'Topic :: Scientific/Engineering',
                  'Topic :: Scientific/Engineering :: Chemistry',
                  'Topic :: Scientific/Engineering :: Information Analysis',
@@ -86,6 +90,6 @@ setup(
                  'Topic :: Software Development :: Libraries',
                  'Topic :: Software Development :: Libraries :: Python Modules'],
     command_options={'build_sphinx': {'source_dir': ('setup.py', 'doc'),
-                                      'build_dir':  ('setup.py', 'build/doc'),
+                                      'build_dir': ('setup.py', 'build/doc'),
                                       'all_files': ('setup.py', True)}}
 )
