@@ -54,7 +54,7 @@ if find_spec('wheel'):
 
 setup(
     name='CIMtools',
-    version='4.0.14',
+    version='4.0.15',
     packages=find_packages(),
     url='https://github.com/cimm-kzn/CIMtools',
     license='GPLv3',
@@ -83,6 +83,7 @@ setup(
                  'Programming Language :: Python :: 3.10',
                  'Programming Language :: Python :: 3.11',
                  'Programming Language :: Python :: 3.12',
+                 'Programming Language :: Python :: 3.13',                 
                  'Topic :: Scientific/Engineering',
                  'Topic :: Scientific/Engineering :: Chemistry',
                  'Topic :: Scientific/Engineering :: Information Analysis',

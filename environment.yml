@@ -15,4 +15,5 @@ dependencies:
   - pip:
     - CGRtools
     - StructureFingerprint
+    - setuptools
     - .
