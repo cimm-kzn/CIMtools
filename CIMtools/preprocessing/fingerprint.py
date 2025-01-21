@@ -17,7 +17,10 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import MoleculeContainer, CGRContainer
-from numpy import zeros, bool8
+try:
+    from numpy import zeros, bool8
+except ImportError:
+    from numpy import zeros, bool_ as bool8
 from hashlib import md5
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, TransformerMixin
